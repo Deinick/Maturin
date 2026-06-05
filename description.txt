@@ -89,11 +89,25 @@ Streak tracking: longest streak, current streak, average skip days.
 Each task has: text, assigned date, status, rollover count, priority (1‑3).
 Daily rollover automatically moves pending tasks to the next day and increments rolloverCount.
 If rolloverCount >= 3 → suggestion to split the task.
-4.3 Project Ladder
+4.3 Projects
 
-A project contains a sequential list of milestones (ordered).
-Milestones are shown as a vertical “ladder” with progress bar.
-Next milestone cannot be completed until the previous one is done.
+A project is a structured goal of any length with an optional due date (recommended but not required).
+Projects are divided into Phases (e.g. Research, Planning, Backend, Frontend).
+Each Phase contains its own ordered list of Milestones.
+Milestones are sequential — next one cannot start until previous is completed.
+Milestones can be added manually by the user or suggested by the system (user must approve system suggestions).
+If a milestone is not completed on time, the system notices and suggests recalibrating the plan.
+A progress bar shows how far along the project is (completed milestones / total milestones).
+Later: estimated completion date based on current pace.
+UI vision: Duolingo-style vertical ladder — Project at the top, Phases as sections, Milestones as steps within each phase. Design to be figured out during frontend week.
+
+4.4 Long-Term Goals
+
+Similar structure to Projects but designed for longer planning horizons.
+Planning is done in 90-day cycles maximum — after 90 days the plan recalibrates.
+Beyond 90 days, only broad stages are planned (no detailed milestones until closer).
+Recalibration happens automatically when deadlines are missed or pace changes.
+Long-term goals can span beyond 90 days but are broken into 90-day planning windows.
 4.4 Deterministic Suggestion Engine (No AI)
 
 Split task suggestion – triggered by tasks with rolloverCount ≥ 3.

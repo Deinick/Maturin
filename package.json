@@ -4,8 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "tsc -p app/backend/tsconfig.json",
-    "dev": "tsx app/backend/src/index.ts",
+    "dev": "tsx app/backend/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -20,18 +19,16 @@
     "url": "https://github.com/Deinick/folder/issues"
   },
   "homepage": "https://github.com/Deinick/folder#readme",
-  "devDependencies": {
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.6",
-    "@types/node": "^25.9.1",
-    "prisma": "^6.0.0",
-    "tsx": "^4.22.3",
-    "typescript": "^6.0.3"
-  },
   "dependencies": {
-    "@prisma/client": "^6.0.0",
-    "cors": "^2.8.6",
+    "@prisma/client": "^6.19.3",
     "dotenv": "^17.4.2",
     "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.9.1",
+    "prisma": "^6.19.3",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
   }
 }

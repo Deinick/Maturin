@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  name          String
+  createdAt     DateTime       @default(now())
+  tasks         ShortTask[]
+  habits        Habit[]
+  projects      Project[]
+  longTermGoals LongTermGoal[]
+}
+
+model ShortTask {
+  id            String   @id @default(uuid())
+  userId        String
+  text          String
+  dateAssigned  String
+  status        String
+  completed     Boolean  @default(false)
+  rolloverCount Int      @default(0)
+  priority      Int      @default(1)
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Habit {
+  id        String     @id @default(uuid())
+  userId    String
+  name      String
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs      HabitLog[]
+}
+
+model HabitLog {
+  id      String @id @default(uuid())
+  habitId String
+  date    String
+  status  String
+  habit   Habit  @relation(fields: [habitId], references: [id], onDelete: Cascade)
+}
+
+model Project {
+  id            String   @id @default(uuid())
+  userId        String
+  title         String
+  description   String?
+  targetEndDate String?
+  completed     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phases        Phase[]
+}
+
+model Phase {
+  id         String      @id @default(uuid())
+  projectId  String
+  title      String
+  order      Int
+  completed  Boolean     @default(false)
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestones Milestone[]
+}
+
+model Milestone {
+  id          String     @id @default(uuid())
+  phaseId     String?
+  goalStageId String?
+  title       String
+  order       Int
+  completed   Boolean    @default(false)
+  dueDate     String?
+  phase       Phase?     @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  goalStage   GoalStage? @relation(fields: [goalStageId], references: [id], onDelete: Cascade)
+}
+
+model LongTermGoal {
+  id          String      @id @default(uuid())
+  userId      String
+  title       String
+  description String?
+  completed   Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stages      GoalStage[]
+}
+
+model GoalStage {
+  id           String       @id @default(uuid())
+  goalId       String
+  title        String
+  order        Int
+  durationDays Int
+  completed    Boolean      @default(false)
+  startDate    String?
+  goal         LongTermGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  milestones   Milestone[]
+}
