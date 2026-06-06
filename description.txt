@@ -101,13 +101,11 @@ A progress bar shows how far along the project is (completed milestones / total 
 Later: estimated completion date based on current pace.
 UI vision: Duolingo-style vertical ladder — Project at the top, Phases as sections, Milestones as steps within each phase. Design to be figured out during frontend week.
 
-4.4 Long-Term Goals
+4.4 Long-Term Goals [DEFERRED]
 
-Similar structure to Projects but designed for longer planning horizons.
-Planning is done in 90-day cycles maximum — after 90 days the plan recalibrates.
-Beyond 90 days, only broad stages are planned (no detailed milestones until closer).
-Recalibration happens automatically when deadlines are missed or pace changes.
-Long-term goals can span beyond 90 days but are broken into 90-day planning windows.
+Concept is on hold until core app is built. Similar structure to Projects but with 90-day planning cycles.
+Key question to answer later: is this different enough from Projects to warrant a separate feature, or just a project with a planning mode?
+Do not discard — revisit after frontend is complete.
 4.4 Deterministic Suggestion Engine (No AI)
 
 Split task suggestion – triggered by tasks with rolloverCount ≥ 3.
