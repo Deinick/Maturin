@@ -12,7 +12,7 @@ export async function getTasks(req: Request, res: Response): Promise<void>
         return;
     }
 
-    const tasks=await taskService.getTaskByDate(userId, date);
+    const tasks=await taskService.getTasks(userId, date);
     res.json(tasks);
 }
 
