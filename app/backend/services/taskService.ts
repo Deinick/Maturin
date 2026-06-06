@@ -1,6 +1,6 @@
 import prisma from '../lib/prisma';
 
-export async function getTaskByDate(userId: string,date: string)
+export async function getTasks(userId: string,date: string)
 {
     return prisma.shortTask.findMany({
         where: { userId, dateAssigned: date}, });
