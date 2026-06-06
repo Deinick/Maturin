@@ -19,20 +19,27 @@ export async function getTasks(req: Request, res: Response): Promise<void>
 export async function createTask(req: Request, res: Response): Promise<void>
 {
     const userId=req.headers['x-user-id'] as string;
-    const { text, dateAssigned, priority }=req.body;
+    const { text, dateAssigned, priority, description }=req.body;
     if(!userId || !text || !dateAssigned)
     {
         res.status(400).json({ error: 'userId, text and dateAssigned are required' });
         return;
     }
-    const task=await taskService.createTask(userId, { text, dateAssigned, priority });
+    const task=await taskService.createTask(userId, { text, dateAssigned, priority, description });
     res.status(201).json(task);
 }
 
 export async function updateTask(req: Request, res: Response): Promise<void>
 {
     const id=req.params['id'] as string;
-    const {status, completed}=req.body;
-    const task=await taskService.updateTask(id, { status, completed });
+    const {status, completed, text, priority, description}=req.body;
+    const task=await taskService.updateTask(id, { status, completed, text, priority, description });
     res.json(task);
+}
+
+export async function deleteTask(req: Request, res: Response): Promise<void>
+{
+    const id=req.params['id'] as string;
+    await taskService.deleteTask(id);
+    res.status(204).send();
 }

@@ -20,3 +20,26 @@ export async function logHabit(habitId: string, date: string, status: string)
         data: {habitId, date, status},
     });
 }
+
+export async function updateHabit(id: string, name: string)
+{
+    return prisma.habit.update({
+        where: {id},
+        data: {name},
+    });
+}
+
+export async function updateHabitLog(id: string, status: string)
+{
+    return prisma.habitLog.update({
+        where: {id},
+        data: {status},
+    });
+}
+
+export async function deleteHabit(id: string)
+{
+    return prisma.habit.delete({
+        where: {id},
+    });
+}

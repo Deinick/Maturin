@@ -39,3 +39,26 @@ export async function logHabit(req: Request, res: Response): Promise<void>
     res.status(201).json(log);
 }
 
+export async function updateHabit(req: Request, res: Response): Promise<void>
+{
+    const id=req.params['id'] as string;
+    const { name }=req.body;
+    const habit=await habitService.updateHabit(id, name);
+    res.json(habit);
+}
+
+export async function updateHabitLog(req: Request, res: Response): Promise<void>
+{
+    const id=req.params['id'] as string;
+    const { status }=req.body;
+    const log=await habitService.updateHabitLog(id, status);
+    res.json(log);
+}
+
+export async function deleteHabit(req: Request, res: Response): Promise<void>
+{
+    const id=req.params['id'] as string;
+    await habitService.deleteHabit(id);
+    res.status(204).send();
+}
+

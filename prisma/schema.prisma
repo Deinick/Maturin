@@ -23,6 +23,7 @@ model ShortTask {
   id            String   @id @default(uuid())
   userId        String
   text          String
+  description String?
   dateAssigned  String
   status        String
   completed     Boolean  @default(false)
@@ -66,6 +67,7 @@ model Phase {
   id         String      @id @default(uuid())
   projectId  String
   title      String
+  description String?
   order      Int
   completed  Boolean     @default(false)
   project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -77,6 +79,7 @@ model Milestone {
   phaseId     String?
   goalStageId String?
   title       String
+  description String?
   order       Int
   completed   Boolean    @default(false)
   dueDate     String?
