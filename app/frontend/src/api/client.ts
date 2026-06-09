@@ -2,7 +2,7 @@ import axios from 'axios';
 import type { Task, Habit, HabitLog, Project, Phase, Milestone, Suggestion } from '../types';
 
 const api=axios.create({
-    baseURL: 'http://localhost:3001/api',
+    baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3001/api',
     headers: { 'x-user-id': 'user-1'},
 });
 
