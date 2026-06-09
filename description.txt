@@ -240,6 +240,23 @@ Mobile app	Expo (React Native)	Reuse components, replace web‑specific APIs. 1�
 Authentication	JWT + bcrypt	Add registration/login, replace x-user-id. 3‑4 days.
 Push notifications	Web Push API / Expo Notifications	For rollover reminders.
 Data export	CSV/JSON download	Simple backend endpoint.
+Long-term goals	Custom feature	Deferred — revisit after frontend. May reuse Project model with a planning mode flag.
+
+9.1 AI Planning Assistant [DEFERRED — Post MVP]
+
+Vision: User types a goal in plain text (e.g. "I want to learn React in 2 months").
+AI generates a full project plan — phases and milestones — as a preview.
+User approves or rejects. If approved, the plan is inserted into the database using existing API endpoints.
+
+How it works:
+- New endpoint: POST /api/ai/suggest — accepts a text prompt
+- Sends prompt to Claude API (or similar LLM) with instructions to respond in JSON matching the project schema
+- Frontend shows the generated plan as a preview card
+- User clicks Approve → frontend calls existing createProject, createPhase, createMilestone endpoints
+- User clicks Reject → nothing is saved
+
+Key point: the backend API is already built. AI just generates the data that fills it.
+When to build: after frontend is complete and deployed. Requires Anthropic API key.
 10. Key Design Decisions & Why
 
 Decision	Why	Alternative (rejected)
