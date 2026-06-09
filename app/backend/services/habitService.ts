@@ -4,6 +4,7 @@ export async function getHabits(userId:string )
 {
     return prisma.habit.findMany({
         where: {userId, isActive: true},
+        include: { logs: true },
     });
 }
 
