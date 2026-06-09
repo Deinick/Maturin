@@ -2,9 +2,9 @@ import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import TasksPage from './pages/TasksPage';
 import HabitsPage from './pages/HabitsPage';
 import ProjectsPage from './pages/ProjectsPage';
+import SuggestionPanel from './components/SuggestionPanel';
 
-function App()
-{
+function App() {
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-gray-50">
@@ -14,13 +14,16 @@ function App()
           <NavLink to="/habits" className={({ isActive }) => isActive ? 'text-blue-600 font-medium' : 'text-gray-500 hover:text-gray-800'}>Habits</NavLink>
           <NavLink to="/projects" className={({ isActive }) => isActive ? 'text-blue-600 font-medium' : 'text-gray-500 hover:text-gray-800'}>Projects</NavLink>
         </nav>
-        <main className="p-6">
-          <Routes>
-            <Route path="/" element={<TasksPage />} />
-            <Route path="/habits" element={<HabitsPage />} />
-            <Route path="/projects" element={<ProjectsPage />} />
-          </Routes>
-        </main>
+        <div className="flex gap-6 p-6">
+          <main className="flex-1">
+            <Routes>
+              <Route path="/" element={<TasksPage />} />
+              <Route path="/habits" element={<HabitsPage />} />
+              <Route path="/projects" element={<ProjectsPage />} />
+            </Routes>
+          </main>
+          <SuggestionPanel />
+        </div>
       </div>
     </BrowserRouter>
   );

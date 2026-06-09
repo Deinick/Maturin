@@ -81,4 +81,6 @@ export const getProductivity = () =>
 
 // Suggestions
 export const getSuggestions = () =>
-  api.get<{ suggestions: Suggestion[] }>('/suggestions').then(r => r.data.suggestions);
+  api.get<Suggestion[] | { suggestions: Suggestion[] }>('/suggestions').then(r =>
+    Array.isArray(r.data) ? r.data : r.data.suggestions ?? []
+  );
