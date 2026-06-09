@@ -7,7 +7,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "outDir": "dist",
-    "rootDir": "app/backend"
+    "rootDir": "app"
   },
-  "include": ["app/backend"]
+  "include": ["app/backend", "app/generated"]
 }
