@@ -4,3 +4,4 @@ dist/
 prisma/dev.db
 app/generated/
 app/frontend/.env
+.vercel
