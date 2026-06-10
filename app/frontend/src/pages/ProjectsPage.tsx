@@ -5,6 +5,7 @@ import {
   getProjects, createProject, createPhase, createMilestone,
   updateMilestone, updatePhase, updateProject,
 } from '../api/client';
+import sleepingTurtle from '../assets/Turtles/0609 (1).png';
 
 type Step = 'project' | 'phases' | 'milestones';
 
@@ -132,14 +133,15 @@ export default function ProjectsPage() {
       </div>
 
       {projects.length === 0 ? (
-        <div className="text-center py-24">
-          <p className="text-5xl mb-4">◇</p>
-          <p className="text-gray-400 text-sm">No projects yet</p>
-          <button
-            onClick={() => setShowModal(true)}
-            className="mt-4 text-blue-500 text-sm hover:underline"
-          >
-            Create your first project →
+        <div className="flex flex-col items-center py-20 gap-4">
+          <img src={sleepingTurtle} alt="Resting turtle" className="turtle-img w-40 h-40 object-contain opacity-80" />
+          <div className="text-center">
+            <p className="serif text-xl font-semibold text-stone-700">No projects yet</p>
+            <p className="text-stone-400 text-sm mt-1">Break your big goals into phases and milestones — start with one.</p>
+          </div>
+          <button onClick={() => setShowModal(true)}
+            className="mt-2 px-5 py-2 bg-emerald-700 text-white text-sm font-medium rounded-xl hover:bg-emerald-800 transition-colors">
+            Create your first project
           </button>
         </div>
       ) : (

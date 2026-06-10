@@ -1,46 +1,64 @@
-import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
+import Background from './components/Background';
 import DashboardPage from './pages/DashboardPage';
 import TasksPage from './pages/TasksPage';
 import HabitsPage from './pages/HabitsPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
-import SuggestionPanel from './components/SuggestionPanel';
 
-function Layout() {
-  const location = useLocation();
-  const isProjectDetail = location.pathname.startsWith('/projects/');
+import navTurtle from './assets/Turtles/0609 (1)(4).png';
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200 px-6 py-4 flex gap-6">
-        <span className="font-bold text-gray-800 mr-4">Planner</span>
-        <NavLink to="/" end className={({ isActive }) => isActive ? 'text-blue-600 font-medium' : 'text-gray-500 hover:text-gray-800'}>Dashboard</NavLink>
-        <NavLink to="/tasks" className={({ isActive }) => isActive ? 'text-blue-600 font-medium' : 'text-gray-500 hover:text-gray-800'}>Tasks</NavLink>
-        <NavLink to="/habits" className={({ isActive }) => isActive ? 'text-blue-600 font-medium' : 'text-gray-500 hover:text-gray-800'}>Habits</NavLink>
-        <NavLink to="/projects" className={({ isActive }) => isActive ? 'text-blue-600 font-medium' : 'text-gray-500 hover:text-gray-800'}>Projects</NavLink>
-      </nav>
-      <div className="flex gap-6 p-6">
-        <main className="flex-1">
-          <Routes>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/tasks" element={<TasksPage />} />
-            <Route path="/habits" element={<HabitsPage />} />
-            <Route path="/projects" element={<ProjectsPage />} />
-            <Route path="/projects/:id" element={<ProjectDetailPage />} />
-          </Routes>
-        </main>
-        {!isProjectDetail && <SuggestionPanel />}
-      </div>
-    </div>
-  );
-}
+const NAV_LINKS = [
+  { to: '/',         label: 'Dashboard', end: true  },
+  { to: '/tasks',    label: 'Tasks',     end: false },
+  { to: '/habits',   label: 'Habits',    end: false },
+  { to: '/projects', label: 'Projects',  end: false },
+];
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
-      <Layout />
+      <Background />
+
+      {/* Nav */}
+      <nav className="sticky top-0 z-40 bg-[#EDE8DC]/80 backdrop-blur-md border-b border-[#D6CFC0]">
+        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
+          <NavLink to="/" className="flex items-center gap-2">
+            <img src={navTurtle} alt="Steadily" className="turtle-img w-10 h-10 object-contain" />
+            <span className="serif text-xl font-bold text-stone-800 tracking-tight">Steadily</span>
+          </NavLink>
+
+          <div className="flex items-center gap-1">
+            {NAV_LINKS.map(link => (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                end={link.end}
+                className={({ isActive }) =>
+                  `px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                    isActive
+                      ? 'bg-emerald-700 text-white shadow-sm'
+                      : 'text-stone-600 hover:bg-[#D6CFC0] hover:text-stone-800'
+                  }`
+                }
+              >
+                {link.label}
+              </NavLink>
+            ))}
+          </div>
+        </div>
+      </nav>
+
+      {/* Page */}
+      <main className="relative z-10 max-w-5xl mx-auto px-6 py-8">
+        <Routes>
+          <Route path="/"           element={<DashboardPage />} />
+          <Route path="/tasks"      element={<TasksPage />} />
+          <Route path="/habits"     element={<HabitsPage />} />
+          <Route path="/projects"   element={<ProjectsPage />} />
+          <Route path="/projects/:id" element={<ProjectDetailPage />} />
+        </Routes>
+      </main>
     </BrowserRouter>
   );
 }
-
-export default App;

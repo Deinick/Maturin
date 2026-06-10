@@ -1,1 +1,33 @@
 @import "tailwindcss";
+
+* { box-sizing: border-box; }
+
+body {
+  background-color: #EDE8DC;
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+h1, h2, h3, .serif {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+/* Makes black PNG backgrounds invisible on cream */
+.turtle-img {
+  mix-blend-mode: multiply;
+}
+
+/* Animated background layer */
+.bg-pattern {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* All page content sits above the pattern */
+#root > * {
+  position: relative;
+  z-index: 1;
+}

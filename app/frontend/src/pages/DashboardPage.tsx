@@ -3,17 +3,37 @@ import { useNavigate } from 'react-router-dom';
 import type { Task, Habit, Suggestion } from '../types';
 import { getTasks, getHabits, getProductivity, getSuggestions, runRollover } from '../api/client';
 
+import heroTurtle from '../assets/Turtles/0609 (1)(2).png';
+
 const TODAY = new Date().toISOString().split('T')[0];
-const DATE_LABEL = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+const HOUR = new Date().getHours();
+const GREETING = HOUR < 12 ? 'Good morning' : HOUR < 17 ? 'Good afternoon' : 'Good evening';
 
 interface Stats {
-  taskScore: number;
-  habitScore: number;
-  productivity: number;
-  totalTasks: number;
-  completedTasks: number;
-  totalHabitLogs: number;
-  completedHabitLogs: number;
+  taskScore: number; habitScore: number; productivity: number;
+  totalTasks: number; completedTasks: number;
+  totalHabitLogs: number; completedHabitLogs: number;
+}
+
+function Ring({ value, label, color }: { value: number; label: string; color: string }) {
+  const pct = Math.round(value * 100);
+  const r = 26; const circ = 2 * Math.PI * r;
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="relative w-16 h-16">
+        <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r={r} fill="none" stroke="#D6CFC0" strokeWidth="5" />
+          <circle cx="32" cy="32" r={r} fill="none" stroke={color} strokeWidth="5"
+            strokeDasharray={`${(pct / 100) * circ} ${circ}`} strokeLinecap="round"
+            className="transition-all duration-700" />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-xs font-bold text-stone-700">{pct}%</span>
+        </div>
+      </div>
+      <span className="text-xs text-stone-500 font-medium">{label}</span>
+    </div>
+  );
 }
 
 export default function DashboardPage() {
@@ -26,177 +46,120 @@ export default function DashboardPage() {
   const [rolloverResult, setRolloverResult] = useState<{ rolledOver: number; warnings: unknown[] } | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      getTasks(TODAY),
-      getHabits(),
-      getProductivity(),
-      getSuggestions(),
-    ]).then(([t, h, s, sg]) => {
-      setTasks(t);
-      setHabits(h);
-      setStats(s as Stats);
-      setSuggestions(sg);
-    });
+    Promise.all([getTasks(TODAY), getHabits(), getProductivity(), getSuggestions()])
+      .then(([t, h, s, sg]) => { setTasks(t); setHabits(h); setStats(s as Stats); setSuggestions(sg); });
   }, []);
 
   async function handleRollover() {
     const result = await runRollover();
-    setRolloverResult(result);
-    setRolloverDone(true);
+    setRolloverResult(result); setRolloverDone(true);
     getTasks(TODAY).then(setTasks);
   }
 
-  const activeTasks = tasks.filter(t => !t.completed);
-  const completedTasks = tasks.filter(t => t.completed);
-  const todayHabitLogs = habits.map(h => h.logs.find(l => l.date === TODAY));
-  const loggedToday = todayHabitLogs.filter(Boolean).length;
-
-  function ScoreRing({ value, label, color }: { value: number; label: string; color: string }) {
-    const pct = Math.round(value * 100);
-    const r = 28;
-    const circ = 2 * Math.PI * r;
-    const dash = (pct / 100) * circ;
-    return (
-      <div className="flex flex-col items-center gap-2">
-        <div className="relative w-20 h-20">
-          <svg className="w-20 h-20 -rotate-90" viewBox="0 0 72 72">
-            <circle cx="36" cy="36" r={r} fill="none" stroke="#f3f4f6" strokeWidth="6" />
-            <circle
-              cx="36" cy="36" r={r} fill="none"
-              stroke={color} strokeWidth="6"
-              strokeDasharray={`${dash} ${circ}`}
-              strokeLinecap="round"
-              className="transition-all duration-700"
-            />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-sm font-semibold text-gray-700">{pct}%</span>
-          </div>
-        </div>
-        <span className="text-xs text-gray-400">{label}</span>
-      </div>
-    );
-  }
+  const active = tasks.filter(t => !t.completed);
+  const completed = tasks.filter(t => t.completed);
+  const todayLogs = habits.map(h => h.logs.find(l => l.date === TODAY));
+  const loggedToday = todayLogs.filter(Boolean).length;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-light text-gray-800">Good morning</h1>
-        <p className="text-sm text-gray-400 mt-1">{DATE_LABEL}</p>
+    <div className="space-y-8">
+
+      {/* Hero */}
+      <div className="flex items-center gap-8">
+        <img src={heroTurtle} alt="Steadily mascot"
+          className="turtle-img w-36 h-36 object-contain shrink-0 drop-shadow-md" />
+        <div>
+          <h1 className="serif text-4xl font-bold text-stone-800">{GREETING}</h1>
+          <p className="text-stone-500 mt-1 text-sm">
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          </p>
+          {stats && (
+            <p className="text-stone-400 text-sm mt-2">
+              Overall productivity: <span className="text-emerald-700 font-semibold">{Math.round(stats.productivity * 100)}%</span> this month
+            </p>
+          )}
+        </div>
       </div>
 
-      {/* Stats row */}
+      {/* Stat rings */}
       {stats && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-5">Last 30 days</p>
-          <div className="flex justify-around">
-            <ScoreRing value={stats.taskScore} label="Tasks" color="#60a5fa" />
-            <ScoreRing value={stats.habitScore} label="Habits" color="#34d399" />
-            <ScoreRing value={stats.productivity} label="Overall" color="#a78bfa" />
-          </div>
-          <div className="grid grid-cols-2 gap-3 mt-5 pt-5 border-t border-gray-50">
+        <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-[#D6CFC0] shadow-sm px-6 py-5">
+          <p className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-5">Last 30 days</p>
+          <div className="flex items-center justify-around">
+            <Ring value={stats.taskScore}   label="Tasks"   color="#16a34a" />
+            <div className="w-px h-12 bg-stone-200" />
+            <Ring value={stats.habitScore}  label="Habits"  color="#f59e0b" />
+            <div className="w-px h-12 bg-stone-200" />
+            <Ring value={stats.productivity} label="Overall" color="#0ea5e9" />
+            <div className="w-px h-12 bg-stone-200" />
             <div className="text-center">
-              <p className="text-2xl font-light text-gray-800">{stats.completedTasks}<span className="text-sm text-gray-400">/{stats.totalTasks}</span></p>
-              <p className="text-xs text-gray-400 mt-0.5">Tasks completed</p>
+              <p className="text-2xl font-light text-stone-800 serif">{stats.completedTasks}<span className="text-sm text-stone-400">/{stats.totalTasks}</span></p>
+              <p className="text-xs text-stone-400 mt-1">Tasks done</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-light text-gray-800">{stats.completedHabitLogs}<span className="text-sm text-gray-400">/{stats.totalHabitLogs}</span></p>
-              <p className="text-xs text-gray-400 mt-0.5">Habits logged</p>
+              <p className="text-2xl font-light text-stone-800 serif">{stats.completedHabitLogs}<span className="text-sm text-stone-400">/{stats.totalHabitLogs}</span></p>
+              <p className="text-xs text-stone-400 mt-1">Habits logged</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Today's tasks snapshot */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5 cursor-pointer hover:border-blue-200 transition-colors" onClick={() => navigate('/tasks')}>
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-widest">Today's Tasks</p>
-          <span className="text-xs text-blue-400">View all →</span>
+      {/* 2x2 card grid */}
+      <div className="grid grid-cols-2 gap-4">
+
+        {/* Tasks card */}
+        <div onClick={() => navigate('/tasks')}
+          className="bg-white/80 backdrop-blur-sm rounded-3xl border-2 border-[#D6CFC0] hover:border-emerald-400 shadow-sm p-5 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 group">
+          <div className="text-3xl mb-3">✦</div>
+          <h2 className="serif text-lg font-bold text-stone-800 mb-1">Today's Tasks</h2>
+          <div className="w-full h-1.5 bg-stone-100 rounded-full mb-2">
+            <div className="h-1.5 bg-emerald-500 rounded-full transition-all"
+              style={{ width: tasks.length === 0 ? '0%' : `${Math.round((completed.length / tasks.length) * 100)}%` }} />
+          </div>
+          <p className="text-xs text-stone-400">
+            {active.length > 0 ? `${active.length} task${active.length !== 1 ? 's' : ''} remaining` : completed.length > 0 ? 'All done! 🎉' : 'No tasks yet'}
+          </p>
         </div>
-        {tasks.length === 0 ? (
-          <p className="text-sm text-gray-400 py-2">No tasks for today</p>
-        ) : (
-          <div className="space-y-2">
-            {activeTasks.slice(0, 4).map(task => (
-              <div key={task.id} className="flex items-center gap-3">
-                <div className="w-4 h-4 rounded-full border-2 border-gray-200 shrink-0" />
-                <span className="text-sm text-gray-700 truncate">{task.text}</span>
-                {task.rolloverCount > 0 && <span className="text-xs text-amber-400 shrink-0">↩{task.rolloverCount}</span>}
+
+        {/* Habits card */}
+        <div onClick={() => navigate('/habits')}
+          className="bg-white/80 backdrop-blur-sm rounded-3xl border-2 border-[#D6CFC0] hover:border-amber-400 shadow-sm p-5 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 group">
+          <div className="text-3xl mb-3">○</div>
+          <h2 className="serif text-lg font-bold text-stone-800 mb-1">Habits Today</h2>
+          <div className="w-full h-1.5 bg-stone-100 rounded-full mb-2">
+            <div className="h-1.5 bg-amber-400 rounded-full transition-all"
+              style={{ width: habits.length === 0 ? '0%' : `${Math.round((loggedToday / habits.length) * 100)}%` }} />
+          </div>
+          <p className="text-xs text-stone-400">
+            {habits.length === 0 ? 'No habits yet' : `${loggedToday} of ${habits.length} logged`}
+          </p>
+        </div>
+
+        {/* Suggestions card */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-3xl border-2 border-[#D6CFC0] shadow-sm p-5 transition-all">
+          <div className="text-3xl mb-3">💡</div>
+          <h2 className="serif text-lg font-bold text-stone-800 mb-2">Suggestions</h2>
+          {suggestions.length === 0
+            ? <p className="text-xs text-stone-400">All looking good!</p>
+            : <div className="space-y-1.5">
+                {suggestions.slice(0, 2).map((s, i) => (
+                  <p key={i} className="text-xs text-stone-500 leading-relaxed">{s.message}</p>
+                ))}
+                {suggestions.length > 2 && <p className="text-xs text-amber-500">+{suggestions.length - 2} more</p>}
               </div>
-            ))}
-            {completedTasks.length > 0 && (
-              <p className="text-xs text-gray-400 pt-1">{completedTasks.length} completed ✓</p>
-            )}
-            {activeTasks.length > 4 && (
-              <p className="text-xs text-gray-400">+{activeTasks.length - 4} more</p>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Habits today */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5 cursor-pointer hover:border-blue-200 transition-colors" onClick={() => navigate('/habits')}>
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-widest">Habits Today</p>
-          <span className="text-xs text-blue-400">View all →</span>
+          }
         </div>
-        {habits.length === 0 ? (
-          <p className="text-sm text-gray-400 py-2">No habits yet</p>
-        ) : (
-          <div className="flex items-center gap-4">
-            <div className="flex gap-2 flex-wrap flex-1">
-              {habits.map((habit, i) => {
-                const log = todayHabitLogs[i];
-                return (
-                  <div key={habit.id} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs ${log?.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : log?.status === 'skipped' ? 'bg-red-50 text-red-400' : 'bg-gray-100 text-gray-400'}`}>
-                    <span>{log?.status === 'completed' ? '✓' : log?.status === 'skipped' ? '✕' : '○'}</span>
-                    <span>{habit.name}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <span className="text-sm text-gray-400 shrink-0">{loggedToday}/{habits.length}</span>
-          </div>
-        )}
-      </div>
 
-      {/* Suggestions */}
-      {suggestions.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-4">Suggestions</p>
-          <div className="space-y-3">
-            {suggestions.map((s, i) => (
-              <div key={i} className="flex items-start gap-3 bg-amber-50 rounded-xl px-4 py-3">
-                <span className="text-amber-400 mt-0.5 shrink-0">💡</span>
-                <p className="text-sm text-gray-600">{s.message}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Rollover */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-widest">Daily Rollover</p>
-            <p className="text-xs text-gray-400 mt-1">Move yesterday's pending tasks to today</p>
-          </div>
-          <button
-            onClick={handleRollover}
-            disabled={rolloverDone}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${rolloverDone ? 'bg-gray-100 text-gray-400 cursor-default' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
-          >
-            {rolloverDone ? 'Done ✓' : 'Run Rollover'}
+        {/* Rollover card */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-3xl border-2 border-[#D6CFC0] shadow-sm p-5 transition-all">
+          <div className="text-3xl mb-3">↩</div>
+          <h2 className="serif text-lg font-bold text-stone-800 mb-1">Daily Rollover</h2>
+          <p className="text-xs text-stone-400 mb-3">Move yesterday's pending tasks to today</p>
+          <button onClick={handleRollover} disabled={rolloverDone}
+            className={`w-full py-2 rounded-xl text-sm font-medium transition-colors ${rolloverDone ? 'bg-stone-100 text-stone-400 cursor-default' : 'bg-emerald-700 text-white hover:bg-emerald-800'}`}>
+            {rolloverDone ? `Done — ${rolloverResult?.rolledOver ?? 0} moved` : 'Run Rollover'}
           </button>
         </div>
-        {rolloverResult && (
-          <p className="text-xs text-gray-400 mt-3">
-            {rolloverResult.rolledOver} task{rolloverResult.rolledOver !== 1 ? 's' : ''} rolled over
-            {rolloverResult.warnings.length > 0 && ` · ${rolloverResult.warnings.length} warning${rolloverResult.warnings.length !== 1 ? 's' : ''}`}
-          </p>
-        )}
       </div>
     </div>
   );
