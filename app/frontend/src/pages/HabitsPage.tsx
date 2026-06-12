@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { Habit, HabitLog } from '../types';
 import { getHabits, createHabit, logHabit, updateHabitLog, deleteHabit } from '../api/client';
+import HabitRecordModal from '../components/HabitRecordModal';
+import { localDate } from '../utils/date';
 import sleepingTurtle from '../assets/Turtles/0609 (1).png';
 
-const TODAY = new Date().toISOString().split('T')[0];
+const TODAY = localDate();
 
 // Current week Mon–Sun
 function getCurrentWeekDays(): string[] {
@@ -55,6 +57,7 @@ function getStreak(habit: Habit): number {
 export default function HabitsPage() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [showRecord, setShowRecord] = useState(false);
   const [newName, setNewName] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
@@ -99,10 +102,16 @@ export default function HabitsPage() {
           <h1 className="text-3xl font-semibold text-stone-800">Habits</h1>
           <p className="text-sm text-stone-400 mt-1">This week</p>
         </div>
-        <button onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-full text-sm font-medium shadow-sm transition-colors">
-          + Add Habit
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowRecord(true)}
+            className="flex items-center gap-2 border border-stone-200 hover:border-stone-300 text-stone-600 hover:text-stone-800 px-4 py-2.5 rounded-full text-sm font-medium transition-colors">
+            📊 Full Record
+          </button>
+          <button onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-full text-sm font-medium shadow-sm transition-colors">
+            + Add Habit
+          </button>
+        </div>
       </div>
 
       {habits.length === 0 ? (
@@ -227,6 +236,11 @@ export default function HabitsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Full Record Modal */}
+      {showRecord && (
+        <HabitRecordModal habits={habits} onClose={() => setShowRecord(false)} />
       )}
 
       {/* Delete Modal */}

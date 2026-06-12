@@ -15,6 +15,7 @@ export interface Habit {
   userId: string;
   name: string;
   isActive: boolean;
+  createdAt: string;
   logs: HabitLog[];
 }
 

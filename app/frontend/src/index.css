@@ -12,12 +12,10 @@ h1, h2, h3, .serif {
   font-family: 'Playfair Display', Georgia, serif;
 }
 
-/* Makes black PNG backgrounds invisible on cream */
 .turtle-img {
   mix-blend-mode: multiply;
 }
 
-/* Animated background layer */
 .bg-pattern {
   position: fixed;
   inset: 0;
@@ -26,8 +24,20 @@ h1, h2, h3, .serif {
   overflow: hidden;
 }
 
-/* All page content sits above the pattern */
 #root > * {
   position: relative;
   z-index: 1;
 }
+
+@keyframes bubble-in {
+  0%   { transform: translateX(-50%) translateY(-100%) scale(0.3); opacity: 0; }
+  60%  { transform: translateX(-50%) translateY(-100%) scale(1.1); opacity: 1; }
+  100% { transform: translateX(-50%) translateY(-100%) scale(1);   opacity: 1; }
+}
+@keyframes bubble-out {
+  0%   { transform: translateX(-50%) translateY(-100%) scale(1);   opacity: 1; }
+  40%  { transform: translateX(-50%) translateY(-100%) scale(1.25); opacity: 1; }
+  100% { transform: translateX(-50%) translateY(-100%) scale(0);   opacity: 0; }
+}
+.bubble-in  { animation: bubble-in  180ms cubic-bezier(.34,1.56,.64,1) forwards; }
+.bubble-out { animation: bubble-out 160ms ease-in forwards; }
