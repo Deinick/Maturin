@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Task, Habit, Suggestion } from '../types';
-import { getTasks, getHabits, getProductivity, getSuggestions, runRollover } from '../api/client';
+import { getTasks, getHabits, getProductivity, getSuggestions } from '../api/client';
 
 import heroTurtle from '../assets/Turtles/0609 (1)(2).png';
 
@@ -42,19 +42,11 @@ export default function DashboardPage() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [rolloverDone, setRolloverDone] = useState(false);
-  const [rolloverResult, setRolloverResult] = useState<{ rolledOver: number; warnings: unknown[] } | null>(null);
 
   useEffect(() => {
     Promise.all([getTasks(TODAY), getHabits(), getProductivity(), getSuggestions()])
       .then(([t, h, s, sg]) => { setTasks(t); setHabits(h); setStats(s as Stats); setSuggestions(sg); });
   }, []);
-
-  async function handleRollover() {
-    const result = await runRollover();
-    setRolloverResult(result); setRolloverDone(true);
-    getTasks(TODAY).then(setTasks);
-  }
 
   const active = tasks.filter(t => !t.completed);
   const completed = tasks.filter(t => t.completed);
@@ -86,9 +78,9 @@ export default function DashboardPage() {
         <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-[#D6CFC0] shadow-sm px-6 py-5">
           <p className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-5">Last 30 days</p>
           <div className="flex items-center justify-around">
-            <Ring value={stats.taskScore}   label="Tasks"   color="#16a34a" />
+            <Ring value={stats.taskScore}    label="Tasks"   color="#16a34a" />
             <div className="w-px h-12 bg-stone-200" />
-            <Ring value={stats.habitScore}  label="Habits"  color="#f59e0b" />
+            <Ring value={stats.habitScore}   label="Habits"  color="#f59e0b" />
             <div className="w-px h-12 bg-stone-200" />
             <Ring value={stats.productivity} label="Overall" color="#0ea5e9" />
             <div className="w-px h-12 bg-stone-200" />
@@ -104,12 +96,12 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* 2x2 card grid */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* 3-card grid */}
+      <div className="grid grid-cols-3 gap-4">
 
         {/* Tasks card */}
         <div onClick={() => navigate('/tasks')}
-          className="bg-white/80 backdrop-blur-sm rounded-3xl border-2 border-[#D6CFC0] hover:border-emerald-400 shadow-sm p-5 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 group">
+          className="bg-white/80 backdrop-blur-sm rounded-3xl border-2 border-[#D6CFC0] hover:border-emerald-400 shadow-sm p-5 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5">
           <div className="text-3xl mb-3">✦</div>
           <h2 className="serif text-lg font-bold text-stone-800 mb-1">Today's Tasks</h2>
           <div className="w-full h-1.5 bg-stone-100 rounded-full mb-2">
@@ -123,7 +115,7 @@ export default function DashboardPage() {
 
         {/* Habits card */}
         <div onClick={() => navigate('/habits')}
-          className="bg-white/80 backdrop-blur-sm rounded-3xl border-2 border-[#D6CFC0] hover:border-amber-400 shadow-sm p-5 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 group">
+          className="bg-white/80 backdrop-blur-sm rounded-3xl border-2 border-[#D6CFC0] hover:border-amber-400 shadow-sm p-5 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5">
           <div className="text-3xl mb-3">○</div>
           <h2 className="serif text-lg font-bold text-stone-800 mb-1">Habits Today</h2>
           <div className="w-full h-1.5 bg-stone-100 rounded-full mb-2">
@@ -136,7 +128,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Suggestions card */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-3xl border-2 border-[#D6CFC0] shadow-sm p-5 transition-all">
+        <div onClick={() => navigate('/projects')}
+          className="bg-white/80 backdrop-blur-sm rounded-3xl border-2 border-[#D6CFC0] hover:border-blue-300 shadow-sm p-5 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5">
           <div className="text-3xl mb-3">💡</div>
           <h2 className="serif text-lg font-bold text-stone-800 mb-2">Suggestions</h2>
           {suggestions.length === 0
@@ -150,16 +143,6 @@ export default function DashboardPage() {
           }
         </div>
 
-        {/* Rollover card */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-3xl border-2 border-[#D6CFC0] shadow-sm p-5 transition-all">
-          <div className="text-3xl mb-3">↩</div>
-          <h2 className="serif text-lg font-bold text-stone-800 mb-1">Daily Rollover</h2>
-          <p className="text-xs text-stone-400 mb-3">Move yesterday's pending tasks to today</p>
-          <button onClick={handleRollover} disabled={rolloverDone}
-            className={`w-full py-2 rounded-xl text-sm font-medium transition-colors ${rolloverDone ? 'bg-stone-100 text-stone-400 cursor-default' : 'bg-emerald-700 text-white hover:bg-emerald-800'}`}>
-            {rolloverDone ? `Done — ${rolloverResult?.rolledOver ?? 0} moved` : 'Run Rollover'}
-          </button>
-        </div>
       </div>
     </div>
   );

@@ -3,22 +3,54 @@ import type { Habit, HabitLog } from '../types';
 import { getHabits, createHabit, logHabit, updateHabitLog, deleteHabit } from '../api/client';
 import sleepingTurtle from '../assets/Turtles/0609 (1).png';
 
-const DAYS = 7;
+const TODAY = new Date().toISOString().split('T')[0];
 
-function getLast7Days(): string[] {
-  return Array.from({ length: DAYS }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (DAYS - 1 - i));
+// Current week Mon–Sun
+function getCurrentWeekDays(): string[] {
+  const today = new Date();
+  const dow = today.getDay(); // 0=Sun … 6=Sat
+  const daysFromMon = dow === 0 ? 6 : dow - 1;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - daysFromMon);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
     return d.toISOString().split('T')[0];
   });
 }
 
-function formatDay(dateStr: string): string {
+function colHeader(dateStr: string) {
   const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  return {
+    weekday: d.toLocaleDateString('en-US', { weekday: 'short' }),
+    date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+  };
 }
 
-const TODAY = new Date().toISOString().split('T')[0];
+function getLog(habit: Habit, date: string): HabitLog | undefined {
+  return habit.logs.find(l => l.date === date);
+}
+
+// Count consecutive completed days ending at today (or yesterday if today not done yet).
+function getStreak(habit: Habit): number {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayDone = habit.logs.find(l => l.date === todayStr)?.status === 'completed';
+
+  let streak = 0;
+  const d = new Date();
+  if (!todayDone) d.setDate(d.getDate() - 1);
+
+  for (let i = 0; i < 365; i++) {
+    const ds = d.toISOString().split('T')[0];
+    if (habit.logs.find(l => l.date === ds)?.status === 'completed') {
+      streak++;
+      d.setDate(d.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
 
 export default function HabitsPage() {
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -26,7 +58,7 @@ export default function HabitsPage() {
   const [newName, setNewName] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-  const days = getLast7Days();
+  const days = getCurrentWeekDays();
 
   useEffect(() => { getHabits().then(setHabits); }, []);
 
@@ -40,13 +72,17 @@ export default function HabitsPage() {
 
   async function handleCircleClick(habit: Habit, date: string) {
     if (date !== TODAY) return;
-    const existingLog = habit.logs.find(l => l.date === date);
-    if (existingLog) {
-      const updated = await updateHabitLog(existingLog.id, existingLog.status === 'completed' ? 'skipped' : 'completed');
-      setHabits(prev => prev.map(h => h.id === habit.id ? { ...h, logs: h.logs.map(l => l.id === updated.id ? updated : l) } : h));
+    const existing = getLog(habit, date);
+    if (existing) {
+      const updated = await updateHabitLog(existing.id, existing.status === 'completed' ? 'skipped' : 'completed');
+      setHabits(prev => prev.map(h => h.id === habit.id
+        ? { ...h, logs: h.logs.map(l => l.id === updated.id ? updated : l) }
+        : h));
     } else {
       const newLog = await logHabit(habit.id, date, 'completed');
-      setHabits(prev => prev.map(h => h.id === habit.id ? { ...h, logs: [...h.logs, newLog] } : h));
+      setHabits(prev => prev.map(h => h.id === habit.id
+        ? { ...h, logs: [...h.logs, newLog] }
+        : h));
     }
   }
 
@@ -56,25 +92,12 @@ export default function HabitsPage() {
     setDeleteConfirm(null);
   }
 
-  function getLog(habit: Habit, date: string): HabitLog | undefined {
-    return habit.logs.find(l => l.date === date);
-  }
-
-  function getStreak(habit: Habit): number {
-    let streak = 0;
-    for (const day of [...days].reverse()) {
-      if (getLog(habit, day)?.status === 'completed') streak++;
-      else break;
-    }
-    return streak;
-  }
-
   return (
     <div className="max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-semibold text-stone-800">Habits</h1>
-          <p className="text-sm text-stone-400 mt-1">Last 7 days</p>
+          <p className="text-sm text-stone-400 mt-1">This week</p>
         </div>
         <button onClick={() => setShowModal(true)}
           className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-full text-sm font-medium shadow-sm transition-colors">
@@ -95,71 +118,92 @@ export default function HabitsPage() {
           </button>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <div className="min-w-max">
-            {/* Column headers */}
-            <div className="flex mb-6" style={{ paddingLeft: '160px' }}>
-              {habits.map(habit => {
+        <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white shadow-sm">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b border-stone-100">
+                {/* Corner cell */}
+                <th className="sticky left-0 bg-white z-10 text-left px-5 py-3 min-w-[200px] border-r border-stone-100">
+                  <span className="text-xs font-semibold text-stone-400 uppercase tracking-widest">Habit</span>
+                </th>
+                {days.map(day => {
+                  const { weekday, date } = colHeader(day);
+                  const isToday = day === TODAY;
+                  const isFuture = day > TODAY;
+                  return (
+                    <th key={day} className={`px-4 py-3 text-center min-w-[72px] ${isFuture ? 'opacity-40' : ''}`}>
+                      <div className={`text-xs font-semibold ${isToday ? 'text-amber-600' : 'text-stone-500'}`}>{weekday}</div>
+                      <div className={`text-xs mt-0.5 ${isToday ? 'text-amber-500' : 'text-stone-400'}`}>{date}</div>
+                      {isToday && <div className="w-1 h-1 rounded-full bg-amber-400 mx-auto mt-1" />}
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {habits.map((habit, idx) => {
                 const streak = getStreak(habit);
                 return (
-                  <div key={habit.id} className="w-20 flex flex-col items-center gap-1 px-1">
-                    <p className="text-xs font-semibold text-stone-700 text-center leading-tight">{habit.name}</p>
-                    {streak > 0
-                      ? <p className="text-xs text-amber-500">🔥 {streak}d</p>
-                      : <p className="text-xs text-stone-300">— streak</p>}
-                    <button onClick={() => setDeleteConfirm(habit.id)}
-                      className="text-stone-200 hover:text-red-400 transition-colors text-base leading-none mt-0.5">×</button>
-                  </div>
-                );
-              })}
-            </div>
+                  <tr key={habit.id}
+                    className={`border-b border-stone-50 transition-colors hover:bg-stone-50/50 ${idx === habits.length - 1 ? 'border-none' : ''}`}>
+                    {/* Habit name — sticky left */}
+                    <td className="sticky left-0 bg-white z-10 px-5 py-3.5 border-r border-stone-100">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-stone-800 leading-tight">{habit.name}</p>
+                          {streak > 0
+                            ? <p className="text-xs text-amber-500 mt-0.5">🔥 {streak}d streak</p>
+                            : <p className="text-xs text-stone-300 mt-0.5">No streak</p>}
+                        </div>
+                        <button
+                          onClick={() => setDeleteConfirm(habit.id)}
+                          className="w-5 h-5 flex items-center justify-center rounded-full text-stone-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0 text-sm font-bold mt-0.5"
+                          title="Delete habit"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </td>
 
-            {/* Rows */}
-            <div className="space-y-3">
-              {days.map(day => {
-                const isToday = day === TODAY;
-                return (
-                  <div key={day} className={`flex items-center rounded-2xl px-3 py-1.5 transition-all ${isToday ? 'ring-2 ring-amber-400 bg-amber-50' : ''}`}>
-                    <div className="w-[160px] shrink-0">
-                      <span className={`text-xs font-medium ${isToday ? 'text-amber-600 font-semibold' : 'text-stone-400'}`}>
-                        {formatDay(day)}
-                      </span>
-                      {isToday && <span className="ml-1.5 text-xs text-amber-400">· today</span>}
-                    </div>
-                    <div className="flex">
-                      {habits.map(habit => {
-                        const log = getLog(habit, day);
-                        const isPast = day < TODAY;
-                        const isEditable = day === TODAY;
-                        const completed = log?.status === 'completed';
-                        const skipped = log?.status === 'skipped';
-                        return (
-                          <div key={habit.id} className="w-20 flex justify-center">
-                            <button
-                              disabled={!isEditable}
-                              onClick={() => handleCircleClick(habit, day)}
-                              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
-                                !isEditable && isPast
-                                  ? completed ? 'bg-emerald-300 cursor-default' : skipped ? 'bg-red-100 cursor-default' : 'bg-stone-100 cursor-default'
-                                  : !isEditable
-                                  ? 'bg-stone-50 cursor-default'
-                                  : completed ? 'bg-emerald-500 hover:bg-emerald-600 shadow-sm cursor-pointer'
-                                  : skipped ? 'bg-red-100 hover:bg-red-200 cursor-pointer'
-                                  : 'bg-stone-100 hover:ring-2 hover:ring-amber-300 cursor-pointer'
-                              }`}
-                            >
-                              {completed && <span className={`text-xs ${isPast ? 'text-white/70' : 'text-white'}`}>✓</span>}
-                              {skipped && <span className="text-red-400 text-xs">×</span>}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                    {/* Day cells */}
+                    {days.map(day => {
+                      const log = getLog(habit, day);
+                      const isToday = day === TODAY;
+                      const isPast = day < TODAY;
+                      const isFuture = day > TODAY;
+                      const completed = log?.status === 'completed';
+                      const skipped = log?.status === 'skipped';
+                      return (
+                        <td key={day} className={`px-4 py-3.5 text-center ${isToday ? 'bg-amber-50/60' : ''}`}>
+                          <button
+                            disabled={!isToday}
+                            onClick={() => handleCircleClick(habit, day)}
+                            className={`w-9 h-9 rounded-full flex items-center justify-center mx-auto transition-all
+                              ${isFuture
+                                ? 'bg-stone-50 cursor-default opacity-40'
+                                : isPast && completed
+                                ? 'bg-emerald-300 cursor-default'
+                                : isPast && skipped
+                                ? 'bg-red-100 cursor-default'
+                                : isPast
+                                ? 'bg-stone-100 cursor-default'
+                                : isToday && completed
+                                ? 'bg-emerald-500 hover:bg-emerald-600 shadow-sm cursor-pointer'
+                                : isToday && skipped
+                                ? 'bg-red-100 hover:bg-red-200 cursor-pointer'
+                                : 'bg-stone-100 hover:ring-2 hover:ring-amber-300 cursor-pointer'}`}
+                          >
+                            {completed && <span className={`text-xs font-bold ${isPast ? 'text-white/70' : 'text-white'}`}>✓</span>}
+                            {skipped && <span className="text-red-400 text-xs font-bold">×</span>}
+                          </button>
+                        </td>
+                      );
+                    })}
+                  </tr>
                 );
               })}
-            </div>
-          </div>
+            </tbody>
+          </table>
         </div>
       )}
 

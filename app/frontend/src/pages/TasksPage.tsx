@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { Task } from '../types';
 import { getTasks, createTask, updateTask, deleteTask } from '../api/client';
+import { localDate } from '../utils/date';
 import sleepingTurtle from '../assets/Turtles/0609 (1).png';
 
-const TODAY = new Date().toISOString().split('T')[0];
+const TODAY = localDate();
 const DATE_LABEL = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
 const PRIORITY: Record<number, { label: string; bg: string; text: string }> = {
@@ -29,8 +30,14 @@ export default function TasksPage() {
   }
 
   async function handleToggle(task: Task) {
-    const updated = await updateTask(task.id, { completed: !task.completed });
-    setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
+    const next = !task.completed;
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed: next } : t));
+    try {
+      const updated = await updateTask(task.id, { completed: next });
+      setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
+    } catch {
+      setTasks(prev => prev.map(t => t.id === task.id ? task : t));
+    }
   }
 
   async function handleDelete(id: string) {
@@ -39,8 +46,10 @@ export default function TasksPage() {
     setDeleteConfirm(null);
   }
 
-  const active = tasks.filter(t => !t.completed);
-  const completed = tasks.filter(t => t.completed);
+  const sorted = [
+    ...tasks.filter(t => !t.completed),
+    ...tasks.filter(t => t.completed),
+  ];
 
   return (
     <div className="max-w-xl mx-auto">
@@ -57,18 +66,9 @@ export default function TasksPage() {
         </button>
       </div>
 
-      {active.length > 0 && (
+      {sorted.length > 0 && (
         <div className="space-y-2 mb-6">
-          {active.map(task => <TaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={setDeleteConfirm} />)}
-        </div>
-      )}
-
-      {completed.length > 0 && (
-        <div>
-          <p className="text-xs font-semibold text-stone-400 uppercase tracking-widest mb-3">Completed · {completed.length}</p>
-          <div className="space-y-2">
-            {completed.map(task => <TaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={setDeleteConfirm} />)}
-          </div>
+          {sorted.map(task => <TaskCard key={task.id} task={task} onToggle={handleToggle} onDelete={setDeleteConfirm} />)}
         </div>
       )}
 

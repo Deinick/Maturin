@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import Background from './components/Background';
+import RolloverModal from './components/RolloverModal';
 import DashboardPage from './pages/DashboardPage';
 import TasksPage from './pages/TasksPage';
 import HabitsPage from './pages/HabitsPage';
@@ -19,6 +20,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Background />
+      <RolloverModal />
 
       {/* Nav */}
       <nav className="sticky top-0 z-40 bg-[#EDE8DC]/80 backdrop-blur-md border-b border-[#D6CFC0]">

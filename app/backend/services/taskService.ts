@@ -39,6 +39,16 @@ export async function updateTask(id: string, data:{
     });
 }
 
+export async function rolloverTask(id: string, today: string)
+{
+    const task=await prisma.shortTask.findUnique({ where: { id } });
+    if (!task) throw new Error('Task not found');
+    return prisma.shortTask.update({
+        where: { id },
+        data: { dateAssigned: today, rolloverCount: task.rolloverCount + 1, status: 'pending' },
+    });
+}
+
 export async function deleteTask(id: string)
 {
     return prisma.shortTask.delete({

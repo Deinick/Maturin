@@ -37,6 +37,15 @@ export async function updateTask(req: Request, res: Response): Promise<void>
     res.json(task);
 }
 
+export async function rolloverTask(req: Request, res: Response): Promise<void>
+{
+    const id=req.params['id'] as string;
+    // Use the client's local date so timezone differences don't shift the task to the wrong day
+    const today=req.body?.targetDate || new Date().toISOString().split('T')[0];
+    const task=await taskService.rolloverTask(id, today);
+    res.json(task);
+}
+
 export async function deleteTask(req: Request, res: Response): Promise<void>
 {
     const id=req.params['id'] as string;

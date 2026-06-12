@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { Task, Habit, HabitLog, Project, Phase, Milestone, Suggestion } from '../types';
+import { localDate } from '../utils/date';
 
 const api=axios.create({
     baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3001/api',
@@ -18,6 +19,9 @@ export const updateTask = (id: string, data: Partial<Task>) =>
 
 export const deleteTask = (id: string) =>
   api.delete(`/tasks/${id}`).then(r => r.data);
+
+export const rolloverTask = (id: string) =>
+  api.post<Task>(`/tasks/${id}/rollover`, { targetDate: localDate() }).then(r => r.data);
 
 
 
@@ -61,6 +65,15 @@ export const updatePhase = (id: string, data: Partial<Phase>) =>
 
 export const updateProject = (id: string, data: Partial<Project>) =>
   api.patch<Project>(`/projects/${id}`, data).then(r => r.data);
+
+export const deleteProject = (id: string) =>
+  api.delete(`/projects/${id}`).then(r => r.data);
+
+export const deletePhase = (id: string) =>
+  api.delete(`/projects/phases/${id}`).then(r => r.data);
+
+export const deleteMilestone = (id: string) =>
+  api.delete(`/projects/milestones/${id}`).then(r => r.data);
 
 
 
