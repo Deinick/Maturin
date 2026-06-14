@@ -71,5 +71,36 @@ export async function getSuggestions(userId: string)
             });
         }
     }
+    const thirtyDaysAgo=new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate()-30);
+    const fromDate=thirtyDaysAgo.toISOString().split('T')[0];
+    const recentTasks=await prisma.shortTask.findMany({
+        where: { userId, dateAssigned: { gte: fromDate }, category: { not: null } },
+    });
+
+    if(recentTasks.length>=10)
+    {
+        const byCat: Record<string,{ total: number; rolledOver: number }> = {};
+        for(const t of recentTasks)
+        {
+            const cat=t.category!;
+            if(!byCat[cat]) byCat[cat] = { total: 0, rolledOver: 0 };
+            byCat[cat].total++;
+            if(t.rolloverCount>0) byCat[cat].rolledOver++;
+        }
+        const overallRolloverRate=recentTasks.filter(t => t.rolloverCount > 0).length / recentTasks.length;
+        for (const [cat, s] of Object.entries(byCat)) {
+            if (s.total<3) continue;
+            const catRate=s.rolledOver / s.total;
+            if (catRate >0.6 && catRate > overallRolloverRate + 0.2)
+            {
+                suggestions.push({
+                    type: 'avoidance_pattern',
+                    message: `You tend to delay ${cat} tasks — they roll over ${Math.round(catRate * 100)}% of the time. Consider breaking them down or scheduling a specific time.`,
+                });
+            }
+        }
+    }
+
     return suggestions;
 }

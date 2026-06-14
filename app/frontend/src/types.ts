@@ -8,6 +8,8 @@ export interface Task {
   completed: boolean;
   rolloverCount: number;
   priority: number;
+  timeEstimate: 'quick' | 'medium' | 'deep' | null;
+  category: string | null;
 }
 
 export interface Habit {

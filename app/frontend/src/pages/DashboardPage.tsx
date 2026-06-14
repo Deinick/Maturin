@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Task, Habit, Suggestion } from '../types';
-import { getTasks, getHabits, getProductivity, getSuggestions } from '../api/client';
+import { getTasks, getHabits, getProductivity, getSuggestions, getWeeklySummary } from '../api/client';
 
 import heroTurtle from '../assets/Turtles/0609 (1)(2).png';
 

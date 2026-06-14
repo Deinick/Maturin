@@ -19,28 +19,27 @@ export async function getTasks(req: Request, res: Response): Promise<void>
 export async function createTask(req: Request, res: Response): Promise<void>
 {
     const userId=req.headers['x-user-id'] as string;
-    const { text, dateAssigned, priority, description }=req.body;
+    const { text, dateAssigned, priority, description, timeEstimate }=req.body;
     if(!userId || !text || !dateAssigned)
     {
         res.status(400).json({ error: 'userId, text and dateAssigned are required' });
         return;
     }
-    const task=await taskService.createTask(userId, { text, dateAssigned, priority, description });
+    const task=await taskService.createTask(userId, { text, dateAssigned, priority, description, timeEstimate });
     res.status(201).json(task);
 }
 
 export async function updateTask(req: Request, res: Response): Promise<void>
 {
     const id=req.params['id'] as string;
-    const {status, completed, text, priority, description}=req.body;
-    const task=await taskService.updateTask(id, { status, completed, text, priority, description });
+    const { status, completed, text, priority, description, timeEstimate }=req.body;
+    const task=await taskService.updateTask(id, { status, completed, text, priority, description, timeEstimate });
     res.json(task);
 }
 
 export async function rolloverTask(req: Request, res: Response): Promise<void>
 {
     const id=req.params['id'] as string;
-    // Use the client's local date so timezone differences don't shift the task to the wrong day
     const today=req.body?.targetDate || new Date().toISOString().split('T')[0];
     const task=await taskService.rolloverTask(id, today);
     res.json(task);

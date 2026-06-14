@@ -11,8 +11,8 @@ const api=axios.create({
 export const getTasks = (date: string) =>
   api.get<Task[]>(`/tasks?date=${date}`).then(r => r.data);
 
-export const createTask = (text: string, dateAssigned: string, priority: number) =>
-  api.post<Task>('/tasks', { userId: 'user-1', text, dateAssigned, priority }).then(r => r.data);
+export const createTask = (text: string, dateAssigned: string, priority: number, timeEstimate?: string) =>
+  api.post<Task>('/tasks', { userId: 'user-1', text, dateAssigned, priority, timeEstimate }).then(r => r.data);
 
 export const updateTask = (id: string, data: Partial<Task>) =>
   api.patch<Task>(`/tasks/${id}`, data).then(r => r.data);
@@ -91,6 +91,17 @@ export const getProductivity = () =>
 
 export const getYearlyStats = () =>
   api.get<{ year: number; tasksCompleted: number; habitsCompleted: number; projectsCompleted: number }>('/stats/yearly').then(r => r.data);
+
+export const getCompletionRate = () =>
+  api.get<{ rate: number }>('/stats/completion-rate').then(r => r.data);
+
+export const getWeeklySummary = () =>
+  api.get<{
+    weekStart: string; weekEnd: string;
+    totalLogged: number; completed: number; pending: number; rolledOver: number;
+    bestDay: { date: string; completed: number; total: number } | null;
+    categoryStats: { category: string; completed: number; total: number; rate: number }[];
+  }>('/stats/weekly').then(r => r.data);
 
 
 
