@@ -58,8 +58,15 @@ export default function DashboardPage() {
 
       {/* Hero */}
       <div className="flex items-center gap-8">
-        <img src={heroTurtle} alt="Steadily mascot"
-          className="turtle-img w-36 h-36 object-contain shrink-0 drop-shadow-md" />
+        <button
+          onClick={() => navigate('/account')}
+          className="relative shrink-0 group focus:outline-none"
+          title="View account"
+        >
+          <img src={heroTurtle} alt="Steadily mascot"
+            className="turtle-img w-36 h-36 object-contain drop-shadow-md transition-all duration-300 group-hover:scale-110 group-hover:drop-shadow-[0_0_24px_rgba(16,185,129,0.45)]" />
+          <span className="absolute inset-0 rounded-full bg-emerald-300/0 group-hover:bg-emerald-300/10 transition-all duration-300 scale-110 pointer-events-none" />
+        </button>
         <div>
           <h1 className="serif text-4xl font-bold text-stone-800">{GREETING}</h1>
           <p className="text-stone-500 mt-1 text-sm">

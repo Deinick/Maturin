@@ -6,6 +6,7 @@ import TasksPage from './pages/TasksPage';
 import HabitsPage from './pages/HabitsPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
+import AccountPage from './pages/AccountPage';
 
 import navTurtle from './assets/Turtles/0609 (1)(4).png';
 
@@ -59,6 +60,7 @@ export default function App() {
           <Route path="/habits"     element={<HabitsPage />} />
           <Route path="/projects"   element={<ProjectsPage />} />
           <Route path="/projects/:id" element={<ProjectDetailPage />} />
+          <Route path="/account"    element={<AccountPage />} />
         </Routes>
       </main>
     </BrowserRouter>

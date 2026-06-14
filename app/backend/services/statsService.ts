@@ -28,3 +28,23 @@ export async function getProductivity(userId: string) {
 
   return { taskScore, habitScore, productivity, totalTasks, completedTasks, totalHabitLogs, completedHabitLogs };
 }
+
+export async function getYearlyStats(userId: string) {
+  const year = new Date().getFullYear();
+  const startOfYear = `${year}-01-01`;
+  const endOfYear = `${year}-12-31`;
+
+  const tasksCompleted = await prisma.shortTask.count({
+    where: { userId, completed: true, dateAssigned: { gte: startOfYear, lte: endOfYear } },
+  });
+
+  const habitsCompleted = await prisma.habitLog.count({
+    where: { habit: { userId }, status: 'completed', date: { gte: startOfYear, lte: endOfYear } },
+  });
+
+  const projectsCompleted = await prisma.project.count({
+    where: { userId, completed: true },
+  });
+
+  return { year, tasksCompleted, habitsCompleted, projectsCompleted };
+}

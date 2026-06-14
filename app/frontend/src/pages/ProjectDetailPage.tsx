@@ -320,6 +320,7 @@ export default function ProjectDetailPage() {
             if (fresh) setProject(fresh);
             setShowEdit(false);
           }}
+          onDeleted={() => navigate('/projects')}
         />
       )}
 

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import type { Project, Phase, Milestone } from '../types';
 import {
   getProjects, createProject, createPhase, createMilestone,
-  updateProject,
 } from '../api/client';
 import EditProjectModal from '../components/EditProjectModal';
 import sleepingTurtle from '../assets/Turtles/0609 (1).png';
@@ -14,7 +13,6 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const navigate = useNavigate();
 
-  // ── Create modal ──────────────────────────────────────────
   const [showModal, setShowModal] = useState(false);
   const [step, setStep] = useState<CreateStep>('project');
   const [createdProject, setCreatedProject] = useState<Project | null>(null);
@@ -23,12 +21,10 @@ export default function ProjectsPage() {
   const [phases, setPhases] = useState<{ title: string }[]>([{ title: '' }]);
   const [milestonesMap, setMilestonesMap] = useState<Record<number, { title: string; dueDate: string }[]>>({});
 
-  // ── Edit modal ────────────────────────────────────────────
   const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   useEffect(() => { getProjects().then(setProjects); }, []);
 
-  // ── Create helpers ────────────────────────────────────────
   function resetModal() {
     setStep('project'); setForm({ title: '', description: '', targetEndDate: '' });
     setPhases([{ title: '' }]); setMilestonesMap({});
@@ -75,7 +71,6 @@ export default function ProjectsPage() {
     resetModal();
   }
 
-  // Step circle navigation for create modal (can only go back / to completed steps)
   function goToCreateStep(s: CreateStep) {
     if (s === 'project') { setStep('project'); return; }
     if (s === 'phases' && createdProject) { setStep('phases'); return; }
@@ -86,20 +81,12 @@ export default function ProjectsPage() {
     return !(milestonesMap[idx] ?? []).some(m => m.title.trim());
   }
 
-  // ── Misc ──────────────────────────────────────────────────
-  async function handleToggleProject(project: Project, e: React.MouseEvent) {
-    e.stopPropagation();
-    const updated = await updateProject(project.id, { completed: !project.completed });
-    setProjects(prev => prev.map(p => p.id === project.id ? { ...p, completed: updated.completed } : p));
-  }
-
   function getProgress(project: Project) {
     const total = project.phases.reduce((s, ph) => s + ph.milestones.length, 0);
     const done = project.phases.reduce((s, ph) => s + ph.milestones.filter(m => m.completed).length, 0);
     return { total, done, pct: total === 0 ? 0 : Math.round((done / total) * 100) };
   }
 
-  // ── Render ────────────────────────────────────────────────
   return (
     <div className="max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-8">
@@ -134,16 +121,8 @@ export default function ProjectsPage() {
                 className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
                 onClick={() => navigate(`/projects/${project.id}`)}>
                 <div className="flex items-center gap-4 px-5 py-4">
-                  <button
-                    onClick={e => handleToggleProject(project, e)}
-                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors
-                      ${project.completed ? 'bg-emerald-400 border-emerald-400' : 'border-stone-300 hover:border-blue-400'}`}
-                  >
-                    {project.completed && <span className="text-white text-xs">✓</span>}
-                  </button>
-
                   <div className="flex-1 min-w-0">
-                    <p className={`font-medium text-sm ${project.completed ? 'line-through text-stone-400' : 'text-stone-800'}`}>
+                    <p className="font-medium text-sm text-stone-800">
                       {project.title}
                     </p>
                     {total > 0 && (
@@ -174,7 +153,6 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {/* ── Create Modal ─────────────────────────────────────── */}
       {showModal && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
@@ -217,19 +195,18 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {/* ── Edit Modal ───────────────────────────────────────── */}
       {editingProject && (
         <EditProjectModal
           project={editingProject}
           onClose={() => setEditingProject(null)}
           onSaved={updated => { setProjects(updated); setEditingProject(null); }}
+          onDeleted={id => { setProjects(prev => prev.filter(p => p.id !== id)); setEditingProject(null); }}
         />
       )}
     </div>
   );
 }
 
-// ── Create step indicator ─────────────────────────────────
 
 function CreateStepIndicator({
   step, createdProject, goToStep,
@@ -279,7 +256,6 @@ function CreateStepIndicator({
   );
 }
 
-// ── Sub-components ────────────────────────────────────────
 
 function ProjectForm({
   form, setForm,

@@ -3,7 +3,7 @@ import type { Project } from '../types';
 import {
   updateProject, createPhase, updatePhase, deletePhase,
   createMilestone, updateMilestone, deleteMilestone,
-  getProjects,
+  getProjects, deleteProject,
 } from '../api/client';
 
 type Step = 'project' | 'phases' | 'milestones';
@@ -14,9 +14,10 @@ interface Props {
   project: Project;
   onClose: () => void;
   onSaved: (updated: Project[]) => void;
+  onDeleted: (id: string) => void;
 }
 
-export default function EditProjectModal({ project, onClose, onSaved }: Props) {
+export default function EditProjectModal({ project, onClose, onSaved, onDeleted }: Props) {
   const [step, setStep] = useState<Step>('project');
   const [form, setForm] = useState({
     title: project.title,
@@ -39,6 +40,23 @@ export default function EditProjectModal({ project, onClose, onSaved }: Props) {
 
   const [activePhaseIdx, setActivePhaseIdx] = useState(0);
   const [saving, setSaving] = useState(false);
+
+  // ── Delete flow ───────────────────────────────────────────
+  const [deleteStep, setDeleteStep] = useState<'idle' | 'confirm' | 'type'>('idle');
+  const [deleteTyped, setDeleteTyped] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const deleteTarget = `delete ${project.title}`;
+
+  async function handleDelete() {
+    if (deleteTyped.trim().toLowerCase() !== deleteTarget.toLowerCase()) return;
+    setDeleting(true);
+    try {
+      await deleteProject(project.id);
+      onDeleted(project.id);
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   // Drag state — phases
   const [dragPhaseIdx, setDragPhaseIdx] = useState<number | null>(null);
@@ -151,13 +169,68 @@ export default function EditProjectModal({ project, onClose, onSaved }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-stone-100">
           <h2 className="text-lg font-semibold text-stone-800">Edit Project</h2>
-          <button onClick={onClose} className="text-stone-300 hover:text-stone-500 text-xl leading-none">×</button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setDeleteStep('confirm')}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-stone-300 hover:text-red-400 hover:bg-red-50 transition-colors text-base"
+              title="Delete project"
+            >
+              🗑
+            </button>
+            <button onClick={onClose} className="text-stone-300 hover:text-stone-500 text-xl leading-none w-8 h-8 flex items-center justify-center">×</button>
+          </div>
         </div>
+
+        {/* ── Delete confirmation step 1 ── */}
+        {deleteStep === 'confirm' && (
+          <div className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center px-8 gap-5 z-10">
+            <div className="text-4xl">⚠️</div>
+            <div className="text-center">
+              <p className="text-base font-semibold text-stone-800">Delete this project?</p>
+              <p className="text-sm text-stone-500 mt-1">This action is permanent and cannot be undone. All phases and milestones will be lost.</p>
+            </div>
+            <div className="flex gap-3 w-full max-w-xs">
+              <button onClick={() => setDeleteStep('idle')} className="flex-1 py-2.5 rounded-lg text-sm text-stone-600 bg-stone-100 hover:bg-stone-200 transition-colors">No, keep it</button>
+              <button onClick={() => { setDeleteTyped(''); setDeleteStep('type'); }} className="flex-1 py-2.5 rounded-lg text-sm text-white bg-red-500 hover:bg-red-600 transition-colors font-medium">Yes, delete</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Delete confirmation step 2 ── */}
+        {deleteStep === 'type' && (
+          <div className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center px-8 gap-5 z-10">
+            <div className="text-4xl">🗑</div>
+            <div className="text-center">
+              <p className="text-base font-semibold text-stone-800">Confirm deletion</p>
+              <p className="text-sm text-stone-500 mt-1">
+                Type <span className="font-mono text-red-500 bg-red-50 px-1.5 py-0.5 rounded">{deleteTarget}</span> to confirm
+              </p>
+            </div>
+            <input
+              autoFocus
+              className="w-full max-w-xs border border-stone-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+              placeholder={deleteTarget}
+              value={deleteTyped}
+              onChange={e => setDeleteTyped(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleDelete()}
+            />
+            <div className="flex gap-3 w-full max-w-xs">
+              <button onClick={() => setDeleteStep('idle')} className="flex-1 py-2.5 rounded-lg text-sm text-stone-600 bg-stone-100 hover:bg-stone-200 transition-colors">Cancel</button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteTyped.trim().toLowerCase() !== deleteTarget.toLowerCase() || deleting}
+                className="flex-1 py-2.5 rounded-lg text-sm text-white bg-red-500 hover:bg-red-600 disabled:opacity-40 transition-colors font-medium"
+              >
+                {deleting ? 'Deleting…' : 'Delete forever'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Clickable step indicator */}
         <div className="flex items-center gap-2 px-6 pt-5 pb-4 border-b border-stone-100">

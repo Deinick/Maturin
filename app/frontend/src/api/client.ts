@@ -89,6 +89,9 @@ export const runRollover = () =>
 export const getProductivity = () =>
   api.get('/stats/productivity').then(r => r.data);
 
+export const getYearlyStats = () =>
+  api.get<{ year: number; tasksCompleted: number; habitsCompleted: number; projectsCompleted: number }>('/stats/yearly').then(r => r.data);
+
 
 
 
