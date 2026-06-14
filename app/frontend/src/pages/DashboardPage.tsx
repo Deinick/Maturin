@@ -15,6 +15,13 @@ interface Stats {
   totalHabitLogs: number; completedHabitLogs: number;
 }
 
+interface WeeklySummary {
+  weekStart: string; weekEnd: string;
+  totalLogged: number; completed: number; pending: number; rolledOver: number;
+  bestDay: { date: string; completed: number; total: number } | null;
+  categoryStats: { category: string; completed: number; total: number; rate: number }[];
+}
+
 function Ring({ value, label, color }: { value: number; label: string; color: string }) {
   const pct = Math.round(value * 100);
   const r = 26; const circ = 2 * Math.PI * r;
@@ -42,10 +49,11 @@ export default function DashboardPage() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [weekly, setWeekly] = useState<WeeklySummary | null>(null);
 
   useEffect(() => {
-    Promise.all([getTasks(TODAY), getHabits(), getProductivity(), getSuggestions()])
-      .then(([t, h, s, sg]) => { setTasks(t); setHabits(h); setStats(s as Stats); setSuggestions(sg); });
+    Promise.all([getTasks(TODAY), getHabits(), getProductivity(), getSuggestions(), getWeeklySummary()])
+      .then(([t, h, s, sg, w]) => { setTasks(t); setHabits(h); setStats(s as Stats); setSuggestions(sg); setWeekly(w); });
   }, []);
 
   const active = tasks.filter(t => !t.completed);
@@ -100,6 +108,49 @@ export default function DashboardPage() {
               <p className="text-xs text-stone-400 mt-1">Habits logged</p>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Weekly summary */}
+      {weekly && weekly.totalLogged > 0 && (
+        <div className="bg-white/70 backdrop-blur-sm rounded-3xl border border-[#D6CFC0] shadow-sm px-6 py-5">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-xs font-semibold text-stone-400 uppercase tracking-widest">This week</p>
+            <p className="text-xs text-stone-400">
+              {new Date(weekly.weekStart + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              {' – '}
+              {new Date(weekly.weekEnd + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </p>
+          </div>
+          <p className="text-sm text-stone-700 leading-relaxed">
+            You logged <span className="font-semibold">{weekly.totalLogged}</span> task{weekly.totalLogged !== 1 ? 's' : ''},{' '}
+            completed <span className="font-semibold text-emerald-700">{weekly.completed}</span>,{' '}
+            {weekly.rolledOver > 0 && <>rolled over <span className="font-semibold text-amber-600">{weekly.rolledOver}</span>, </>}
+            {weekly.pending > 0 && <><span className="font-semibold text-stone-500">{weekly.pending}</span> still pending. </>}
+            {weekly.bestDay && (
+              <>
+                Best day:{' '}
+                <span className="font-semibold">
+                  {new Date(weekly.bestDay.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' })}
+                </span>
+                {' '}({weekly.bestDay.completed}/{weekly.bestDay.total} done).
+              </>
+            )}
+          </p>
+          {weekly.categoryStats.filter(c => c.total > 0).length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {weekly.categoryStats.filter(c => c.total > 0).map(c => (
+                <span key={c.category}
+                  className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${
+                    c.rate >= 0.7 ? 'bg-emerald-50 text-emerald-700' :
+                    c.rate >= 0.4 ? 'bg-amber-50 text-amber-700' :
+                    'bg-red-50 text-red-600'
+                  }`}>
+                  {c.category} {Math.round(c.rate * 100)}%
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
