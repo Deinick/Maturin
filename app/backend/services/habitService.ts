@@ -8,10 +8,15 @@ export async function getHabits(userId:string )
     });
 }
 
-export async function createHabit(userId: string, name: string) 
+export async function createHabit(userId: string, name: string, difficulty?: string, activeDays?: string)
 {
     return prisma.habit.create({
-        data: {userId,name},
+        data: {
+            userId,
+            name,
+            difficulty: difficulty ?? 'medium',
+            activeDays: activeDays ?? '1,2,3,4,5,6,7',
+        },
     });
 }
 

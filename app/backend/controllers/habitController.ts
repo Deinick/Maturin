@@ -16,13 +16,13 @@ export async function getHabits(req: Request, res: Response): Promise<void>
 export async function createHabit(req: Request, res: Response): Promise<void>
 {
     const userId=req.headers['x-user-id'] as string;
-    const { name }=req.body;
+    const { name, difficulty, activeDays }=req.body;
     if(!userId || !name)
     {
         res.status(400).json({ error: 'userId and name are required' });
         return;
     }
-    const habit=await habitService.createHabit(userId, name);
+    const habit=await habitService.createHabit(userId, name, difficulty, activeDays);
     res.status(201).json(habit);
 }
 

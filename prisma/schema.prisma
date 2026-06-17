@@ -35,13 +35,15 @@ model ShortTask {
 }
 
 model Habit {
-  id        String     @id @default(uuid())
-  userId    String
-  name      String
-  isActive  Boolean    @default(true)
-  createdAt DateTime   @default(now())
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  logs      HabitLog[]
+  id         String     @id @default(uuid())
+  userId     String
+  name       String
+  isActive   Boolean    @default(true)
+  difficulty String     @default("medium")
+  activeDays String     @default("1,2,3,4,5,6,7")
+  createdAt  DateTime   @default(now())
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs       HabitLog[]
 }
 
 model HabitLog {
