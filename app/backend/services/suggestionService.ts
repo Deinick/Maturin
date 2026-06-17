@@ -196,25 +196,45 @@ export async function getSuggestions(userId: string)
             byReason[m.blockReason!]=(byReason[m.blockReason!] ?? 0)+1;
         }
 
-/*
-
-TO BE CALIBRATED LATER ( MORE COMMON REASONS TO BE ADDED, THRESHOLDS TO BE TUNED BASED ON USER FEEDBACK)
-
-*/
-        const REASON_LABELS: Record<string, string>=
+        const REASON_MESSAGES: Record<string, (count: number) => string> =
         {
-            no_time:    'time management',
-            unclear:    'unclear next steps',
-            external:   'external dependencies',
-            motivation: 'motivation',
+            no_time: (count) =>
+                `${count} milestone${count===1?'':'s'} ${count===1?'is':'are'} blocked due to time constraints — try time-blocking dedicated work sessions or reducing how many projects run in parallel.`,
+
+            unclear: (count) =>
+                `${count} milestone${count===1?'':'s'} ${count===1?'is':'are'} stalled on unclear next steps — before your next session, define one immediate action for each to remove the ambiguity.`,
+
+            external: (count) =>
+                `${count} milestone${count===1?'':'s'} ${count===1?'is':'are'} waiting on external dependencies — consider escalating where possible, or use the blocked time to advance other work in parallel.`,
+
+            motivation: (count) =>
+                `${count} milestone${count===1?'':'s'} ${count===1?'is':'are'} stalled due to low motivation — try reordering them to put a quick win first, or break each into a smaller immediate task to rebuild momentum.`,
+
+            resources: (count) =>
+                `${count} milestone${count===1?'':'s'} ${count===1?'is':'are'} blocked by missing resources — identify exactly what is needed and treat acquiring it as the next milestone action.`,
+
+            priority_conflict: (count) =>
+                `${count} milestone${count===1?'':'s'} ${count===1?'is':'are'} blocked by conflicting priorities — consider a deliberate triage session to rank them and protect time for the top one.`,
+
+            too_large: (count) =>
+                `${count} milestone${count===1?'':'s'} ${count===1?'is':'are'} blocked because the scope feels too large — break each into sub-milestones so there is always a concrete next step to take.`,
+
+            waiting_feedback: (count) =>
+                `${count} milestone${count===1?'':'s'} ${count===1?'is':'are'} waiting on feedback — set a follow-up deadline and move on to other work rather than leaving them in an open loop.`,
         };
-        for(const[reason,count] of Object.entries(byReason))
+
+        for(const [reason, count] of Object.entries(byReason))
         {
             if(count>=2)
             {
+                const buildMessage = REASON_MESSAGES[reason];
+                const message = buildMessage
+                    ? buildMessage(count)
+                    : `${count} milestone${count===1?'':'s'} ${count===1?'is':'are'} blocked due to ${reason.replace(/_/g,' ')} — address this pattern directly to unblock your progress.`;
+
                 suggestions.push({
                     type: 'block_pattern',
-                    message: `${count} milestones are stuck due to ${REASON_LABELS[reason] ?? reason} — this pattern may be worth addressing directly.`,
+                    message,
                 });
             }
         }
