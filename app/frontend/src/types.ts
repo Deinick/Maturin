@@ -57,7 +57,10 @@ export interface Milestone {
   description: string | null;
   order: number;
   completed: boolean;
+  completedAt: string | null;
   dueDate: string | null;
+  effortRating: 'easier' | 'as_expected' | 'harder' | null;
+  blockReason: 'no_time' | 'unclear' | 'external' | 'motivation' | null;
 }
 
 export interface Suggestion {

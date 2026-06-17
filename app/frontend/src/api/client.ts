@@ -60,6 +60,21 @@ export const createMilestone = (phaseId: string, title: string, order: number, d
 export const updateMilestone = (id: string, data: Partial<Milestone>) =>
   api.patch<Milestone>(`/projects/milestones/${id}`, data).then(r => r.data);
 
+export const getProjectInsights = (projectId: string) =>
+  api.get<{
+    healthScore: number;
+    velocity: { available: false } | {
+      available: true;
+      weeksElapsed: number;
+      completedCount: number;
+      actualPerWeek: number;
+      plannedPerWeek: number | null;
+      remainingCount: number;
+      revisedFinishDate: string | null;
+      targetFinishDate: string | null;
+    };
+  }>(`/projects/${projectId}/insights`).then(r => r.data);
+
 export const updatePhase = (id: string, data: Partial<Phase>) =>
   api.patch<Phase>(`/projects/phases/${id}`, data).then(r => r.data);
 

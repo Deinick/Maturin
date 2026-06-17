@@ -1,15 +1,19 @@
 import prisma from '../lib/prisma';
 
-function getISODayNum(d: Date): number {
-  return d.getDay() === 0 ? 7 : d.getDay(); // 1=Mon...7=Sun
+function getISODayNum(d: Date): number //Remaps date to ISO standard
+{
+  return d.getDay()===0 ? 7 : d.getDay(); //start week on Monday as 1, Sunday is 7
 }
 
-function getActiveDatesInMonth(activeDayNums: number[], year: number, month: number): string[] {
-  const result: string[] = [];
-  const daysInMonth = new Date(year, month, 0).getDate();
-  for (let day = 1; day <= daysInMonth; day++) {
-    const d = new Date(year, month - 1, day);
-    if (activeDayNums.includes(getISODayNum(d))) {
+function getActiveDatesInMonth(activeDayNums: number[], year: number, month: number): string[]
+{
+  const result: string[]=[];
+  const daysInMonth=new Date(year,month,0).getDate();
+  for(let day=1;day<=daysInMonth;day++)
+    {
+    const d=new Date(year,month-1,day);
+    if(activeDayNums.includes(getISODayNum(d)))
+    {
       result.push(
         `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
       );
@@ -18,13 +22,20 @@ function getActiveDatesInMonth(activeDayNums: number[], year: number, month: num
   return result;
 }
 
+
+
+
+
+
+
+
 export async function getSuggestions(userId: string)
 {
-    const suggestions: {type: string, message: string; id?: string}[]=[];
-
+    const suggestions:{type: string, message: string; id?: string}[]=[];
     const today=new Date().toISOString().split('T')[0];
+    const stalledTasks=await prisma.shortTask.findMany({ //Detect tasks rolling over for 3+ days
 
-    const stalledTasks=await prisma.shortTask.findMany({
+        //NOT SURE IF I NEED IT STILL
         where:{
             userId,
             completed: false,
@@ -46,8 +57,8 @@ export async function getSuggestions(userId: string)
     const completedTasks=await prisma.shortTask.count({
         where:{userId, completed:true}
     });
-    const productivity=totalTasks === 0 ? 1 : completedTasks / totalTasks;
-    if(productivity < 0.4)
+    const productivity=totalTasks===0?1 : completedTasks/totalTasks;
+    if(productivity<0.4)
     {
         suggestions.push({
             type: 'reduce_tasks',
@@ -162,6 +173,79 @@ export async function getSuggestions(userId: string)
                     message: `You tend to delay ${cat} tasks — they roll over ${Math.round(catRate * 100)}% of the time. Consider breaking them down or scheduling a specific time.`,
                 });
             }
+        }
+    }
+    // Blocking pattern: 2+ active milestones share the same block reason
+    const blockedMilestones=await prisma.milestone.findMany({
+        where: {
+            phase: { project: { userId } },
+            blockReason: { not: null },
+            completed: false,
+        },
+        select: { blockReason: true },
+    });
+
+    if (blockedMilestones.length>=2)
+    {
+        const byReason: Record<string, number>={};
+        for(const m of blockedMilestones)
+        {
+            byReason[m.blockReason!]=(byReason[m.blockReason!] ?? 0)+1;
+        }
+
+/*
+
+TO BE CALIBRATED LATER ( MORE COMMON REASONS TO BE ADDED, THRESHOLDS TO BE TUNED BASED ON USER FEEDBACK)
+
+*/
+        const REASON_LABELS: Record<string, string>=
+        {
+            no_time:    'time management',
+            unclear:    'unclear next steps',
+            external:   'external dependencies',
+            motivation: 'motivation',
+        };
+        for(const[reason,count] of Object.entries(byReason))
+        {
+            if(count>=2)
+            {
+                suggestions.push({
+                    type: 'block_pattern',
+                    message: `${count} milestones are stuck due to ${REASON_LABELS[reason] ?? reason} — this pattern may be worth addressing directly.`,
+                });
+            }
+        }
+    }
+
+    // Calibration: if user consistently over/underestimates milestone effort
+    const ratedMilestones=await prisma.milestone.findMany({
+        where:
+        {
+            phase:{ project: { userId } },
+            effortRating:{ not: null },
+            completed: true,
+        },
+        select:{ effortRating: true},
+    });
+
+    if(ratedMilestones.length>=5)
+    {
+        const harder=ratedMilestones.filter(m => m.effortRating === 'harder').length;
+        const easier=ratedMilestones.filter(m => m.effortRating === 'easier').length;
+        const total=ratedMilestones.length;
+        if(harder/total>=0.6)
+        {
+            suggestions.push({
+                type: 'calibration',
+                message: `You've rated ${harder} of your last ${total} milestones as harder than expected — consider building in more buffer when planning.`,
+            });
+        }
+        else if(easier/total>=0.6)
+        {
+            suggestions.push({
+                type: 'calibration',
+                message: `You've rated ${easier} of your last ${total} milestones as easier than expected — your estimates may be running long.`,
+            });
         }
     }
 
