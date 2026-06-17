@@ -14,16 +14,31 @@ export async function getProductivity(userId: string) {
     where: { userId, completed: true, dateAssigned: { gte: fromDate } },
   });
 
-  const totalHabitLogs=await prisma.habitLog.count({
-    where: { habit: { userId }, date: { gte: fromDate } },
+  const DIFFICULTY_WEIGHT: Record<string, number> = { easy: 0.5, medium: 1.0, hard: 1.5 };
+  const habits = await prisma.habit.findMany({
+    where: { userId },
+    include: { logs: { where: { date: { gte: fromDate } } } },
   });
 
-  const completedHabitLogs=await prisma.habitLog.count({
-    where: { habit: { userId }, status: 'completed', date: { gte: fromDate } },
-  });
+  let totalHabitLogs = 0;
+  let completedHabitLogs = 0;
+  let weightedTotal = 0;
+  let weightedCompleted = 0;
+
+  for (const habit of habits) {
+    const w = DIFFICULTY_WEIGHT[habit.difficulty] ?? 1.0;
+    for (const log of habit.logs) {
+      totalHabitLogs++;
+      weightedTotal += w;
+      if (log.status === 'completed') {
+        completedHabitLogs++;
+        weightedCompleted += w;
+      }
+    }
+  }
 
   const taskScore=totalTasks=== 0 ? 0 : completedTasks / totalTasks;
-  const habitScore=totalHabitLogs=== 0 ? 0 : completedHabitLogs / totalHabitLogs;
+  const habitScore=weightedTotal === 0 ? 0 : weightedCompleted / weightedTotal;
   const productivity=0.6 * taskScore+0.4*habitScore;
 
   return { taskScore, habitScore, productivity, totalTasks, completedTasks, totalHabitLogs, completedHabitLogs };

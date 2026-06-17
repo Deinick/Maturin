@@ -29,8 +29,8 @@ export const rolloverTask = (id: string) =>
 export const getHabits = () =>
   api.get<Habit[]>('/habits').then(r => r.data);
 
-export const createHabit = (name: string) =>
-  api.post<Habit>('/habits', { userId: 'user-1', name }).then(r => r.data);
+export const createHabit = (name: string, difficulty?: string, activeDays?: string) =>
+  api.post<Habit>('/habits', { userId: 'user-1', name, difficulty, activeDays }).then(r => r.data);
 
 export const logHabit = (id: string, date: string, status: string) =>
   api.post<HabitLog>(`/habits/${id}/log`, { date, status }).then(r => r.data);

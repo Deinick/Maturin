@@ -17,6 +17,8 @@ export interface Habit {
   userId: string;
   name: string;
   isActive: boolean;
+  difficulty: 'easy' | 'medium' | 'hard';
+  activeDays: string;
   createdAt: string;
   logs: HabitLog[];
 }
