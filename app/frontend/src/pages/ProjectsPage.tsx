@@ -87,6 +87,20 @@ export default function ProjectsPage() {
     return { total, done, pct: total === 0 ? 0 : Math.round((done / total) * 100) };
   }
 
+  function getHealthDot(project: Project): string {
+    const milestones = project.phases.flatMap(ph => ph.milestones);
+    const total = milestones.length;
+    if (total === 0) return 'bg-stone-200';
+    const today = new Date().toISOString().split('T')[0];
+    const done = milestones.filter(m => m.completed).length;
+    const dueable = milestones.filter(m => m.dueDate).length;
+    const overdue = milestones.filter(m => !m.completed && m.dueDate && m.dueDate < today).length;
+    const completionRate = done / total;
+    const overdueScore = dueable === 0 ? 0.8 : 1 - (overdue / dueable);
+    const score = Math.round((0.6 * completionRate + 0.4 * overdueScore) * 100);
+    return score >= 70 ? 'bg-emerald-400' : score >= 40 ? 'bg-amber-400' : 'bg-red-400';
+  }
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-8">
@@ -122,9 +136,13 @@ export default function ProjectsPage() {
                 onClick={() => navigate(`/projects/${project.id}`)}>
                 <div className="flex items-center gap-4 px-5 py-4">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm text-stone-800">
-                      {project.title}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`w-2 h-2 rounded-full shrink-0 ${getHealthDot(project)}`}
+                        title="Project health"
+                      />
+                      <p className="font-medium text-sm text-stone-800">{project.title}</p>
+                    </div>
                     {total > 0 && (
                       <div className="flex items-center gap-2 mt-1.5">
                         <div className="flex-1 h-1 bg-stone-100 rounded-full">
