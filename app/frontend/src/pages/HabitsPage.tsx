@@ -7,10 +7,24 @@ import sleepingTurtle from '../assets/Turtles/0609 (1).png';
 
 const TODAY = localDate();
 
-// Current week Mon–Sun
+const DIFFICULTY_OPTIONS = [
+  { value: 'easy',   label: 'Easy',   active: 'bg-green-500 text-white', idle: 'bg-green-50 text-green-700 hover:bg-green-100' },
+  { value: 'medium', label: 'Medium', active: 'bg-amber-500 text-white', idle: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
+  { value: 'hard',   label: 'Hard',   active: 'bg-rose-500 text-white',  idle: 'bg-rose-50 text-rose-700 hover:bg-rose-100'   },
+] as const;
+
+const DIFF_BADGE: Record<string, string> = {
+  easy:   'bg-green-50 text-green-600',
+  medium: 'bg-amber-50 text-amber-600',
+  hard:   'bg-rose-50 text-rose-600',
+};
+
+const DAY_LABELS = ['M','T','W','T','F','S','S'];
+const DAY_NUMS   = [1, 2, 3, 4, 5, 6, 7];
+
 function getCurrentWeekDays(): string[] {
   const today = new Date();
-  const dow = today.getDay(); // 0=Sun … 6=Sat
+  const dow = today.getDay();
   const daysFromMon = dow === 0 ? 6 : dow - 1;
   const monday = new Date(today);
   monday.setDate(today.getDate() - daysFromMon);
@@ -25,7 +39,7 @@ function colHeader(dateStr: string) {
   const d = new Date(dateStr + 'T00:00:00');
   return {
     weekday: d.toLocaleDateString('en-US', { weekday: 'short' }),
-    date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    date:    d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
   };
 }
 
@@ -33,17 +47,38 @@ function getLog(habit: Habit, date: string): HabitLog | undefined {
   return habit.logs.find(l => l.date === date);
 }
 
-// Count consecutive completed days ending at today (or yesterday if today not done yet).
+function getISODayNum(d: Date): number {
+  return d.getDay() === 0 ? 7 : d.getDay();
+}
+
+function isDayActive(habit: Habit, dateStr: string): boolean {
+  const active = new Set(habit.activeDays.split(',').map(Number));
+  const d = new Date(dateStr + 'T00:00:00');
+  return active.has(getISODayNum(d));
+}
+
+function datePad(d: Date): string {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
 function getStreak(habit: Habit): number {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const activeDayNums = new Set(habit.activeDays.split(',').map(Number));
+  const todayStr = localDate();
+  const todayIsActive = activeDayNums.has(getISODayNum(new Date()));
   const todayDone = habit.logs.find(l => l.date === todayStr)?.status === 'completed';
 
   let streak = 0;
   const d = new Date();
-  if (!todayDone) d.setDate(d.getDate() - 1);
+
+  if (!todayIsActive || (todayIsActive && !todayDone)) d.setDate(d.getDate() - 1);
 
   for (let i = 0; i < 365; i++) {
-    const ds = d.toISOString().split('T')[0];
+    const dayNum = getISODayNum(d);
+    if (!activeDayNums.has(dayNum)) {
+      d.setDate(d.getDate() - 1);
+      continue;
+    }
+    const ds = datePad(d);
     if (habit.logs.find(l => l.date === ds)?.status === 'completed') {
       streak++;
       d.setDate(d.getDate() - 1);
@@ -59,6 +94,8 @@ export default function HabitsPage() {
   const [showModal, setShowModal] = useState(false);
   const [showRecord, setShowRecord] = useState(false);
   const [newName, setNewName] = useState('');
+  const [newDifficulty, setNewDifficulty] = useState<'easy'|'medium'|'hard'>('medium');
+  const [newActiveDays, setNewActiveDays] = useState<Set<number>>(new Set([1,2,3,4,5,6,7]));
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const days = getCurrentWeekDays();
@@ -67,14 +104,27 @@ export default function HabitsPage() {
 
   async function handleAdd() {
     if (!newName.trim()) return;
-    const habit = await createHabit(newName.trim());
+    const activeDaysStr = Array.from(newActiveDays).sort((a, b) => a - b).join(',');
+    const habit = await createHabit(newName.trim(), newDifficulty, activeDaysStr);
     setHabits(prev => [...prev, { ...habit, logs: [] }]);
     setNewName('');
+    setNewDifficulty('medium');
+    setNewActiveDays(new Set([1,2,3,4,5,6,7]));
     setShowModal(false);
+  }
+
+  function toggleDay(dayNum: number) {
+    setNewActiveDays(prev => {
+      const next = new Set(prev);
+      if (next.has(dayNum) && next.size > 1) next.delete(dayNum);
+      else if (!next.has(dayNum)) next.add(dayNum);
+      return next;
+    });
   }
 
   async function handleCircleClick(habit: Habit, date: string) {
     if (date !== TODAY) return;
+    if (!isDayActive(habit, date)) return;
     const existing = getLog(habit, date);
     if (existing) {
       const updated = await updateHabitLog(existing.id, existing.status === 'completed' ? 'skipped' : 'completed');
@@ -131,7 +181,6 @@ export default function HabitsPage() {
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-stone-100">
-                {/* Corner cell */}
                 <th className="sticky left-0 bg-white z-10 text-left px-5 py-3 min-w-[200px] border-r border-stone-100">
                   <span className="text-xs font-semibold text-stone-400 uppercase tracking-widest">Habit</span>
                 </th>
@@ -155,14 +204,18 @@ export default function HabitsPage() {
                 return (
                   <tr key={habit.id}
                     className={`border-b border-stone-50 transition-colors hover:bg-stone-50/50 ${idx === habits.length - 1 ? 'border-none' : ''}`}>
-                    {/* Habit name — sticky left */}
                     <td className="sticky left-0 bg-white z-10 px-5 py-3.5 border-r border-stone-100">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-stone-800 leading-tight">{habit.name}</p>
-                          {streak > 0
-                            ? <p className="text-xs text-amber-500 mt-0.5">🔥 {streak}d streak</p>
-                            : <p className="text-xs text-stone-300 mt-0.5">No streak</p>}
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            {streak > 0
+                              ? <p className="text-xs text-amber-500">🔥 {streak}d streak</p>
+                              : <p className="text-xs text-stone-300">No streak</p>}
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium capitalize ${DIFF_BADGE[habit.difficulty] ?? 'bg-stone-50 text-stone-400'}`}>
+                              {habit.difficulty}
+                            </span>
+                          </div>
                         </div>
                         <button
                           onClick={() => setDeleteConfirm(habit.id)}
@@ -174,14 +227,25 @@ export default function HabitsPage() {
                       </div>
                     </td>
 
-                    {/* Day cells */}
                     {days.map(day => {
+                      const active = isDayActive(habit, day);
                       const log = getLog(habit, day);
                       const isToday = day === TODAY;
                       const isPast = day < TODAY;
                       const isFuture = day > TODAY;
                       const completed = log?.status === 'completed';
                       const skipped = log?.status === 'skipped';
+
+                      if (!active) {
+                        return (
+                          <td key={day} className="px-4 py-3.5 text-center">
+                            <div className="w-9 h-9 rounded-full flex items-center justify-center mx-auto bg-stone-50">
+                              <span className="text-stone-200 text-sm font-bold">–</span>
+                            </div>
+                          </td>
+                        );
+                      }
+
                       return (
                         <td key={day} className={`px-4 py-3.5 text-center ${isToday ? 'bg-amber-50/60' : ''}`}>
                           <button
@@ -221,15 +285,51 @@ export default function HabitsPage() {
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 border border-stone-200">
             <h2 className="text-lg font-semibold text-stone-800 mb-5">New Habit</h2>
+
             <input autoFocus
-              className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-200 bg-stone-50"
+              className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-200 bg-stone-50 mb-5"
               placeholder="e.g. Read before bed"
               value={newName}
               onChange={e => setNewName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAdd()}
             />
-            <div className="flex gap-3 mt-5">
-              <button onClick={() => { setShowModal(false); setNewName(''); }}
+
+            <div className="mb-5">
+              <p className="text-xs font-medium text-stone-500 mb-2">How hard on a bad day?</p>
+              <div className="flex gap-2">
+                {DIFFICULTY_OPTIONS.map(opt => (
+                  <button key={opt.value} type="button"
+                    onClick={() => setNewDifficulty(opt.value)}
+                    className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                      newDifficulty === opt.value ? opt.active : opt.idle
+                    }`}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-5">
+              <p className="text-xs font-medium text-stone-500 mb-2">Active days</p>
+              <div className="flex gap-1.5">
+                {DAY_LABELS.map((label, i) => {
+                  const dayNum = DAY_NUMS[i];
+                  const isOn = newActiveDays.has(dayNum);
+                  return (
+                    <button key={dayNum} type="button"
+                      onClick={() => toggleDay(dayNum)}
+                      className={`w-8 h-8 rounded-lg text-xs font-semibold transition-colors ${
+                        isOn ? 'bg-emerald-600 text-white' : 'bg-stone-100 text-stone-400 hover:bg-stone-200'
+                      }`}>
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => { setShowModal(false); setNewName(''); setNewDifficulty('medium'); setNewActiveDays(new Set([1,2,3,4,5,6,7])); }}
                 className="flex-1 py-2.5 rounded-xl text-sm text-stone-500 bg-stone-100 hover:bg-stone-200 transition-colors">Cancel</button>
               <button onClick={handleAdd}
                 className="flex-1 py-2.5 rounded-xl text-sm text-white bg-emerald-600 hover:bg-emerald-700 transition-colors font-medium">Add</button>
@@ -238,12 +338,10 @@ export default function HabitsPage() {
         </div>
       )}
 
-      {/* Full Record Modal */}
       {showRecord && (
         <HabitRecordModal habits={habits} onClose={() => setShowRecord(false)} />
       )}
 
-      {/* Delete Modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 text-center border border-stone-200">

@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import type { Habit, HabitLog } from '../types';
 import { localDate } from '../utils/date';
 
-
 function datePad(d: Date): string {
   return (
     d.getFullYear() +
@@ -17,33 +16,76 @@ function friendlyDate(ds: string): string {
   });
 }
 
-function computeLongestStreak(logs: HabitLog[]): number {
-  const completed = new Set(logs.filter(l => l.status === 'completed').map(l => l.date));
+function getISODayNum(d: Date): number {
+  return d.getDay() === 0 ? 7 : d.getDay(); // 1=Mon...7=Sun
+}
+
+function parseActiveDays(activeDays: string): Set<number> {
+  return new Set(activeDays.split(',').map(Number));
+}
+
+function formatActiveDays(activeDays: string): string {
+  const nums = activeDays.split(',').map(Number).sort((a, b) => a - b);
+  if (nums.length === 7) return 'Daily';
+  const labels = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  if (nums.length <= 3) return nums.map(n => labels[n]).join('/');
+  return `${nums.length} days/wk`;
+}
+
+function computeLongestStreak(habit: Habit): number {
+  const activeDayNums = parseActiveDays(habit.activeDays);
+  const completed = new Set(habit.logs.filter(l => l.status === 'completed').map(l => l.date));
   const dates = [...completed].sort();
   if (dates.length === 0) return 0;
   let max = 0, cur = 0, prev: Date | null = null;
   for (const ds of dates) {
     const d = new Date(ds + 'T12:00:00');
     if (prev) {
-      const diff = Math.round((d.getTime() - prev.getTime()) / 86400000);
-      cur = diff === 1 ? cur + 1 : 1;
-    } else { cur = 1; }
+      // Check if any active days between prev and d were missed
+      const between = new Date(prev);
+      between.setDate(between.getDate() + 1);
+      let hasGap = false;
+      while (between < d) {
+        const bs = datePad(between);
+        if (activeDayNums.has(getISODayNum(between)) && !completed.has(bs)) {
+          hasGap = true;
+          break;
+        }
+        between.setDate(between.getDate() + 1);
+      }
+      cur = hasGap ? 1 : cur + 1;
+    } else {
+      cur = 1;
+    }
     max = Math.max(max, cur);
     prev = d;
   }
   return max;
 }
 
-function computeCurrentStreak(logs: HabitLog[]): number {
+function computeCurrentStreak(habit: Habit): number {
+  const activeDayNums = parseActiveDays(habit.activeDays);
   const todayStr = localDate();
-  const todayDone = logs.find(l => l.date === todayStr)?.status === 'completed';
+  const todayIsActive = activeDayNums.has(getISODayNum(new Date()));
+  const todayDone = habit.logs.find(l => l.date === todayStr)?.status === 'completed';
+
   let streak = 0;
   const d = new Date();
-  if (!todayDone) d.setDate(d.getDate() - 1);
+  if (!todayIsActive || (todayIsActive && !todayDone)) d.setDate(d.getDate() - 1);
+
   for (let i = 0; i < 730; i++) {
+    const dayNum = getISODayNum(d);
+    if (!activeDayNums.has(dayNum)) {
+      d.setDate(d.getDate() - 1);
+      continue;
+    }
     const ds = datePad(d);
-    if (logs.find(l => l.date === ds)?.status === 'completed') { streak++; d.setDate(d.getDate() - 1); }
-    else break;
+    if (habit.logs.find(l => l.date === ds)?.status === 'completed') {
+      streak++;
+      d.setDate(d.getDate() - 1);
+    } else {
+      break;
+    }
   }
   return streak;
 }
@@ -69,6 +111,11 @@ function buildYearGrid(year: number): string[][] {
 const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DAY_LABELS   = ['M','T','W','T','F','S','S'];
 
+const DIFF_COLOR: Record<string, string> = {
+  easy:   'bg-green-100 text-green-700',
+  medium: 'bg-amber-100 text-amber-700',
+  hard:   'bg-rose-100 text-rose-700',
+};
 
 interface TooltipState {
   date: string;
@@ -76,7 +123,6 @@ interface TooltipState {
   y: number;
   closing: boolean;
 }
-
 
 interface Props { habits: Habit[]; onClose: () => void; }
 
@@ -94,7 +140,6 @@ export default function HabitRecordModal({ habits, onClose }: Props) {
   );
 }
 
-
 function HabitList({ habits, onSelect, onClose }: {
   habits: Habit[]; onSelect: (h: Habit) => void; onClose: () => void;
 }) {
@@ -111,15 +156,22 @@ function HabitList({ habits, onSelect, onClose }: {
         {habits.length === 0
           ? <p className="text-sm text-stone-400 text-center py-12">No habits tracked yet.</p>
           : habits.map(habit => {
-              const streak  = computeCurrentStreak(habit.logs);
+              const streak  = computeCurrentStreak(habit);
               const total   = habit.logs.filter(l => l.status === 'completed').length;
-              const longest = computeLongestStreak(habit.logs);
+              const longest = computeLongestStreak(habit);
               return (
                 <button key={habit.id} onClick={() => onSelect(habit)}
                   className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-stone-50 hover:bg-stone-100 border border-stone-100 hover:border-stone-200 transition-all text-left group">
                   <div>
-                    <p className="text-sm font-semibold text-stone-800">{habit.name}</p>
-                    <p className="text-xs text-stone-400 mt-0.5">{total} completed · best streak {longest}d</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-stone-800">{habit.name}</p>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium capitalize ${DIFF_COLOR[habit.difficulty] ?? 'bg-stone-100 text-stone-500'}`}>
+                        {habit.difficulty}
+                      </span>
+                    </div>
+                    <p className="text-xs text-stone-400 mt-0.5">
+                      {total} completed · best streak {longest}d · {formatActiveDays(habit.activeDays)}
+                    </p>
                   </div>
                   <div className="flex items-center gap-3">
                     {streak > 0 && <span className="text-xs text-amber-500 font-medium">🔥 {streak}d</span>}
@@ -133,7 +185,6 @@ function HabitList({ habits, onSelect, onClose }: {
   );
 }
 
-
 function HabitDetail({ habit, onBack, onClose }: {
   habit: Habit; onBack: () => void; onClose: () => void;
 }) {
@@ -143,9 +194,11 @@ function HabitDetail({ habit, onBack, onClose }: {
   const logYears       = habit.logs.map(l => parseInt(l.date.slice(0, 4)));
   const minYear        = Math.min(createdYear, logYears.length > 0 ? Math.min(...logYears) : currentYear);
 
-  const [year, setYear]     = useState(currentYear);
+  const [year, setYear]       = useState(currentYear);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const activeDayNums = parseActiveDays(habit.activeDays);
 
   useEffect(() => {
     if (!tooltip) return;
@@ -174,8 +227,8 @@ function HabitDetail({ habit, onBack, onClose }: {
     return parseInt(prev.slice(5, 7)) - 1 !== m ? MONTH_LABELS[m] : null;
   });
 
-  const longestStreak  = computeLongestStreak(habit.logs);
-  const currentStreak  = computeCurrentStreak(habit.logs);
+  const longestStreak  = computeLongestStreak(habit);
+  const currentStreak  = computeCurrentStreak(habit);
   const totalCompleted = habit.logs.filter(l => l.status === 'completed').length;
   const yearCompleted  = habit.logs.filter(l => l.date.startsWith(`${year}-`) && l.status === 'completed').length;
   const createdLabel   = new Date(habit.createdAt).toLocaleDateString('en-US', {
@@ -186,6 +239,8 @@ function HabitDetail({ habit, onBack, onClose }: {
     const isBefore = date < createdDateStr;
     const isFuture = date > today;
     if (isBefore || isFuture) return 'bg-stone-200';
+    const d = new Date(date + 'T00:00:00');
+    if (!activeDayNums.has(getISODayNum(d))) return 'bg-stone-100';
     const status = logMap[date];
     if (status === 'completed') return 'bg-emerald-500 hover:bg-emerald-600';
     if (status === 'skipped')   return 'bg-red-400 hover:bg-red-500';
@@ -198,12 +253,7 @@ function HabitDetail({ habit, onBack, onClose }: {
       return;
     }
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setTooltip({
-      date,
-      x: rect.left + rect.width / 2,
-      y: rect.top - 8,
-      closing: false,
-    });
+    setTooltip({ date, x: rect.left + rect.width / 2, y: rect.top - 8, closing: false });
   }
 
   function closeTooltip() {
@@ -213,29 +263,29 @@ function HabitDetail({ habit, onBack, onClose }: {
 
   return (
     <>
-      {/* Header */}
       <div className="flex items-center justify-between px-7 pt-7 pb-5 border-b border-stone-100 shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           <button onClick={onBack} className="text-sm text-stone-400 hover:text-stone-600 transition-colors shrink-0">←</button>
           <div className="min-w-0">
-            <h2 className="text-xl font-semibold text-stone-800 truncate">{habit.name}</h2>
-            <p className="text-xs text-stone-400 mt-0.5">Started {createdLabel}</p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-semibold text-stone-800 truncate">{habit.name}</h2>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium capitalize shrink-0 ${DIFF_COLOR[habit.difficulty] ?? 'bg-stone-100 text-stone-500'}`}>
+                {habit.difficulty}
+              </span>
+            </div>
+            <p className="text-xs text-stone-400 mt-0.5">Started {createdLabel} · {formatActiveDays(habit.activeDays)}</p>
           </div>
         </div>
         <button onClick={onClose} className="text-stone-300 hover:text-stone-500 text-2xl leading-none ml-4 shrink-0">×</button>
       </div>
 
-      {/* Body */}
       <div className="px-7 pt-6 pb-7 flex flex-col gap-6">
-
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-4">
           <StatCard label="Current streak"      value={currentStreak  > 0 ? `🔥 ${currentStreak}d`  : '—'} />
           <StatCard label="Longest streak ever" value={longestStreak  > 0 ? `${longestStreak}d`       : '—'} />
           <StatCard label="Total completed"     value={`${totalCompleted} days`} />
         </div>
 
-        {/* Year nav */}
         <div className="flex items-center justify-between">
           <div>
             <span className="text-sm font-semibold text-stone-700">{year}</span>
@@ -251,17 +301,14 @@ function HabitDetail({ habit, onBack, onClose }: {
           </div>
         </div>
 
-        {/* Contribution grid */}
         <div className="overflow-x-auto">
           <div className="min-w-max">
-            {/* Month labels */}
             <div className="flex gap-[3px] mb-1.5 ml-5">
               {weeks.map((_, i) => (
                 <div key={i} className="w-3.5 text-[9px] text-stone-400 leading-none">{monthLabels[i] ?? ''}</div>
               ))}
             </div>
 
-            {/* Day labels + grid */}
             <div className="flex gap-[3px]">
               <div className="flex flex-col gap-[3px] mr-1">
                 {DAY_LABELS.map((d, i) => (
@@ -291,8 +338,10 @@ function HabitDetail({ habit, onBack, onClose }: {
               ))}
             </div>
 
-            {/* Legend */}
-            <div className="flex items-center gap-2 mt-3 ml-5">
+            <div className="flex items-center gap-2 mt-3 ml-5 flex-wrap">
+              <div className="w-3 h-3 rounded-[2px] bg-stone-100" />
+              <span className="text-[10px] text-stone-400">Off day</span>
+              <div className="w-px h-3 bg-stone-200 mx-0.5" />
               <div className="w-3 h-3 rounded-[2px] bg-stone-200" />
               <span className="text-[10px] text-stone-400">No entry</span>
               <div className="w-px h-3 bg-stone-200 mx-0.5" />
@@ -306,27 +355,28 @@ function HabitDetail({ habit, onBack, onClose }: {
         </div>
       </div>
 
-      {/* Speech-bubble tooltip — fixed, floats above the clicked square */}
       {tooltip && (
         <div
           className={`fixed z-[200] pointer-events-none select-none ${tooltip.closing ? 'bubble-out' : 'bubble-in'}`}
           style={{ left: tooltip.x, top: tooltip.y }}
         >
-          {/* Bubble body */}
           <div className="bg-stone-800 text-white rounded-xl px-3 py-2 shadow-xl text-center"
             style={{ transform: 'translateX(-50%) translateY(-100%)', whiteSpace: 'nowrap' }}>
             <p className="text-xs font-medium leading-snug">{friendlyDate(tooltip.date)}</p>
-            {logMap[tooltip.date] && (
-              <p className={`text-[10px] mt-0.5 font-semibold ${logMap[tooltip.date] === 'completed' ? 'text-emerald-400' : 'text-red-400'}`}>
-                {logMap[tooltip.date] === 'completed' ? '✓ completed' : '× skipped'}
-              </p>
-            )}
+            {(() => {
+              const d = new Date(tooltip.date + 'T00:00:00');
+              const isOffDay = !activeDayNums.has(getISODayNum(d));
+              if (isOffDay) return <p className="text-[10px] mt-0.5 text-stone-400 font-semibold">off day</p>;
+              if (logMap[tooltip.date]) return (
+                <p className={`text-[10px] mt-0.5 font-semibold ${logMap[tooltip.date] === 'completed' ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {logMap[tooltip.date] === 'completed' ? '✓ completed' : '× skipped'}
+                </p>
+              );
+              return null;
+            })()}
           </div>
-          {/* Triangle pointer */}
           <div style={{
-            position: 'absolute',
-            bottom: 0,
-            left: '50%',
+            position: 'absolute', bottom: 0, left: '50%',
             transform: 'translateX(-50%) translateY(100%)',
             width: 0, height: 0,
             borderLeft: '6px solid transparent',
@@ -347,3 +397,6 @@ function StatCard({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+// Keep backward compat – HabitLog still used via Habit.logs
+export type { HabitLog };
