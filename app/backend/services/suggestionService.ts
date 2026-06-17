@@ -35,7 +35,6 @@ export async function getSuggestions(userId: string)
     const today=new Date().toISOString().split('T')[0];
     const stalledTasks=await prisma.shortTask.findMany({ //Detect tasks rolling over for 3+ days
 
-        //NOT SURE IF I NEED IT STILL
         where:{
             userId,
             completed: false,
@@ -51,31 +50,35 @@ export async function getSuggestions(userId: string)
         });
     }
 
+    const fourteenDaysAgo=new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate()-14);
+    const fromDateTasks=fourteenDaysAgo.toISOString().split('T')[0];
     const totalTasks=await prisma.shortTask.count({
-        where: {userId}
+        where: {userId, dateAssigned: {gte: fromDateTasks}}
     });
     const completedTasks=await prisma.shortTask.count({
-        where:{userId, completed:true}
+        where:{userId, completed:true, dateAssigned: {gte: fromDateTasks}}
     });
     const productivity=totalTasks===0?1 : completedTasks/totalTasks;
-    if(productivity<0.4)
+    if(totalTasks>=5 && productivity<0.4)
     {
         suggestions.push({
             type: 'reduce_tasks',
-            message: 'You are completing less than 40% of your tasks — try setting fewer tasks per day',
+            message: `You've completed ${Math.round(productivity*100)}% of your tasks in the last 14 days — try setting fewer tasks per day to build consistency.`,
         });
     }
 
-    const overdueMilestones=await prisma.milestone.findMany({
+    const overdueMilestones=await prisma.milestone.count({
         where:{completed: false, dueDate:{lt:today}, phase: {project: {userId}}},
     });
 
-    for(const milestone of overdueMilestones)
+    if(overdueMilestones>0)
     {
         suggestions.push({
             type: 'overdue_milestone',
-            message: `Milestone "${milestone.title}" is overdue — consider recalibrating your project plan`,
-            id: milestone.id,
+            message: overdueMilestones===1
+                ? 'You have 1 overdue milestone — consider recalibrating your project plan.'
+                : `You have ${overdueMilestones} overdue milestones — consider recalibrating your project plan.`,
         });
     }
 
@@ -244,7 +247,7 @@ TO BE CALIBRATED LATER ( MORE COMMON REASONS TO BE ADDED, THRESHOLDS TO BE TUNED
         {
             suggestions.push({
                 type: 'calibration',
-                message: `You've rated ${easier} of your last ${total} milestones as easier than expected — your estimates may be running long.`,
+                message: `You've rated ${easier} of your last ${total} milestones as easier than expected — your estimates are likely too conservative. Consider tightening your buffers or setting more ambitious milestones.`,
             });
         }
     }
