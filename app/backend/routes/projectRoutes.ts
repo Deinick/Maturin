@@ -4,6 +4,7 @@ import * as projectController from '../controllers/projectController';
 const router=Router();
 
 router.get('/', projectController.getProjects);
+router.get('/:id/insights', projectController.getProjectInsights);
 router.post('/', projectController.createProject);
 router.post('/:projectId/phases', projectController.createPhase);
 router.post('/phases/:phaseId/milestones', projectController.createMilestone);

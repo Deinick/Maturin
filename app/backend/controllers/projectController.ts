@@ -13,6 +13,18 @@ export async function getProjects(req: Request, res: Response): Promise<void>
     res.json(projects);
 }
 
+export async function getProjectInsights(req: Request, res: Response): Promise<void>
+{
+    const id=req.params['id'] as string;
+    const insights=await projectService.getProjectInsights(id);
+    if (!insights)
+    { 
+        res.status(404).json({ error: 'Project not found' });
+        return;
+    }
+    res.json(insights);
+}
+
 export async function createProject(req: Request, res: Response): Promise<void>
 {
     const userId=req.headers['x-user-id'] as string;
@@ -69,8 +81,8 @@ export async function updatePhase(req: Request, res: Response): Promise<void>
 export async function updateMilestone(req: Request, res: Response): Promise<void>
 {
     const id = req.params['id'] as string;
-    const { title, description, order, dueDate, completed } = req.body;
-    const milestone = await projectService.updateMilestone(id, { title, description, order, dueDate, completed });
+    const { title, description, order, dueDate, completed, effortRating, blockReason } = req.body;
+    const milestone = await projectService.updateMilestone(id, { title, description, order, dueDate, completed, effortRating, blockReason });
     res.json(milestone);
 }
 
