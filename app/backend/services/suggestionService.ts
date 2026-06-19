@@ -125,27 +125,7 @@ export async function getSuggestions(userId: string)
         }
     }
 
-    // Habit stacking: detect habits completed together >= 75% of the time
-    if (habits.length >= 2) {
-        for (let i = 0; i < habits.length; i++) {
-            for (let j = i + 1; j < habits.length; j++) {
-                const h1 = habits[i];
-                const h2 = habits[j];
-                const h1Completed = new Set(h1.logs.filter(l => l.status === 'completed').map(l => l.date));
-                const h2Completed = new Set(h2.logs.filter(l => l.status === 'completed').map(l => l.date));
-                const bothCompleted = [...h1Completed].filter(d => h2Completed.has(d));
-                const eitherCompleted = new Set([...h1Completed, ...h2Completed]);
-                if (eitherCompleted.size > 0 && bothCompleted.length >= 7 &&
-                    bothCompleted.length / eitherCompleted.size >= 0.75) {
-                    const pct = Math.round((bothCompleted.length / eitherCompleted.size) * 100);
-                    suggestions.push({
-                        type: 'habit_stack',
-                        message: `"${h1.name}" and "${h2.name}" are completed together ${pct}% of the time — consider treating them as one routine block.`,
-                    });
-                }
-            }
-        }
-    }
+
 
     // Avoidance pattern: task categories with high rollover rate
     const thirtyDaysAgo=new Date();
