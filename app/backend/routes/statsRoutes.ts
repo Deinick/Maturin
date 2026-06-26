@@ -7,5 +7,6 @@ router.get('/productivity', statsController.getProductivity);
 router.get('/completion-rate', statsController.getCompletionRate);
 router.get('/weekly', statsController.getWeeklySummary);
 router.get('/yearly', statsController.getYearlyStats);
+router.get('/export', statsController.exportData);
 
 export default router;

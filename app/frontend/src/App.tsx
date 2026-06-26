@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Background    from './components/Background';
@@ -9,6 +9,7 @@ import HabitsPage       from './pages/HabitsPage';
 import ProjectsPage     from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
 import AccountPage      from './pages/AccountPage';
+import SuggestionsPage  from './pages/SuggestionsPage';
 import LoginPage        from './pages/LoginPage';
 import RegisterPage     from './pages/RegisterPage';
 
@@ -104,8 +105,9 @@ function AppShell()
                     <Route path="/"             element={<DashboardPage />} />
                     <Route path="/tasks"        element={<TasksPage />} />
                     <Route path="/habits"       element={<HabitsPage />} />
-                    <Route path="/projects"     element={<ProjectsPage />} />
+                    <Route path="/projects"      element={<ProjectsPage />} />
                     <Route path="/projects/:id" element={<ProjectDetailPage />} />
+                    <Route path="/suggestions"  element={<SuggestionsPage />} />
                     <Route path="/account"      element={<AccountPage onLogout={logout} />} />
                     <Route path="*"             element={<Navigate to="/" replace />} />
                 </Routes>

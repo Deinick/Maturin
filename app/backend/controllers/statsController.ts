@@ -29,3 +29,11 @@ export async function getYearlyStats(req: Request, res: Response): Promise<void>
     const stats  = await statsService.getYearlyStats(userId);
     res.json(stats);
 }
+
+export async function exportData(req: Request, res: Response): Promise<void>
+{
+    const userId = (req as AuthRequest).userId;
+    const data   = await statsService.exportUserData(userId);
+    res.setHeader('Content-Disposition', 'attachment; filename="steadily-export.json"');
+    res.json(data);
+}

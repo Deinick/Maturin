@@ -172,7 +172,7 @@ export default function DashboardPage() {
           </button>
 
           {/* Suggestions — yellow */}
-          <button onClick={() => navigate('/projects')}
+          <button onClick={() => navigate('/suggestions')}
             className="sticker sticker-yellow sticker-tilt-ll p-6 text-left w-full focus:outline-none">
             <p className="text-xs text-amber-600 font-semibold uppercase tracking-wide mb-1">Insights</p>
             <h3 className="font-bold text-stone-800 mb-3 text-sm">Suggestions</h3>

@@ -146,3 +146,15 @@ export const getSuggestions = () =>
     api.get<Suggestion[] | { suggestions: Suggestion[] }>('/suggestions').then(r =>
         Array.isArray(r.data) ? r.data : r.data.suggestions ?? []
     );
+
+// Export
+export async function downloadExport(): Promise<void>
+{
+    const res = await api.get('/stats/export', { responseType: 'blob' });
+    const url = URL.createObjectURL(new Blob([res.data], { type: 'application/json' }));
+    const a   = document.createElement('a');
+    a.href     = url;
+    a.download = `steadily-export-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}

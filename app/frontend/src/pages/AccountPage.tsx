@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getYearlyStats } from '../api/client';
+import { getYearlyStats, downloadExport } from '../api/client';
 
 interface YearlyStats
 {
@@ -15,9 +15,16 @@ export default function AccountPage({ onLogout }: { onLogout: () => void })
 {
     const navigate       = useNavigate();
     const { user }       = useAuth();
-    const [stats, setStats] = useState<YearlyStats | null>(null);
+    const [stats, setStats]       = useState<YearlyStats | null>(null);
+    const [exporting, setExporting] = useState(false);
 
     useEffect(() => { getYearlyStats().then(setStats); }, []);
+
+    async function handleExport()
+    {
+        setExporting(true);
+        try { await downloadExport(); } finally { setExporting(false); }
+    }
 
     function handleLogout()
     {
@@ -81,7 +88,16 @@ export default function AccountPage({ onLogout }: { onLogout: () => void })
                     <SettingRow label="Theme"          value="Light"        />
                     <SettingRow label="Start of week"  value="Monday"       />
                     <SettingRow label="Daily reminder" value="Off"          />
-                    <SettingRow label="Data export"    value="Coming soon" muted />
+                    <div className="flex items-center justify-between px-6 py-3.5">
+                        <span className="text-sm text-stone-700">Data export</span>
+                        <button
+                            onClick={handleExport}
+                            disabled={exporting}
+                            className="text-sm text-stone-400 hover:text-emerald-600 transition-colors disabled:opacity-40"
+                        >
+                            {exporting ? 'Downloading…' : 'Download JSON'}
+                        </button>
+                    </div>
                 </div>
             </div>
 

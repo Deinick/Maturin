@@ -94,6 +94,15 @@ export async function getWeeklySummary(userId: string)
   return { weekStart, weekEnd, totalLogged, completed: completedCount, pending: pendingCount, rolledOver, bestDay, categoryStats };
 }
 
+export async function exportUserData(userId: string) {
+  const [tasks, habits, projects] = await Promise.all([
+    prisma.shortTask.findMany({ where: { userId }, orderBy: { dateAssigned: 'desc' } }),
+    prisma.habit.findMany({ where: { userId }, include: { logs: true } }),
+    prisma.project.findMany({ where: { userId }, include: { phases: { include: { milestones: true } } } }),
+  ]);
+  return { exportedAt: new Date().toISOString(), tasks, habits, projects };
+}
+
 export async function getYearlyStats(userId: string) {
   const year = new Date().getFullYear();
   const startOfYear = `${year}-01-01`;
