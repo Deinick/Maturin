@@ -1,24 +1,20 @@
 import { Request, Response } from 'express';
 import * as projectService from '../services/projectService';
+import { AuthRequest } from '../middleware/auth';
 
 export async function getProjects(req: Request, res: Response): Promise<void>
 {
-    const userId=req.headers['x-user-id'] as string;
-    if(!userId)
-    {
-        res.status(400).json({ error: 'userId is required' });
-        return;
-    }
-    const projects=await projectService.getProjects(userId);
+    const userId   = (req as AuthRequest).userId;
+    const projects = await projectService.getProjects(userId);
     res.json(projects);
 }
 
 export async function getProjectInsights(req: Request, res: Response): Promise<void>
 {
-    const id=req.params['id'] as string;
-    const insights=await projectService.getProjectInsights(id);
+    const id       = req.params['id'] as string;
+    const insights = await projectService.getProjectInsights(id);
     if (!insights)
-    { 
+    {
         res.status(404).json({ error: 'Project not found' });
         return;
     }
@@ -27,23 +23,24 @@ export async function getProjectInsights(req: Request, res: Response): Promise<v
 
 export async function createProject(req: Request, res: Response): Promise<void>
 {
-    const userId=req.headers['x-user-id'] as string;
-    const { title, description, targetEndDate }=req.body;
-    if(!userId || !title)
+    const userId = (req as AuthRequest).userId;
+    const { title, description, targetEndDate } = req.body;
+    if (!title)
     {
-        res.status(400).json({ error: 'userId and title are required' });
+        res.status(400).json({ error: 'title is required' });
         return;
     }
-    const project=await projectService.createProject(userId, { title, description, targetEndDate });
+    const project = await projectService.createProject(userId, { title, description, targetEndDate });
     res.status(201).json(project);
 }
 
 export async function createPhase(req: Request, res: Response): Promise<void>
 {
-    const projectId = req.params['projectId'] as string;
+    const projectId              = req.params['projectId'] as string;
     const { title, description, order } = req.body;
-    if (!projectId || !title || order === undefined) {
-        res.status(400).json({ error: 'projectId, title and order are required' });
+    if (!title || order === undefined)
+    {
+        res.status(400).json({ error: 'title and order are required' });
         return;
     }
     const phase = await projectService.createPhase(projectId, title, description, order);
@@ -52,10 +49,11 @@ export async function createPhase(req: Request, res: Response): Promise<void>
 
 export async function createMilestone(req: Request, res: Response): Promise<void>
 {
-    const phaseId = req.params['phaseId'] as string;
+    const phaseId                         = req.params['phaseId'] as string;
     const { title, description, order, dueDate } = req.body;
-    if (!phaseId || !title || order === undefined) {
-        res.status(400).json({ error: 'phaseId, title and order are required' });
+    if (!title || order === undefined)
+    {
+        res.status(400).json({ error: 'title and order are required' });
         return;
     }
     const milestone = await projectService.createMilestone(phaseId, title, description, order, dueDate);
