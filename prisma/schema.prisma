@@ -9,14 +9,15 @@ datasource db {
 }
 
 model User {
-  id            String         @id @default(uuid())
-  passwordHash String
-  email         String         @unique
-  name          String
-  createdAt     DateTime       @default(now())
-  tasks         ShortTask[]
-  habits        Habit[]
-  projects      Project[]
+  id                 String          @id @default(uuid())
+  passwordHash       String
+  email              String          @unique
+  name               String
+  createdAt          DateTime        @default(now())
+  tasks              ShortTask[]
+  habits             Habit[]
+  projects           Project[]
+  projectMemberships ProjectMember[]
 }
 
 model ShortTask {
@@ -56,15 +57,28 @@ model HabitLog {
 }
 
 model Project {
-  id            String   @id @default(uuid())
+  id            String          @id @default(uuid())
   userId        String
   title         String
   description   String?
   targetEndDate String?
-  completed     Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completed     Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   phases        Phase[]
+  members       ProjectMember[]
+}
+
+model ProjectMember {
+  id        String   @id @default(uuid())
+  projectId String
+  userId    String
+  role      String
+  joinedAt  DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
 }
 
 model Phase {

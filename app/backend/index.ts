@@ -9,6 +9,7 @@ import rolloverRoutes  from './routes/rolloverRoutes';
 import statsRoutes     from './routes/statsRoutes';
 import suggestionRoutes from './routes/suggestionRoutes';
 import { requireAuth } from './middleware/auth';
+import { PermissionError } from './services/projectService';
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -29,5 +30,15 @@ app.use('/api/projects',    projectRoutes);
 app.use('/api/rollover',    rolloverRoutes);
 app.use('/api/stats',       statsRoutes);
 app.use('/api/suggestions', suggestionRoutes);
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    if (err instanceof PermissionError) {
+        res.status(403).json({ error: err.message });
+        return;
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+});
 
 app.listen(PORT, () => { console.log(`Server started on port ${PORT}`); });

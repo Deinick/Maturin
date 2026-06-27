@@ -30,6 +30,15 @@ export interface HabitLog {
   status: string;
 }
 
+export interface ProjectMember {
+  id: string;
+  projectId: string;
+  userId: string;
+  role: 'owner' | 'contributor' | 'viewer';
+  joinedAt: string;
+  user: { id: string; name: string; email: string };
+}
+
 export interface Project {
   id: string;
   userId: string;
@@ -38,6 +47,7 @@ export interface Project {
   targetEndDate: string | null;
   completed: boolean;
   phases: Phase[];
+  members?: ProjectMember[];
 }
 
 export interface Phase {

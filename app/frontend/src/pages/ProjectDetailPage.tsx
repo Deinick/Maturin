@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef, useCallback, Fragment } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import type { Project, Phase, Milestone } from '../types';
+import type { Project, Milestone, ProjectMember } from '../types';
 import { getProjects, updateMilestone, getProjectInsights } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import EditProjectModal from '../components/EditProjectModal';
 
 type MilestoneWithPhase = Milestone & { phaseId: string };
@@ -48,6 +49,7 @@ const BLOCK_LABELS: Record<string, string>=
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user }  = useAuth();
   const [project, setProject] = useState<Project | null>(null);
   const [insights, setInsights] = useState<Insights | null>(null);
   const [selectedMilestone, setSelectedMilestone] = useState<MilestoneWithPhase | null>(null);
@@ -393,6 +395,11 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
+      {/* Members */}
+      {project.members && project.members.length > 0 && (
+        <MembersSection members={project.members} currentUserId={user?.id ?? ''} />
+      )}
+
       {showEdit && (
         <EditProjectModal
           project={project}
@@ -516,6 +523,59 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+const ROLE_COLORS: Record<string, string> = {
+  owner:       'bg-emerald-50 text-emerald-700 border-emerald-200',
+  contributor: 'bg-blue-50 text-blue-700 border-blue-200',
+  viewer:      'bg-stone-50 text-stone-500 border-stone-200',
+};
+
+function MembersSection({ members, currentUserId }: { members: ProjectMember[]; currentUserId: string }) {
+  const myMember = members.find(m => m.user.id === currentUserId);
+
+  return (
+    <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden mt-6">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-stone-50">
+        <div>
+          <p className="text-xs font-semibold text-stone-400 uppercase tracking-widest">Team</p>
+          {myMember && (
+            <span className={`inline-block mt-1 text-xs font-medium px-2 py-0.5 rounded-full border capitalize ${ROLE_COLORS[myMember.role] ?? ROLE_COLORS.viewer}`}>
+              You — {myMember.role}
+            </span>
+          )}
+        </div>
+        <button
+          disabled
+          title="Invitations coming soon"
+          className="flex items-center gap-1.5 text-xs text-stone-300 border border-stone-200 px-3 py-1.5 rounded-lg cursor-not-allowed"
+        >
+          + Invite
+        </button>
+      </div>
+      <ul className="divide-y divide-stone-50">
+        {members.map(m => (
+          <li key={m.id} className="flex items-center justify-between px-5 py-3">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-sm font-semibold text-stone-600 shrink-0">
+                {m.user.name[0]?.toUpperCase()}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-stone-800">
+                  {m.user.name}
+                  {m.user.id === currentUserId && <span className="text-stone-400 font-normal"> (you)</span>}
+                </p>
+                <p className="text-xs text-stone-400">{m.user.email}</p>
+              </div>
+            </div>
+            <span className={`text-xs font-medium px-2.5 py-1 rounded-full border capitalize ${ROLE_COLORS[m.role] ?? ROLE_COLORS.viewer}`}>
+              {m.role}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
