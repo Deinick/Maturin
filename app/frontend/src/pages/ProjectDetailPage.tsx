@@ -170,6 +170,10 @@ export default function ProjectDetailPage() {
   const nextMilestoneWithDate = allMilestones.find(m => !m.completed && m.dueDate);
   const activePhase = sortedPhases.find(ph => ph.milestones.some(m => !m.completed));
 
+  const myRole    = project.members?.find(m => m.user.id === user?.id)?.role ?? 'viewer';
+  const canEdit   = myRole === 'owner' || myRole === 'contributor';
+  const isOwner   = myRole === 'owner';
+
   const healthScore=insights?.healthScore ?? null;
   const healthColor=healthScore === null ? 'text-stone-400'
     : healthScore >= 70 ? 'text-emerald-600'
@@ -202,12 +206,14 @@ export default function ProjectDetailPage() {
             </span>
           )}
         </div>
-        <button
-          onClick={() => setShowEdit(true)}
-          className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-blue-500 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors shrink-0"
-        >
-          ✎ Edit
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setShowEdit(true)}
+            className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-blue-500 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors shrink-0"
+          >
+            ✎ Edit
+          </button>
+        )}
       </div>
 
       {/* Velocity banner */}
@@ -403,6 +409,7 @@ export default function ProjectDetailPage() {
       {showEdit && (
         <EditProjectModal
           project={project}
+          isOwner={isOwner}
           onClose={() => setShowEdit(false)}
           onSaved={updated => {
             const fresh = updated.find(p => p.id === project.id);
@@ -484,15 +491,17 @@ export default function ProjectDetailPage() {
                           <span className="text-sm font-medium text-amber-800">
                             {BLOCK_LABELS[selectedMilestone.blockReason] ?? selectedMilestone.blockReason}
                           </span>
-                          <button
-                            onClick={() => handleBlockReason(selectedMilestone.id, selectedMilestone.blockReason!)}
-                            className="text-xs text-amber-500 hover:text-amber-700 transition-colors"
-                          >
-                            Change
-                          </button>
+                          {canEdit && (
+                            <button
+                              onClick={() => handleBlockReason(selectedMilestone.id, selectedMilestone.blockReason!)}
+                              className="text-xs text-amber-500 hover:text-amber-700 transition-colors"
+                            >
+                              Change
+                            </button>
+                          )}
                         </div>
                       </div>
-                    ) : (
+                    ) : canEdit ? (
                       <div>
                         <p className="text-xs font-semibold text-stone-500 mb-2.5">What's blocking this?</p>
                         <div className="grid grid-cols-2 gap-1.5">
@@ -505,19 +514,23 @@ export default function ProjectDetailPage() {
                           ))}
                         </div>
                       </div>
+                    ) : (
+                      <p className="text-xs text-amber-700">This milestone is overdue.</p>
                     )}
                   </div>
                 )}
 
-                <button
-                  onClick={() => handleToggleMilestone(selectedMilestone)}
-                  className={`w-full py-2.5 rounded-xl text-sm font-medium transition-colors
-                    ${selectedMilestone.completed
-                      ? 'bg-stone-100 text-stone-500 hover:bg-stone-200'
-                      : 'bg-blue-500 text-white hover:bg-blue-600'}`}
-                >
-                  {selectedMilestone.completed ? 'Mark as incomplete' : 'Mark as complete'}
-                </button>
+                {canEdit && (
+                  <button
+                    onClick={() => handleToggleMilestone(selectedMilestone)}
+                    className={`w-full py-2.5 rounded-xl text-sm font-medium transition-colors
+                      ${selectedMilestone.completed
+                        ? 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+                        : 'bg-blue-500 text-white hover:bg-blue-600'}`}
+                  >
+                    {selectedMilestone.completed ? 'Mark as incomplete' : 'Mark as complete'}
+                  </button>
+                )}
               </>
             )}
           </div>

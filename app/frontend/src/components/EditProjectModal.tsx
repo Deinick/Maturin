@@ -12,12 +12,13 @@ interface EditMilestone { id?: string; title: string; dueDate: string; _deleted:
 
 interface Props {
   project: Project;
+  isOwner?: boolean;
   onClose: () => void;
   onSaved: (updated: Project[]) => void;
   onDeleted: (id: string) => void;
 }
 
-export default function EditProjectModal({ project, onClose, onSaved, onDeleted }: Props) {
+export default function EditProjectModal({ project, isOwner = true, onClose, onSaved, onDeleted }: Props) {
   const [step, setStep] = useState<Step>('project');
   const [form, setForm] = useState({
     title: project.title,
@@ -175,13 +176,15 @@ export default function EditProjectModal({ project, onClose, onSaved, onDeleted 
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-stone-100">
           <h2 className="text-lg font-semibold text-stone-800">Edit Project</h2>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setDeleteStep('confirm')}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-stone-300 hover:text-red-400 hover:bg-red-50 transition-colors text-base"
-              title="Delete project"
-            >
-              🗑
-            </button>
+            {isOwner && (
+              <button
+                onClick={() => setDeleteStep('confirm')}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-stone-300 hover:text-red-400 hover:bg-red-50 transition-colors text-base"
+                title="Delete project"
+              >
+                🗑
+              </button>
+            )}
             <button onClick={onClose} className="text-stone-300 hover:text-stone-500 text-xl leading-none w-8 h-8 flex items-center justify-center">×</button>
           </div>
         </div>

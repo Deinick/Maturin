@@ -98,7 +98,7 @@ export async function exportUserData(userId: string) {
   const [tasks, habits, projects] = await Promise.all([
     prisma.shortTask.findMany({ where: { userId }, orderBy: { dateAssigned: 'desc' } }),
     prisma.habit.findMany({ where: { userId }, include: { logs: true } }),
-    prisma.project.findMany({ where: { userId }, include: { phases: { include: { milestones: true } } } }),
+    prisma.project.findMany({ where: { members: { some: { userId } } }, include: { phases: { include: { milestones: true } } } }),
   ]);
   return { exportedAt: new Date().toISOString(), tasks, habits, projects };
 }

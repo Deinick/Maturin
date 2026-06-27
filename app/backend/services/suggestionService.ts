@@ -69,7 +69,7 @@ export async function getSuggestions(userId: string)
     }
 
     const overdueMilestones=await prisma.milestone.count({
-        where:{completed: false, dueDate:{lt:today}, phase: {project: {userId}}},
+        where:{ completed: false, dueDate:{ lt:today }, phase:{ project:{ members:{ some:{ userId } } } } },
     });
 
     if(overdueMilestones>0)
@@ -161,7 +161,7 @@ export async function getSuggestions(userId: string)
     // Blocking pattern: 2+ active milestones share the same block reason
     const blockedMilestones=await prisma.milestone.findMany({
         where: {
-            phase: { project: { userId } },
+            phase: { project: { members: { some: { userId } } } },
             blockReason: { not: null },
             completed: false,
         },
@@ -224,7 +224,7 @@ export async function getSuggestions(userId: string)
     const ratedMilestones=await prisma.milestone.findMany({
         where:
         {
-            phase:{ project: { userId } },
+            phase:{ project:{ members:{ some:{ userId } } } },
             effortRating:{ not: null },
             completed: true,
         },

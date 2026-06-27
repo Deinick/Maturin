@@ -4,6 +4,7 @@ import type { Project, Phase, Milestone } from '../types';
 import {
   getProjects, createProject, createPhase, createMilestone,
 } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import EditProjectModal from '../components/EditProjectModal';
 import sleepingTurtle from '../assets/Turtles/0609 (1).png';
 
@@ -11,7 +12,8 @@ type CreateStep = 'project' | 'phases' | 'milestones';
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
+  const { user }  = useAuth();
 
   const [showModal, setShowModal] = useState(false);
   const [step, setStep] = useState<CreateStep>('project');
@@ -130,6 +132,8 @@ export default function ProjectsPage() {
         <div className="space-y-3">
           {projects.map(project => {
             const { total, done, pct } = getProgress(project);
+            const myRole = project.members?.find(m => m.user.id === user?.id)?.role ?? 'viewer';
+            const canEdit = myRole === 'owner' || myRole === 'contributor';
             return (
               <div key={project.id}
                 className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
@@ -142,6 +146,11 @@ export default function ProjectsPage() {
                         title="Project health"
                       />
                       <p className="font-medium text-sm text-stone-800">{project.title}</p>
+                      {myRole !== 'owner' && (
+                        <span className="text-xs text-stone-400 border border-stone-200 px-1.5 py-0.5 rounded-full capitalize shrink-0">
+                          {myRole}
+                        </span>
+                      )}
                     </div>
                     {total > 0 && (
                       <div className="flex items-center gap-2 mt-1.5">
@@ -157,13 +166,15 @@ export default function ProjectsPage() {
                     <span className="text-xs text-stone-400 shrink-0">{project.targetEndDate}</span>
                   )}
 
-                  <button
-                    onClick={e => { e.stopPropagation(); setEditingProject(project); }}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-stone-400 hover:text-blue-500 hover:bg-blue-50 transition-colors shrink-0 text-sm"
-                    title="Edit project"
-                  >
-                    ✎
-                  </button>
+                  {canEdit && (
+                    <button
+                      onClick={e => { e.stopPropagation(); setEditingProject(project); }}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg text-stone-400 hover:text-blue-500 hover:bg-blue-50 transition-colors shrink-0 text-sm"
+                      title="Edit project"
+                    >
+                      ✎
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -216,6 +227,7 @@ export default function ProjectsPage() {
       {editingProject && (
         <EditProjectModal
           project={editingProject}
+          isOwner={editingProject.members?.find(m => m.user.id === user?.id)?.role === 'owner'}
           onClose={() => setEditingProject(null)}
           onSaved={updated => { setProjects(updated); setEditingProject(null); }}
           onDeleted={id => { setProjects(prev => prev.filter(p => p.id !== id)); setEditingProject(null); }}
