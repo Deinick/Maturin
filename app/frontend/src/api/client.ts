@@ -1,6 +1,29 @@
 import axios from 'axios';
 import type { Task, Habit, HabitLog, Project, Phase, Milestone, Suggestion } from '../types';
 import { localDate } from '../utils/date';
+/*
+
+
+
+
+CHANGE LINK WHEN DEPLOYMENT
+
+
+
+
+
+
+
+CHANGE LINK WHEN DEPLOYMENT
+
+
+
+
+*/
+
+
+
+
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3001/api',
@@ -146,6 +169,29 @@ export const getSuggestions = () =>
     api.get<Suggestion[] | { suggestions: Suggestion[] }>('/suggestions').then(r =>
         Array.isArray(r.data) ? r.data : r.data.suggestions ?? []
     );
+
+// Invites
+export interface InviteDetails {
+    id: string;
+    projectId: string;
+    invitedEmail: string;
+    role: 'contributor' | 'viewer';
+    token: string;
+    expiresAt: string;
+    usedAt: string | null;
+    status: 'pending' | 'used' | 'expired';
+    project: { id: string; title: string };
+    creator: { name: string };
+}
+
+export const sendInvite = (projectId: string, email: string, role: 'contributor' | 'viewer') =>
+    api.post(`/projects/${projectId}/invites`, { email, role }).then(r => r.data);
+
+export const getInviteDetails = (token: string) =>
+    api.get<InviteDetails>(`/invites/${token}`).then(r => r.data);
+
+export const acceptInvite = (token: string) =>
+    api.post<{ projectId: string; projectTitle: string }>(`/invites/${token}/accept`).then(r => r.data);
 
 // Export
 export async function downloadExport(): Promise<void>
