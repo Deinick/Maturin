@@ -4,6 +4,7 @@ import type { Project, Milestone, ProjectMember } from '../types';
 import { getProjects, updateMilestone, getProjectInsights } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import EditProjectModal from '../components/EditProjectModal';
+import InviteModal     from '../components/InviteModal';
 
 type MilestoneWithPhase = Milestone & { phaseId: string };
 
@@ -56,7 +57,8 @@ export default function ProjectDetailPage() {
   const [effortPending, setEffortPending] = useState<string | null>(null);
   const [scrollPct, setScrollPct] = useState(0);
   const [expandedPhaseId, setExpandedPhaseId] = useState<string | null>(null);
-  const [showEdit, setShowEdit] = useState(false);
+  const [showEdit,   setShowEdit]   = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
 
   const trackRef = useRef<HTMLDivElement>(null);
   const currentMilestoneRef = useRef<HTMLButtonElement>(null);
@@ -403,7 +405,16 @@ export default function ProjectDetailPage() {
 
       {/* Members */}
       {project.members && project.members.length > 0 && (
-        <MembersSection members={project.members} currentUserId={user?.id ?? ''} />
+        <MembersSection
+          members={project.members}
+          currentUserId={user?.id ?? ''}
+          isOwner={isOwner}
+          onInvite={() => setShowInvite(true)}
+        />
+      )}
+
+      {showInvite && (
+        <InviteModal projectId={project.id} onClose={() => setShowInvite(false)} />
       )}
 
       {showEdit && (
@@ -546,7 +557,12 @@ const ROLE_COLORS: Record<string, string> = {
   viewer:      'bg-stone-50 text-stone-500 border-stone-200',
 };
 
-function MembersSection({ members, currentUserId }: { members: ProjectMember[]; currentUserId: string }) {
+function MembersSection({ members, currentUserId, isOwner, onInvite }: {
+  members: ProjectMember[];
+  currentUserId: string;
+  isOwner: boolean;
+  onInvite: () => void;
+}) {
   const myMember = members.find(m => m.user.id === currentUserId);
 
   return (
@@ -560,13 +576,16 @@ function MembersSection({ members, currentUserId }: { members: ProjectMember[]; 
             </span>
           )}
         </div>
-        <button
-          disabled
-          title="Invitations coming soon"
-          className="flex items-center gap-1.5 text-xs text-stone-300 border border-stone-200 px-3 py-1.5 rounded-lg cursor-not-allowed"
-        >
-          + Invite
-        </button>
+        {isOwner ? (
+          <button
+            onClick={onInvite}
+            className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 border border-emerald-200 hover:bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            + Invite
+          </button>
+        ) : (
+          <span className="text-xs text-stone-300">{members.length} member{members.length !== 1 ? 's' : ''}</span>
+        )}
       </div>
       <ul className="divide-y divide-stone-50">
         {members.map(m => (

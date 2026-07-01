@@ -1,7 +1,8 @@
 import prisma from '../lib/prisma';
 
-export class PermissionError extends Error {
-    readonly status = 403;
+export class PermissionError extends Error
+{
+    readonly status=403;
     constructor() {
         super('Insufficient permissions');
         this.name = 'PermissionError';

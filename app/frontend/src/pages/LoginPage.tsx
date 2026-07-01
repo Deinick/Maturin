@@ -1,11 +1,13 @@
-import { useState, FormEvent } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, type FormEvent } from 'react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage()
 {
     const { login }   = useAuth();
     const navigate    = useNavigate();
+    const [searchParams] = useSearchParams();
+    const next = searchParams.get('next') ?? '/';
     const [email,    setEmail]    = useState('');
     const [password, setPassword] = useState('');
     const [error,    setError]    = useState('');
@@ -19,7 +21,7 @@ export default function LoginPage()
         try
         {
             await login(email, password);
-            navigate('/', { replace: true });
+            navigate(next, { replace: true });
         }
         catch (err: any)
         {

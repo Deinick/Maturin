@@ -12,6 +12,7 @@ import AccountPage      from './pages/AccountPage';
 import SuggestionsPage  from './pages/SuggestionsPage';
 import LoginPage        from './pages/LoginPage';
 import RegisterPage     from './pages/RegisterPage';
+import InvitePage       from './pages/InvitePage';
 
 const NAV_LINKS = [
     { to: '/',         label: 'Dashboard', end: true  },
@@ -122,9 +123,10 @@ export default function App()
         <BrowserRouter>
             <AuthProvider>
                 <Routes>
-                    <Route path="/login"    element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
-                    <Route path="/register" element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
-                    <Route path="/*"        element={<ProtectedRoute><AppShell /></ProtectedRoute>} />
+                    <Route path="/login"         element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
+                    <Route path="/register"      element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
+                    <Route path="/invite/:token" element={<InvitePage />} />
+                    <Route path="/*"             element={<ProtectedRoute><AppShell /></ProtectedRoute>} />
                 </Routes>
             </AuthProvider>
         </BrowserRouter>
