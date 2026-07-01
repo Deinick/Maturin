@@ -229,7 +229,7 @@ export default function ProjectsPage() {
           project={editingProject}
           isOwner={editingProject.members?.find(m => m.user.id === user?.id)?.role === 'owner'}
           onClose={() => setEditingProject(null)}
-          onSaved={updated => { setProjects(updated); setEditingProject(null); }}
+          onSaved={(updated, _pending) => { setProjects(updated); setEditingProject(null); }}
           onDeleted={id => { setProjects(prev => prev.filter(p => p.id !== id)); setEditingProject(null); }}
         />
       )}

@@ -1,10 +1,14 @@
 import { useEffect, useState, useRef, useCallback, Fragment } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import type { Project, Milestone, ProjectMember } from '../types';
-import { getProjects, updateMilestone, getProjectInsights } from '../api/client';
+import type { Project, Milestone, ProjectMember, PendingChange } from '../types';
+import {
+  getProjects, updateMilestone, getProjectInsights,
+  getPendingChanges, setMemberPermission,
+} from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import EditProjectModal from '../components/EditProjectModal';
-import InviteModal     from '../components/InviteModal';
+import EditProjectModal    from '../components/EditProjectModal';
+import InviteModal         from '../components/InviteModal';
+import PendingChangesPanel from '../components/PendingChangesPanel';
 
 type MilestoneWithPhase = Milestone & { phaseId: string };
 
@@ -57,20 +61,31 @@ export default function ProjectDetailPage() {
   const [effortPending, setEffortPending] = useState<string | null>(null);
   const [scrollPct, setScrollPct] = useState(0);
   const [expandedPhaseId, setExpandedPhaseId] = useState<string | null>(null);
-  const [showEdit,   setShowEdit]   = useState(false);
-  const [showInvite, setShowInvite] = useState(false);
+  const [showEdit,      setShowEdit]      = useState(false);
+  const [showInvite,    setShowInvite]    = useState(false);
+  const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
 
   const trackRef = useRef<HTMLDivElement>(null);
   const currentMilestoneRef = useRef<HTMLButtonElement>(null);
+
+  function refreshPending(role: string, canApprove: boolean) {
+    if (role === 'owner' || (role === 'contributor' && canApprove)) {
+      getPendingChanges(id!).then(setPendingChanges).catch(() => setPendingChanges([]));
+    }
+  }
 
   useEffect(() => {
     Promise.all([getProjects(), getProjectInsights(id!)])
       .then(([all, ins]) => {
         const found = all.find(p => p.id === id);
-        if (found) setProject(found);
+        if (found) {
+          setProject(found);
+          const me = found.members?.find(m => m.user.id === user?.id);
+          if (me) refreshPending(me.role, me.canApprove);
+        }
         setInsights(ins);
       });
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleToggleMilestone(m: MilestoneWithPhase) {
     const next = !m.completed;
@@ -85,16 +100,19 @@ export default function ProjectDetailPage() {
     setSelectedMilestone(prev => prev?.id === m.id ? { ...prev, completed: next } : prev);
     if(next) setEffortPending(m.id);
     try {
-      const updated = await updateMilestone(m.id, { completed: next });
-      setProject(prev => prev ? {
-        ...prev,
-        phases: prev.phases.map(ph =>
-          ph.id === m.phaseId
-            ? { ...ph, milestones: ph.milestones.map(ms => ms.id === m.id ? { ...ms, ...updated } : ms) }
-            : ph
-        )
-      } : prev);
-      setSelectedMilestone(prev => prev?.id === m.id ? { ...prev, ...updated } : prev);
+      const result = await updateMilestone(m.id, { completed: next });
+      const updatedMs = result.applied ? result.data : null;
+      if (updatedMs) {
+        setProject(prev => prev ? {
+          ...prev,
+          phases: prev.phases.map(ph =>
+            ph.id === m.phaseId
+              ? { ...ph, milestones: ph.milestones.map(ms => ms.id === m.id ? { ...ms, ...updatedMs } : ms) }
+              : ph
+          )
+        } : prev);
+        setSelectedMilestone(prev => prev?.id === m.id ? { ...prev, ...updatedMs } : prev);
+      }
     } catch {
       setProject(prev => prev ? {
         ...prev,
@@ -111,7 +129,7 @@ export default function ProjectDetailPage() {
 
   async function handleEffortRating(milestoneId: string, rating: 'easier' | 'as_expected' | 'harder') {
     setEffortPending(null);
-    await updateMilestone(milestoneId, { effortRating: rating });
+    await updateMilestone(milestoneId, { effortRating: rating }); // progress field — always applied
     setProject(prev => prev ? {
       ...prev,
       phases: prev.phases.map(ph => ({
@@ -410,6 +428,24 @@ export default function ProjectDetailPage() {
           currentUserId={user?.id ?? ''}
           isOwner={isOwner}
           onInvite={() => setShowInvite(true)}
+          onToggleCanApprove={async (memberId, val) => {
+            await setMemberPermission(project.id, memberId, val);
+            const all = await getProjects();
+            const fresh = all.find(p => p.id === project.id);
+            if (fresh) setProject(fresh);
+          }}
+        />
+      )}
+
+      {pendingChanges.length > 0 && (
+        <PendingChangesPanel
+          changes={pendingChanges}
+          onResolved={async () => {
+            const all = await getProjects();
+            const fresh = all.find(p => p.id === id);
+            if (fresh) setProject(fresh);
+            getPendingChanges(id!).then(setPendingChanges).catch(() => setPendingChanges([]));
+          }}
         />
       )}
 
@@ -422,9 +458,16 @@ export default function ProjectDetailPage() {
           project={project}
           isOwner={isOwner}
           onClose={() => setShowEdit(false)}
-          onSaved={updated => {
+          onSaved={(updated, pendingCount) => {
             const fresh = updated.find(p => p.id === project.id);
-            if (fresh) setProject(fresh);
+            if (fresh) {
+              setProject(fresh);
+              const me = fresh.members?.find(m => m.user.id === user?.id);
+              if (me) refreshPending(me.role, me.canApprove);
+            }
+            if (pendingCount > 0) {
+              getPendingChanges(id!).then(setPendingChanges).catch(() => {});
+            }
             setShowEdit(false);
           }}
           onDeleted={() => navigate('/projects')}
@@ -557,11 +600,12 @@ const ROLE_COLORS: Record<string, string> = {
   viewer:      'bg-stone-50 text-stone-500 border-stone-200',
 };
 
-function MembersSection({ members, currentUserId, isOwner, onInvite }: {
+function MembersSection({ members, currentUserId, isOwner, onInvite, onToggleCanApprove }: {
   members: ProjectMember[];
   currentUserId: string;
   isOwner: boolean;
   onInvite: () => void;
+  onToggleCanApprove: (memberId: string, val: boolean) => void;
 }) {
   const myMember = members.find(m => m.user.id === currentUserId);
 
@@ -590,21 +634,36 @@ function MembersSection({ members, currentUserId, isOwner, onInvite }: {
       <ul className="divide-y divide-stone-50">
         {members.map(m => (
           <li key={m.id} className="flex items-center justify-between px-5 py-3">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-sm font-semibold text-stone-600 shrink-0">
                 {m.user.name[0]?.toUpperCase()}
               </div>
-              <div>
-                <p className="text-sm font-medium text-stone-800">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-stone-800 truncate">
                   {m.user.name}
                   {m.user.id === currentUserId && <span className="text-stone-400 font-normal"> (you)</span>}
                 </p>
-                <p className="text-xs text-stone-400">{m.user.email}</p>
+                <p className="text-xs text-stone-400 truncate">{m.user.email}</p>
               </div>
             </div>
-            <span className={`text-xs font-medium px-2.5 py-1 rounded-full border capitalize ${ROLE_COLORS[m.role] ?? ROLE_COLORS.viewer}`}>
-              {m.role}
-            </span>
+            <div className="flex items-center gap-2 shrink-0 ml-3">
+              {isOwner && m.role === 'contributor' && m.user.id !== currentUserId && (
+                <button
+                  onClick={() => onToggleCanApprove(m.userId, !m.canApprove)}
+                  title={m.canApprove ? 'Revoke approval permission' : 'Grant approval permission'}
+                  className={`text-xs px-2 py-1 rounded-lg border transition-colors ${
+                    m.canApprove
+                      ? 'bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100'
+                      : 'bg-stone-50 text-stone-400 border-stone-200 hover:border-violet-300 hover:text-violet-500'
+                  }`}
+                >
+                  {m.canApprove ? '✓ can approve' : 'can approve?'}
+                </button>
+              )}
+              <span className={`text-xs font-medium px-2.5 py-1 rounded-full border capitalize ${ROLE_COLORS[m.role] ?? ROLE_COLORS.viewer}`}>
+                {m.role}
+              </span>
+            </div>
           </li>
         ))}
       </ul>

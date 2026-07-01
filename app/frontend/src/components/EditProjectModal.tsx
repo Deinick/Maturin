@@ -14,7 +14,7 @@ interface Props {
   project: Project;
   isOwner?: boolean;
   onClose: () => void;
-  onSaved: (updated: Project[]) => void;
+  onSaved: (updated: Project[], pendingCount: number) => void;
   onDeleted: (id: string) => void;
 }
 
@@ -110,12 +110,15 @@ export default function EditProjectModal({ project, isOwner = true, onClose, onS
 
   async function handleSave() {
     setSaving(true);
+    let pendingCount = 0;
     try {
-      await updateProject(project.id, {
+      const projResult = await updateProject(project.id, {
         title: form.title.trim() || project.title,
         description: form.description || undefined,
         targetEndDate: form.targetEndDate || undefined,
       });
+      if (!projResult.applied) pendingCount++;
+
       for (const ph of editPhases) {
         if (ph._deleted && ph.id) await deletePhase(ph.id);
       }
@@ -124,7 +127,8 @@ export default function EditProjectModal({ project, isOwner = true, onClose, onS
         const ph = editPhases[i];
         if (ph._deleted) continue;
         if (ph.id) {
-          await updatePhase(ph.id, { title: ph.title, order: i + 1 });
+          const r = await updatePhase(ph.id, { title: ph.title, order: i + 1 });
+          if (!r.applied) pendingCount++;
           phaseIdMap[i] = ph.id;
         } else if (ph.title.trim()) {
           const created = await createPhase(project.id, ph.title.trim(), i + 1);
@@ -137,12 +141,10 @@ export default function EditProjectModal({ project, isOwner = true, onClose, onS
         if (!phaseId) continue;
         const milestones = editMilestonesMap[i] ?? [];
 
-        // Delete removed milestones first
         for (const m of milestones) {
           if (m._deleted && m.id) await deleteMilestone(m.id);
         }
 
-        // Sort active milestones: closest due date first, no due date last
         const active = milestones.filter(m => !m._deleted);
         const withDate = [...active.filter(m => m.dueDate)].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
         const withoutDate = active.filter(m => !m.dueDate);
@@ -151,14 +153,15 @@ export default function EditProjectModal({ project, isOwner = true, onClose, onS
         let order = 1;
         for (const m of sorted) {
           if (m.id) {
-            await updateMilestone(m.id, { title: m.title, dueDate: m.dueDate || undefined, order: order++ });
+            const r = await updateMilestone(m.id, { title: m.title, dueDate: m.dueDate || undefined, order: order++ });
+            if (!r.applied) pendingCount++;
           } else if (m.title.trim()) {
             await createMilestone(phaseId, m.title.trim(), order++, m.dueDate || undefined);
           }
         }
       }
       const updated = await getProjects();
-      onSaved(updated);
+      onSaved(updated, pendingCount);
     } finally {
       setSaving(false);
     }
