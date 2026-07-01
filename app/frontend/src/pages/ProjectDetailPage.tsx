@@ -8,7 +8,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import EditProjectModal    from '../components/EditProjectModal';
 import InviteModal         from '../components/InviteModal';
-import PendingChangesPanel from '../components/PendingChangesPanel';
+import PendingChangesModal from '../components/PendingChangesModal';
 
 type MilestoneWithPhase = Milestone & { phaseId: string };
 
@@ -61,16 +61,20 @@ export default function ProjectDetailPage() {
   const [effortPending, setEffortPending] = useState<string | null>(null);
   const [scrollPct, setScrollPct] = useState(0);
   const [expandedPhaseId, setExpandedPhaseId] = useState<string | null>(null);
-  const [showEdit,      setShowEdit]      = useState(false);
-  const [showInvite,    setShowInvite]    = useState(false);
-  const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
+  const [showEdit,         setShowEdit]         = useState(false);
+  const [showInvite,       setShowInvite]       = useState(false);
+  const [showPending,      setShowPending]      = useState(false);
+  const [pendingChanges,   setPendingChanges]   = useState<PendingChange[]>([]);
 
   const trackRef = useRef<HTMLDivElement>(null);
   const currentMilestoneRef = useRef<HTMLButtonElement>(null);
 
   function refreshPending(role: string, canApprove: boolean) {
     if (role === 'owner' || (role === 'contributor' && canApprove)) {
-      getPendingChanges(id!).then(setPendingChanges).catch(() => setPendingChanges([]));
+      getPendingChanges(id!).then(list => {
+        setPendingChanges(list);
+        if (list.length > 0) setShowPending(true);
+      }).catch(() => setPendingChanges([]));
     }
   }
 
@@ -226,14 +230,25 @@ export default function ProjectDetailPage() {
             </span>
           )}
         </div>
-        {canEdit && (
-          <button
-            onClick={() => setShowEdit(true)}
-            className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-blue-500 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors shrink-0"
-          >
-            ✎ Edit
-          </button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {pendingChanges.length > 0 && (
+            <button
+              onClick={() => setShowPending(true)}
+              className="flex items-center gap-1.5 text-xs font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <span className="w-4 h-4 rounded-full bg-amber-400 text-white flex items-center justify-center text-[9px] font-bold">!</span>
+              {pendingChanges.length} pending
+            </button>
+          )}
+          {canEdit && (
+            <button
+              onClick={() => setShowEdit(true)}
+              className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-blue-500 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              ✎ Edit
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Velocity banner */}
@@ -437,15 +452,23 @@ export default function ProjectDetailPage() {
         />
       )}
 
-      {pendingChanges.length > 0 && (
-        <PendingChangesPanel
+      {showPending && (
+        <PendingChangesModal
+          project={project}
           changes={pendingChanges}
-          onResolved={async () => {
-            const all = await getProjects();
-            const fresh = all.find(p => p.id === id);
-            if (fresh) setProject(fresh);
-            getPendingChanges(id!).then(setPendingChanges).catch(() => setPendingChanges([]));
+          onResolved={changeId => {
+            setPendingChanges(prev => {
+              const next = prev.filter(c => c.id !== changeId);
+              if (next.length === 0) {
+                getProjects().then(all => {
+                  const fresh = all.find(p => p.id === id);
+                  if (fresh) setProject(fresh);
+                });
+              }
+              return next;
+            });
           }}
+          onClose={() => setShowPending(false)}
         />
       )}
 
@@ -458,15 +481,12 @@ export default function ProjectDetailPage() {
           project={project}
           isOwner={isOwner}
           onClose={() => setShowEdit(false)}
-          onSaved={(updated, pendingCount) => {
+          onSaved={(updated, _pendingCount) => {
             const fresh = updated.find(p => p.id === project.id);
             if (fresh) {
               setProject(fresh);
               const me = fresh.members?.find(m => m.user.id === user?.id);
               if (me) refreshPending(me.role, me.canApprove);
-            }
-            if (pendingCount > 0) {
-              getPendingChanges(id!).then(setPendingChanges).catch(() => {});
             }
             setShowEdit(false);
           }}

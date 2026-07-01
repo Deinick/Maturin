@@ -3,9 +3,9 @@ import crypto from "crypto";
 import prisma from "../lib/prisma";
 import {PermissionError} from "./projectService";
 
-const resend=new Resend(process.env.RESEND_API_KEY);
-const FRONTEND_URL=process.env.FRONTEND_URL ?? 'http://localhost:5173';
-const FROM_EMAIL=process.env.FROM_EMAIL ?? 'invites@steadily.app';
+const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173';
+const FROM_EMAIL   = process.env.FROM_EMAIL   ?? 'invites@steadily.app';
+function getResend() { return new Resend(process.env.RESEND_API_KEY ?? 'missing'); }
 
 //handle error
 
@@ -57,12 +57,16 @@ export async function createInvite(projectId:string,createdBy:string,invitedEmai
 
     const inviteUrl=`${FRONTEND_URL}/invite/${token}`;
 
-    await resend.emails.send({
-        from: FROM_EMAIL,
-        to: invitedEmail,
-        subject: `${creator.name} invited you to "${project.title}" on Steadily`,
-        html:emailHtml({ inviterName: creator.name, projectTitle: project.title, role, inviteUrl }),
-    });
+    try {
+        await getResend().emails.send({
+            from: FROM_EMAIL,
+            to: invitedEmail,
+            subject: `${creator.name} invited you to "${project.title}" on Steadily`,
+            html:emailHtml({ inviterName: creator.name, projectTitle: project.title, role, inviteUrl }),
+        });
+    } catch (err) {
+        console.warn('[invite] email send failed (no key configured locally):', (err as Error).message);
+    }
 
     return invite;
 }

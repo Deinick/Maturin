@@ -40,7 +40,7 @@ async function projectIdForMilestone(milestoneId: string): Promise<string> {
     return m.phase.projectId;
 }
 
-async function createPendingChange(
+async function createPendingChanges(
     projectId: string,
     authorId: string,
     entityType: string,
@@ -48,18 +48,42 @@ async function createPendingChange(
     oldData: Record<string, unknown>,
     newData: Record<string, unknown>,
 ) {
-    return prisma.pendingChange.create({
-        data: {
-            projectId, authorId, entityType, entityId, status: 'pending',
-            oldData: oldData as object,
-            newData: newData as object,
-        },
-    });
+    return prisma.$transaction(
+        Object.keys(newData).map(field =>
+            prisma.pendingChange.create({
+                data: {
+                    projectId, authorId, entityType, entityId, status: 'pending',
+                    oldData: { [field]: oldData[field] } as object,
+                    newData: { [field]: newData[field] } as object,
+                },
+            })
+        )
+    );
 }
 
 export type ApplyResult<T> =
     | { applied: true; data: T }
     | { applied: false; pendingChangeId: string };
+
+function norm(v: unknown): string {
+    return (v === null || v === undefined || v === '') ? '' : String(v);
+}
+
+function filterChanged(
+    planData: Record<string, unknown>,
+    current: Record<string, unknown>,
+): { changed: Record<string, unknown>; old: Record<string, unknown> } {
+    const changed: Record<string, unknown> = {};
+    const old:     Record<string, unknown> = {};
+    for (const [key, newVal] of Object.entries(planData)) {
+        const oldVal = current[key] ?? null;
+        if (norm(oldVal) !== norm(newVal)) {
+            changed[key] = newVal;
+            old[key]     = oldVal;
+        }
+    }
+    return { changed, old };
+}
 
 const PLAN_FIELDS_PROJECT   = new Set(['title', 'description', 'targetEndDate']);
 const PLAN_FIELDS_PHASE     = new Set(['title', 'description']);
@@ -130,21 +154,19 @@ export async function updateProject(
         await prisma.project.update({ where: { id }, data: immediateData });
     }
 
-    if (Object.keys(planData).length === 0) {
-        const current = await prisma.project.findUniqueOrThrow({ where: { id } });
-        return { applied: true, data: current };
+    const currentProject = await prisma.project.findUniqueOrThrow({ where: { id } });
+    if (Object.keys(planData).length > 0) {
+        const { changed, old } = filterChanged(planData, currentProject as Record<string, unknown>);
+        if (Object.keys(changed).length > 0) {
+            if (await canApproveFor(id, userId)) {
+                const updated = await prisma.project.update({ where: { id }, data: changed });
+                return { applied: true, data: updated };
+            }
+            const changes = await createPendingChanges(id, userId, 'project', id, old, changed);
+            return { applied: false, pendingChangeId: changes[0].id };
+        }
     }
-
-    if (await canApproveFor(id, userId)) {
-        const updated = await prisma.project.update({ where: { id }, data: planData });
-        return { applied: true, data: updated };
-    }
-
-    const current = await prisma.project.findUniqueOrThrow({ where: { id } });
-    const oldData: Record<string, unknown> = {};
-    for (const key of Object.keys(planData)) oldData[key] = (current as Record<string, unknown>)[key] ?? null;
-    const change = await createPendingChange(id, userId, 'project', id, oldData, planData);
-    return { applied: false, pendingChangeId: change.id };
+    return { applied: true, data: currentProject };
 }
 
 export async function updatePhase(
@@ -167,21 +189,19 @@ export async function updatePhase(
         await prisma.phase.update({ where: { id }, data: immediateData });
     }
 
-    if (Object.keys(planData).length === 0) {
-        const current = await prisma.phase.findUniqueOrThrow({ where: { id } });
-        return { applied: true, data: current };
+    const currentPhase = await prisma.phase.findUniqueOrThrow({ where: { id } });
+    if (Object.keys(planData).length > 0) {
+        const { changed, old } = filterChanged(planData, currentPhase as Record<string, unknown>);
+        if (Object.keys(changed).length > 0) {
+            if (await canApproveFor(projectId, userId)) {
+                const updated = await prisma.phase.update({ where: { id }, data: changed });
+                return { applied: true, data: updated };
+            }
+            const changes = await createPendingChanges(projectId, userId, 'phase', id, old, changed);
+            return { applied: false, pendingChangeId: changes[0].id };
+        }
     }
-
-    if (await canApproveFor(projectId, userId)) {
-        const updated = await prisma.phase.update({ where: { id }, data: planData });
-        return { applied: true, data: updated };
-    }
-
-    const current = await prisma.phase.findUniqueOrThrow({ where: { id } });
-    const oldData: Record<string, unknown> = {};
-    for (const key of Object.keys(planData)) oldData[key] = (current as Record<string, unknown>)[key] ?? null;
-    const change = await createPendingChange(projectId, userId, 'phase', id, oldData, planData);
-    return { applied: false, pendingChangeId: change.id };
+    return { applied: true, data: currentPhase };
 }
 
 export async function updateMilestone(
@@ -210,21 +230,19 @@ export async function updateMilestone(
         await prisma.milestone.update({ where: { id }, data: update });
     }
 
-    if (Object.keys(planData).length === 0) {
-        const current = await prisma.milestone.findUniqueOrThrow({ where: { id } });
-        return { applied: true, data: current };
+    const currentMilestone = await prisma.milestone.findUniqueOrThrow({ where: { id } });
+    if (Object.keys(planData).length > 0) {
+        const { changed, old } = filterChanged(planData, currentMilestone as Record<string, unknown>);
+        if (Object.keys(changed).length > 0) {
+            if (await canApproveFor(projectId, userId)) {
+                const updated = await prisma.milestone.update({ where: { id }, data: changed });
+                return { applied: true, data: updated };
+            }
+            const changes = await createPendingChanges(projectId, userId, 'milestone', id, old, changed);
+            return { applied: false, pendingChangeId: changes[0].id };
+        }
     }
-
-    if (await canApproveFor(projectId, userId)) {
-        const updated = await prisma.milestone.update({ where: { id }, data: planData });
-        return { applied: true, data: updated };
-    }
-
-    const current = await prisma.milestone.findUniqueOrThrow({ where: { id } });
-    const oldData: Record<string, unknown> = {};
-    for (const key of Object.keys(planData)) oldData[key] = (current as Record<string, unknown>)[key] ?? null;
-    const change = await createPendingChange(projectId, userId, 'milestone', id, oldData, planData);
-    return { applied: false, pendingChangeId: change.id };
+    return { applied: true, data: currentMilestone };
 }
 
 export async function deleteProject(id: string, userId: string) {
