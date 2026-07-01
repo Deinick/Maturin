@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Task, Habit, Suggestion } from '../types';
-import { getTasks, getHabits, getProductivity, getSuggestions, getWeeklySummary } from '../api/client';
+import { getTasks, getHabits, getProductivity, getSuggestions, getWeeklySummary, getAllPendingChangeCounts } from '../api/client';
 
 const TODAY = new Date().toISOString().split('T')[0];
 const HOUR = new Date().getHours();
@@ -48,6 +48,7 @@ export default function DashboardPage() {
   const [stats, setStats]             = useState<Stats | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [weekly, setWeekly]           = useState<WeeklySummary | null>(null);
+  const [pendingReviews, setPendingReviews] = useState<{ projectId: string; projectTitle: string; count: number }[]>([]);
 
   useEffect(() => {
     Promise.all([getTasks(TODAY), getHabits(), getProductivity(), getSuggestions(), getWeeklySummary()])
@@ -55,6 +56,7 @@ export default function DashboardPage() {
         setTasks(t); setHabits(h); setStats(s as Stats);
         setSuggestions(sg); setWeekly(w);
       });
+    getAllPendingChangeCounts().then(setPendingReviews).catch(() => {});
   }, []);
 
   const active      = tasks.filter(t => !t.completed);
@@ -133,6 +135,31 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* ── Pending project reviews ─────────────────────────── */}
+      {pendingReviews.length > 0 && (
+        <div>
+          <div className="mb-4">
+            <span className="label-tape label-tape-yellow">Needs Review</span>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {pendingReviews.map(p => (
+              <button
+                key={p.projectId}
+                onClick={() => navigate(`/projects/${p.projectId}`)}
+                className="flex items-center gap-2.5 bg-white border border-amber-200 hover:border-amber-400 hover:shadow-md rounded-xl px-4 py-3 text-left transition-all group"
+              >
+                <span className="w-5 h-5 rounded-full bg-amber-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0">!</span>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-stone-800 truncate">{p.projectTitle}</p>
+                  <p className="text-xs text-amber-600">{p.count} change{p.count !== 1 ? 's' : ''} awaiting review</p>
+                </div>
+                <span className="text-stone-300 group-hover:text-amber-400 text-sm ml-1 transition-colors">→</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Quick Links ─────────────────────────────────────── */}
       <div>

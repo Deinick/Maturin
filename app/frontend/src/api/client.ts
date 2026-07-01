@@ -147,6 +147,9 @@ export const setMemberPermission = (projectId: string, memberId: string, canAppr
     api.patch(`/projects/${projectId}/members/${memberId}/permissions`, { canApprove }).then(r => r.data);
 
 // Pending changes
+export const getAllPendingChangeCounts = () =>
+    api.get<{ projectId: string; projectTitle: string; count: number }[]>('/pending-changes').then(r => r.data);
+
 export const getPendingChanges = (projectId: string) =>
     api.get<PendingChange[]>(`/projects/${projectId}/pending-changes`).then(r => r.data);
 

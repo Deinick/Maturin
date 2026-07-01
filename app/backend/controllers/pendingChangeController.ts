@@ -3,6 +3,14 @@ import * as pendingChangeService from '../services/pendingChangeService';
 import * as projectService from '../services/projectService';
 import { AuthRequest } from '../middleware/auth';
 
+export async function getAllPendingChangeCounts(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+        const userId = (req as AuthRequest).userId;
+        const counts = await pendingChangeService.getAllPendingChangeCounts(userId);
+        res.json(counts);
+    } catch (err) { next(err); }
+}
+
 export async function getPendingChanges(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
         const userId    = (req as AuthRequest).userId;

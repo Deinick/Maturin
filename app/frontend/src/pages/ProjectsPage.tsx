@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Project, Phase, Milestone } from '../types';
 import {
-  getProjects, createProject, createPhase, createMilestone,
+  getProjects, createProject, createPhase, createMilestone, getAllPendingChangeCounts,
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import EditProjectModal from '../components/EditProjectModal';
@@ -24,8 +24,18 @@ export default function ProjectsPage() {
   const [milestonesMap, setMilestonesMap] = useState<Record<number, { title: string; dueDate: string }[]>>({});
 
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [pendingCounts, setPendingCounts] = useState<Record<string, number>>({});
 
-  useEffect(() => { getProjects().then(setProjects); }, []);
+  useEffect(() => {
+    getProjects().then(setProjects);
+    getAllPendingChangeCounts()
+      .then(counts => {
+        const map: Record<string, number> = {};
+        counts.forEach(c => { map[c.projectId] = c.count; });
+        setPendingCounts(map);
+      })
+      .catch(() => {});
+  }, []);
 
   function resetModal() {
     setStep('project'); setForm({ title: '', description: '', targetEndDate: '' });
@@ -145,6 +155,12 @@ export default function ProjectsPage() {
                         className={`w-2 h-2 rounded-full shrink-0 ${getHealthDot(project)}`}
                         title="Project health"
                       />
+                      {pendingCounts[project.id] > 0 && (
+                        <span
+                          title={`${pendingCounts[project.id]} change${pendingCounts[project.id] !== 1 ? 's' : ''} need review`}
+                          className="w-4 h-4 rounded-full bg-amber-400 text-white text-[9px] font-bold flex items-center justify-center shrink-0"
+                        >!</span>
+                      )}
                       <p className="font-medium text-sm text-stone-800">{project.title}</p>
                       {myRole !== 'owner' && (
                         <span className="text-xs text-stone-400 border border-stone-200 px-1.5 py-0.5 rounded-full capitalize shrink-0">

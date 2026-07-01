@@ -29,6 +29,40 @@ async function entityLabel(entityType: string, entityId: string): Promise<string
     return entityId;
 }
 
+export async function getAllPendingChangeCounts(userId: string) {
+    const memberships = await prisma.projectMember.findMany({
+        where: {
+            userId,
+            OR: [{ role: 'owner' }, { role: 'contributor', canApprove: true }],
+        },
+        select: { projectId: true },
+    });
+
+    const projectIds = memberships.map(m => m.projectId);
+    if (projectIds.length === 0) return [];
+
+    const grouped = await prisma.pendingChange.groupBy({
+        by: ['projectId'],
+        where: { projectId: { in: projectIds }, status: 'pending' },
+        _count: { id: true },
+    });
+
+    const withCounts = grouped.filter(g => g._count.id > 0);
+    if (withCounts.length === 0) return [];
+
+    const projects = await prisma.project.findMany({
+        where: { id: { in: withCounts.map(g => g.projectId) } },
+        select: { id: true, title: true },
+    });
+    const titleMap = Object.fromEntries(projects.map(p => [p.id, p.title]));
+
+    return withCounts.map(g => ({
+        projectId:    g.projectId,
+        projectTitle: titleMap[g.projectId] ?? g.projectId,
+        count:        g._count.id,
+    }));
+}
+
 export async function getPendingChanges(projectId: string, userId: string) {
     await requireCanReview(projectId, userId);
     const changes = await prisma.pendingChange.findMany({
