@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Task, Habit, HabitLog, Project, Phase, Milestone, Suggestion } from '../types';
+import type { Task, Habit, HabitLog, Project, Phase, Milestone, Suggestion, PendingChange } from '../types';
 import { localDate } from '../utils/date';
 /*
 
@@ -106,8 +106,18 @@ export const createPhase = (projectId: string, title: string, order: number) =>
 export const createMilestone = (phaseId: string, title: string, order: number, dueDate?: string) =>
     api.post<Milestone>(`/projects/phases/${phaseId}/milestones`, { title, order, dueDate }).then(r => r.data);
 
+export type ApplyResult<T> =
+    | { applied: true; data: T }
+    | { applied: false; pendingChangeId: string };
+
+export const updateProject = (id: string, data: Partial<Project>) =>
+    api.patch<ApplyResult<Project>>(`/projects/${id}`, data).then(r => r.data);
+
+export const updatePhase = (id: string, data: Partial<Phase>) =>
+    api.patch<ApplyResult<Phase>>(`/projects/phases/${id}`, data).then(r => r.data);
+
 export const updateMilestone = (id: string, data: Partial<Milestone>) =>
-    api.patch<Milestone>(`/projects/milestones/${id}`, data).then(r => r.data);
+    api.patch<ApplyResult<Milestone>>(`/projects/milestones/${id}`, data).then(r => r.data);
 
 export const getProjectInsights = (projectId: string) =>
     api.get<{
@@ -124,12 +134,6 @@ export const getProjectInsights = (projectId: string) =>
         };
     }>(`/projects/${projectId}/insights`).then(r => r.data);
 
-export const updatePhase = (id: string, data: Partial<Phase>) =>
-    api.patch<Phase>(`/projects/phases/${id}`, data).then(r => r.data);
-
-export const updateProject = (id: string, data: Partial<Project>) =>
-    api.patch<Project>(`/projects/${id}`, data).then(r => r.data);
-
 export const deleteProject = (id: string) =>
     api.delete(`/projects/${id}`).then(r => r.data);
 
@@ -138,6 +142,19 @@ export const deletePhase = (id: string) =>
 
 export const deleteMilestone = (id: string) =>
     api.delete(`/projects/milestones/${id}`).then(r => r.data);
+
+export const setMemberPermission = (projectId: string, memberId: string, canApprove: boolean) =>
+    api.patch(`/projects/${projectId}/members/${memberId}/permissions`, { canApprove }).then(r => r.data);
+
+// Pending changes
+export const getPendingChanges = (projectId: string) =>
+    api.get<PendingChange[]>(`/projects/${projectId}/pending-changes`).then(r => r.data);
+
+export const approvePendingChange = (changeId: string) =>
+    api.post(`/pending-changes/${changeId}/approve`).then(r => r.data);
+
+export const rejectPendingChange = (changeId: string) =>
+    api.post(`/pending-changes/${changeId}/reject`).then(r => r.data);
 
 
 // Rollover

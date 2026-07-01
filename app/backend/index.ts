@@ -8,7 +8,8 @@ import projectRoutes   from './routes/projectRoutes';
 import rolloverRoutes  from './routes/rolloverRoutes';
 import statsRoutes     from './routes/statsRoutes';
 import suggestionRoutes from './routes/suggestionRoutes';
-import inviteRoutes    from './routes/inviteRoutes';
+import inviteRoutes        from './routes/inviteRoutes';
+import pendingChangeRoutes from './routes/pendingChangeRoutes';
 import { requireAuth } from './middleware/auth';
 import { PermissionError } from './services/projectService';
 import { InviteError } from './services/inviteService';
@@ -28,7 +29,8 @@ app.get('/api/invites/:token', inviteController.getInvite);
 
 // All routes below this line require a valid JWT
 app.use(requireAuth);
-app.use('/api/invites', inviteRoutes);
+app.use('/api/invites',         inviteRoutes);
+app.use('/api/pending-changes', pendingChangeRoutes);
 app.use('/api/tasks',       taskRoutes);
 app.use('/api/habits',      habitRoutes);
 app.use('/api/projects',    projectRoutes);

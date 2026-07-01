@@ -1,12 +1,15 @@
 import {Router} from 'express';
 import * as projectController from '../controllers/projectController';
-import * as inviteController from '../controllers/inviteController';
+import * as inviteController  from '../controllers/inviteController';
+import * as pendingCtrl       from '../controllers/pendingChangeController';
 
 const router=Router();
 
 router.get('/', projectController.getProjects);
 router.post('/:id/invites', inviteController.createInvite);
 router.get('/:id/members', projectController.getProjectMembers);
+router.patch('/:id/members/:memberId/permissions', pendingCtrl.setMemberPermission);
+router.get('/:id/pending-changes', pendingCtrl.getPendingChanges);
 router.get('/:id/insights', projectController.getProjectInsights);
 router.post('/', projectController.createProject);
 router.post('/:projectId/phases', projectController.createPhase);

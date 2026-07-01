@@ -35,8 +35,22 @@ export interface ProjectMember {
   projectId: string;
   userId: string;
   role: 'owner' | 'contributor' | 'viewer';
+  canApprove: boolean;
   joinedAt: string;
   user: { id: string; name: string; email: string };
+}
+
+export interface PendingChange {
+  id: string;
+  projectId: string;
+  entityType: 'project' | 'phase' | 'milestone';
+  entityId: string;
+  entityLabel: string;
+  oldData: Record<string, string | null>;
+  newData: Record<string, string | null>;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+  author: { id: string; name: string };
 }
 
 export interface Project {
