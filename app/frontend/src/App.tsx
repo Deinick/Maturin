@@ -1,6 +1,7 @@
-import { type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { useSettings } from './hooks/useSettings';
 import Background    from './components/Background';
 import RolloverModal from './components/RolloverModal';
 import DashboardPage    from './pages/DashboardPage';
@@ -51,6 +52,11 @@ function PublicOnlyRoute({ children }: { children: ReactNode })
 function AppShell()
 {
     const { user, logout } = useAuth();
+    const { settings } = useSettings();
+    useEffect(() => {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.classList.toggle('dark', settings.theme === 'system' && prefersDark);
+    }, [settings.theme]);
 
     return (
         <>
