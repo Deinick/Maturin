@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import { rateLimit } from 'express-rate-limit';
 import authRoutes      from './routes/authRoutes';
 import taskRoutes      from './routes/taskRoutes';
 import habitRoutes     from './routes/habitRoutes';
@@ -18,16 +20,45 @@ import * as inviteController from './controllers/inviteController';
 const app  = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+const ALLOWED_ORIGIN = process.env.FRONTEND_URL ?? 'http://localhost:5173';
+
+app.use(helmet());
+app.use(cors({
+    origin: (origin, cb) => {
+        // Allow server-to-server requests (no origin) and the whitelisted frontend
+        if (!origin || origin === ALLOWED_ORIGIN) return cb(null, true);
+        cb(new Error(`CORS: origin ${origin} not allowed`));
+    },
+    credentials: true,
+}));
 app.use(express.json());
+
+// Tight rate limit on auth endpoints only — prevents brute-force
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many attempts — please try again in 15 minutes' },
+});
+
+// Broad limit on all other API calls — prevents scraping/abuse
+const apiLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 200,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests — please slow down' },
+});
 
 app.get('/', (_req, res) => { res.send('Server is running'); });
 
 // Public — no token required
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.get('/api/invites/:token', inviteController.getInvite);
 
 // All routes below this line require a valid JWT
+app.use(apiLimiter);
 app.use(requireAuth);
 app.use('/api/invites',         inviteRoutes);
 app.use('/api/pending-changes', pendingChangeRoutes);
