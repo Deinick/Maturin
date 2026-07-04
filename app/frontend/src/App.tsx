@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useSettings } from './hooks/useSettings';
+import ErrorBoundary  from './components/ErrorBoundary';
 import Background    from './components/Background';
 import RolloverModal from './components/RolloverModal';
 import DashboardPage    from './pages/DashboardPage';
@@ -126,15 +127,17 @@ function AppShell()
 export default function App()
 {
     return (
-        <BrowserRouter>
-            <AuthProvider>
-                <Routes>
-                    <Route path="/login"         element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
-                    <Route path="/register"      element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
-                    <Route path="/invite/:token" element={<InvitePage />} />
-                    <Route path="/*"             element={<ProtectedRoute><AppShell /></ProtectedRoute>} />
-                </Routes>
-            </AuthProvider>
-        </BrowserRouter>
+        <ErrorBoundary>
+            <BrowserRouter>
+                <AuthProvider>
+                    <Routes>
+                        <Route path="/login"         element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
+                        <Route path="/register"      element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
+                        <Route path="/invite/:token" element={<InvitePage />} />
+                        <Route path="/*"             element={<ProtectedRoute><AppShell /></ProtectedRoute>} />
+                    </Routes>
+                </AuthProvider>
+            </BrowserRouter>
+        </ErrorBoundary>
     );
 }
