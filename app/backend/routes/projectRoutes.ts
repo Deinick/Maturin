@@ -8,6 +8,7 @@ const router=Router();
 router.get('/', projectController.getProjects);
 router.post('/:id/invites', inviteController.createInvite);
 router.get('/:id/members', projectController.getProjectMembers);
+router.get('/:id/performance', projectController.getMemberPerformance);
 router.patch('/:id/members/:memberId/permissions', pendingCtrl.setMemberPermission);
 router.get('/:id/pending-changes', pendingCtrl.getPendingChanges);
 router.get('/:id/insights', projectController.getProjectInsights);

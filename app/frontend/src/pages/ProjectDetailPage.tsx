@@ -1,9 +1,9 @@
 import { useEffect, useState, useRef, useCallback, Fragment } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import type { Project, Milestone, ProjectMember, PendingChange } from '../types';
+import type { Project, Milestone, ProjectMember, PendingChange, MemberPerformance } from '../types';
 import {
   getProjects, updateMilestone, getProjectInsights,
-  getPendingChanges, setMemberPermission,
+  getPendingChanges, setMemberPermission, getProjectPerformance,
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import EditProjectModal    from '../components/EditProjectModal';
@@ -90,9 +90,15 @@ export default function ProjectDetailPage() {
   const [showInvite,       setShowInvite]      = useState(false);
   const [showPending,      setShowPending]     = useState(false);
   const [pendingChanges,   setPendingChanges]  = useState<PendingChange[]>([]);
+  const [performance,      setPerformance]     = useState<MemberPerformance[] | null>(null);
 
   const trackRef           = useRef<HTMLDivElement>(null);
   const currentMilestoneRef = useRef<HTMLButtonElement>(null);
+
+  const myMemberData = project?.members?.find(m => m.user.id === user?.id);
+  const myRole       = myMemberData?.role ?? 'viewer';
+  const myCanApprove = myMemberData?.canApprove ?? false;
+  const canAssign    = myRole === 'owner' || (myRole === 'contributor' && myCanApprove);
 
   function refreshPending(role: string, canApprove: boolean) {
     if (role === 'owner' || (role === 'contributor' && canApprove)) {
@@ -115,6 +121,11 @@ export default function ProjectDetailPage() {
         setInsights(ins);
       });
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (activeTab !== 'team' || !canAssign) return;
+    getProjectPerformance(id!).then(setPerformance).catch(() => setPerformance(null));
+  }, [activeTab, canAssign, id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleToggleMilestone(m: MilestoneWithPhase) {
     const next = !m.completed;
@@ -169,6 +180,20 @@ export default function ProjectDetailPage() {
     setSelectedMilestone(null);
   }
 
+  async function handleAssign(milestoneId: string, assigneeId: string | null) {
+    const member = assigneeId ? project?.members?.find(m => m.userId === assigneeId) : null;
+    const assignee = member ? { id: member.userId, name: member.user.name, email: member.user.email } : null;
+    setProject(prev => prev ? {
+      ...prev,
+      phases: prev.phases.map(ph => ({
+        ...ph,
+        milestones: ph.milestones.map(ms => ms.id === milestoneId ? { ...ms, assigneeId, assignee } : ms),
+      }))
+    } : prev);
+    setSelectedMilestone(prev => prev?.id === milestoneId ? { ...prev, assigneeId, assignee } : prev);
+    await updateMilestone(milestoneId, { assigneeId });
+  }
+
   async function handleBlockReason(milestoneId: string, reason: 'no_time' | 'unclear' | 'external' | 'motivation') {
     await updateMilestone(milestoneId, { blockReason: reason });
     setProject(prev => prev ? {
@@ -214,7 +239,6 @@ export default function ProjectDetailPage() {
   const nextDueMilestone  = allMilestones.find(m => !m.completed && m.dueDate);
   const activePhase       = sortedPhases.find(ph => ph.milestones.some(m => !m.completed));
 
-  const myRole  = project.members?.find(m => m.user.id === user?.id)?.role ?? 'viewer';
   const canEdit = myRole === 'owner' || myRole === 'contributor';
   const isOwner = myRole === 'owner';
 
@@ -786,6 +810,8 @@ export default function ProjectDetailPage() {
           members={project.members}
           currentUserId={user?.id ?? ''}
           isOwner={isOwner}
+          canAssign={canAssign}
+          performance={performance}
           onInvite={() => setShowInvite(true)}
           onToggleCanApprove={async (memberId, val) => {
             await setMemberPermission(project.id, memberId, val);
@@ -885,6 +911,33 @@ export default function ProjectDetailPage() {
                   </p>
                 )}
 
+                {/* Assignee */}
+                <div className="mb-4">
+                  {canAssign ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-400 shrink-0">Assigned to</span>
+                      <select
+                        value={selectedMilestone.assigneeId ?? ''}
+                        onChange={e => handleAssign(selectedMilestone.id, e.target.value || null)}
+                        className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none focus:border-slate-400"
+                      >
+                        <option value="">Unassigned</option>
+                        {project.members?.map(m => (
+                          <option key={m.userId} value={m.userId}>{m.user.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : selectedMilestone.assignee ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-400">Assigned to</span>
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-semibold ${memberColor(selectedMilestone.assignee.name)}`}>
+                        {selectedMilestone.assignee.name[0]?.toUpperCase()}
+                      </div>
+                      <span className="text-xs font-medium text-slate-700">{selectedMilestone.assignee.name}</span>
+                    </div>
+                  ) : null}
+                </div>
+
                 <div className="flex items-center gap-2 mb-4 flex-wrap">
                   <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium
                     ${selectedMilestone.completed ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
@@ -977,11 +1030,21 @@ function KanbanCard({ m, today, onClick, highlight = false }: {
       <p className="text-xs text-slate-800 leading-snug mb-2">{m.title}</p>
       <div className="flex items-center justify-between gap-1 flex-wrap">
         <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded truncate max-w-[80px]">{m.phaseName}</span>
-        {m.dueDate && (
-          <span className={`text-[10px] font-medium ${isOverdue ? 'text-red-500' : 'text-slate-400'}`}>
-            {isOverdue ? '⚠ ' : ''}{m.dueDate}
-          </span>
-        )}
+        <div className="flex items-center gap-1.5">
+          {m.assignee && (
+            <div
+              title={m.assignee.name}
+              className={`w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-semibold shrink-0 ${memberColor(m.assignee.name)}`}
+            >
+              {m.assignee.name[0]?.toUpperCase()}
+            </div>
+          )}
+          {m.dueDate && (
+            <span className={`text-[10px] font-medium ${isOverdue ? 'text-red-500' : 'text-slate-400'}`}>
+              {isOverdue ? '⚠ ' : ''}{m.dueDate}
+            </span>
+          )}
+        </div>
       </div>
       {m.blockReason && (
         <p className="text-[10px] text-amber-600 mt-1.5 flex items-center gap-1">
@@ -998,73 +1061,179 @@ const ROLE_COLORS: Record<string, string> = {
   viewer:      'bg-slate-50 text-slate-500 border-slate-200',
 };
 
-function MembersSection({ members, currentUserId, isOwner, onInvite, onToggleCanApprove }: {
+function scoreColor(score: number) {
+  if (score >= 75) return { ring: 'text-emerald-600', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+  if (score >= 45) return { ring: 'text-amber-500',   bg: 'bg-amber-50 text-amber-700 border-amber-200'     };
+  return               { ring: 'text-red-500',        bg: 'bg-red-50 text-red-700 border-red-200'           };
+}
+
+function MembersSection({ members, currentUserId, isOwner, canAssign, performance, onInvite, onToggleCanApprove }: {
   members: ProjectMember[];
   currentUserId: string;
   isOwner: boolean;
+  canAssign: boolean;
+  performance: MemberPerformance[] | null;
   onInvite: () => void;
   onToggleCanApprove: (memberId: string, val: boolean) => void;
 }) {
   const myMember = members.find(m => m.user.id === currentUserId);
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-50">
-        <div>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Team</p>
-          {myMember && (
-            <span className={`inline-block mt-1 text-xs font-medium px-2 py-0.5 rounded-full border capitalize ${ROLE_COLORS[myMember.role] ?? ROLE_COLORS.viewer}`}>
-              You — {myMember.role}
-            </span>
+    <div className="space-y-5">
+      {/* Member list */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-50">
+          <div>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Team</p>
+            {myMember && (
+              <span className={`inline-block mt-1 text-xs font-medium px-2 py-0.5 rounded-full border capitalize ${ROLE_COLORS[myMember.role] ?? ROLE_COLORS.viewer}`}>
+                You — {myMember.role}
+              </span>
+            )}
+          </div>
+          {isOwner ? (
+            <button
+              onClick={onInvite}
+              className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 border border-emerald-200 hover:bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              + Invite member
+            </button>
+          ) : (
+            <span className="text-xs text-slate-300">{members.length} member{members.length !== 1 ? 's' : ''}</span>
           )}
         </div>
-        {isOwner ? (
-          <button
-            onClick={onInvite}
-            className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 border border-emerald-200 hover:bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors"
-          >
-            + Invite member
-          </button>
-        ) : (
-          <span className="text-xs text-slate-300">{members.length} member{members.length !== 1 ? 's' : ''}</span>
-        )}
+        <ul className="divide-y divide-slate-50">
+          {members.map(m => (
+            <li key={m.id} className="flex items-center justify-between px-5 py-3.5">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold text-white shrink-0 ${memberColor(m.user.name)}`}>
+                  {m.user.name[0]?.toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-800 truncate">
+                    {m.user.name}
+                    {m.user.id === currentUserId && <span className="text-slate-400 font-normal"> (you)</span>}
+                  </p>
+                  <p className="text-xs text-slate-400 truncate">{m.user.email}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 ml-3">
+                {isOwner && m.role === 'contributor' && m.user.id !== currentUserId && (
+                  <button
+                    onClick={() => onToggleCanApprove(m.userId, !m.canApprove)}
+                    title={m.canApprove ? 'Revoke approval permission' : 'Grant approval permission'}
+                    className={`text-xs px-2 py-1 rounded-lg border transition-colors ${
+                      m.canApprove
+                        ? 'bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100'
+                        : 'bg-slate-50 text-slate-400 border-slate-200 hover:border-violet-300 hover:text-violet-500'
+                    }`}
+                  >
+                    {m.canApprove ? '✓ can approve' : 'can approve?'}
+                  </button>
+                )}
+                <span className={`text-xs font-medium px-2.5 py-1 rounded-full border capitalize ${ROLE_COLORS[m.role] ?? ROLE_COLORS.viewer}`}>
+                  {m.role}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
-      <ul className="divide-y divide-slate-50">
-        {members.map(m => (
-          <li key={m.id} className="flex items-center justify-between px-5 py-3.5">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold text-white shrink-0 ${memberColor(m.user.name)}`}>
-                {m.user.name[0]?.toUpperCase()}
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-slate-800 truncate">
-                  {m.user.name}
-                  {m.user.id === currentUserId && <span className="text-slate-400 font-normal"> (you)</span>}
-                </p>
-                <p className="text-xs text-slate-400 truncate">{m.user.email}</p>
-              </div>
+
+      {/* Performance panel — visible only to owner / canApprove contributors */}
+      {canAssign && (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-50">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Member Performance</p>
+            <p className="text-xs text-slate-400 mt-0.5">Based on assigned milestones and deadline adherence</p>
+          </div>
+
+          {!performance ? (
+            <div className="px-5 py-8 text-center text-sm text-slate-400">Loading…</div>
+          ) : performance.every(p => p.assigned === 0) ? (
+            <div className="px-5 py-8 text-center">
+              <p className="text-sm text-slate-500 font-medium">No milestones assigned yet</p>
+              <p className="text-xs text-slate-400 mt-1">Assign milestones to team members from the Milestones tab to track performance.</p>
             </div>
-            <div className="flex items-center gap-2 shrink-0 ml-3">
-              {isOwner && m.role === 'contributor' && m.user.id !== currentUserId && (
-                <button
-                  onClick={() => onToggleCanApprove(m.userId, !m.canApprove)}
-                  title={m.canApprove ? 'Revoke approval permission' : 'Grant approval permission'}
-                  className={`text-xs px-2 py-1 rounded-lg border transition-colors ${
-                    m.canApprove
-                      ? 'bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100'
-                      : 'bg-slate-50 text-slate-400 border-slate-200 hover:border-violet-300 hover:text-violet-500'
-                  }`}
-                >
-                  {m.canApprove ? '✓ can approve' : 'can approve?'}
-                </button>
-              )}
-              <span className={`text-xs font-medium px-2.5 py-1 rounded-full border capitalize ${ROLE_COLORS[m.role] ?? ROLE_COLORS.viewer}`}>
-                {m.role}
-              </span>
-            </div>
-          </li>
-        ))}
-      </ul>
+          ) : (
+            <ul className="divide-y divide-slate-50">
+              {performance.map(p => {
+                const colors  = scoreColor(p.score);
+                const onTimePct = (p.completedOnTime + p.completedLate) > 0
+                  ? Math.round(p.completedOnTime / (p.completedOnTime + p.completedLate) * 100)
+                  : null;
+                return (
+                  <li key={p.userId} className="px-5 py-4">
+                    <div className="flex items-start gap-3">
+                      {/* Avatar */}
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold text-white shrink-0 ${memberColor(p.name)}`}>
+                        {p.name[0]?.toUpperCase()}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-slate-800 truncate">{p.name}</p>
+                            <p className="text-xs text-slate-400 capitalize">{p.role}{p.canApprove ? ' · can approve' : ''}</p>
+                          </div>
+                          {/* Score badge */}
+                          {p.assigned > 0 && (
+                            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0 ${colors.bg}`}>
+                              {p.score} score
+                            </span>
+                          )}
+                        </div>
+
+                        {p.assigned === 0 ? (
+                          <p className="text-xs text-slate-400">No milestones assigned</p>
+                        ) : (
+                          <>
+                            {/* Stats row */}
+                            <div className="grid grid-cols-4 gap-2 mb-2.5">
+                              <div className="text-center">
+                                <p className="text-base font-semibold text-slate-800">{p.assigned}</p>
+                                <p className="text-[10px] text-slate-400 uppercase tracking-wide">Assigned</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-base font-semibold text-slate-800">{p.completed}</p>
+                                <p className="text-[10px] text-slate-400 uppercase tracking-wide">Done</p>
+                              </div>
+                              <div className="text-center">
+                                <p className={`text-base font-semibold ${p.overdue > 0 ? 'text-amber-600' : 'text-slate-800'}`}>{p.overdue}</p>
+                                <p className="text-[10px] text-slate-400 uppercase tracking-wide">Overdue</p>
+                              </div>
+                              <div className="text-center">
+                                <p className={`text-base font-semibold ${onTimePct !== null && onTimePct < 60 ? 'text-amber-600' : 'text-slate-800'}`}>
+                                  {onTimePct !== null ? `${onTimePct}%` : '—'}
+                                </p>
+                                <p className="text-[10px] text-slate-400 uppercase tracking-wide">On time</p>
+                              </div>
+                            </div>
+
+                            {/* Completion bar */}
+                            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${p.score >= 75 ? 'bg-emerald-400' : p.score >= 45 ? 'bg-amber-400' : 'bg-red-400'}`}
+                                style={{ width: `${Math.round(p.completed / p.assigned * 100)}%` }}
+                              />
+                            </div>
+                            <div className="flex justify-between mt-1">
+                              <span className="text-[10px] text-slate-400">{p.completed}/{p.assigned} completed</span>
+                              {p.completedLate > 0 && (
+                                <span className="text-[10px] text-amber-500">{p.completedLate} late · avg {p.avgDaysLate}d</span>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }

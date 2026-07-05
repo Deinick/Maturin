@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Task, Habit, HabitLog, Project, Phase, Milestone, Suggestion, PendingChange } from '../types';
+import type { Task, Habit, HabitLog, Project, Phase, Milestone, Suggestion, PendingChange, MemberPerformance } from '../types';
 import { localDate } from '../utils/date';
 /*
 
@@ -103,8 +103,8 @@ export const createProject = (title: string, description?: string, targetEndDate
 export const createPhase = (projectId: string, title: string, order: number) =>
     api.post<Phase>(`/projects/${projectId}/phases`, { title, order }).then(r => r.data);
 
-export const createMilestone = (phaseId: string, title: string, order: number, dueDate?: string) =>
-    api.post<Milestone>(`/projects/phases/${phaseId}/milestones`, { title, order, dueDate }).then(r => r.data);
+export const createMilestone = (phaseId: string, title: string, order: number, dueDate?: string, assigneeIds?: string[]) =>
+    api.post<Milestone>(`/projects/phases/${phaseId}/milestones`, { title, order, dueDate, assigneeIds }).then(r => r.data);
 
 export type ApplyResult<T> =
     | { applied: true; data: T }
@@ -145,6 +145,9 @@ export const deleteMilestone = (id: string) =>
 
 export const setMemberPermission = (projectId: string, memberId: string, canApprove: boolean) =>
     api.patch(`/projects/${projectId}/members/${memberId}/permissions`, { canApprove }).then(r => r.data);
+
+export const getProjectPerformance = (projectId: string) =>
+    api.get<MemberPerformance[]>(`/projects/${projectId}/performance`).then(r => r.data);
 
 // Pending changes
 export const getAllPendingChangeCounts = () =>

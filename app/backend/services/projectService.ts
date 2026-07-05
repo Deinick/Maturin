@@ -40,6 +40,16 @@ async function projectIdForMilestone(milestoneId: string): Promise<string> {
     return m.phase.projectId;
 }
 
+async function requireCanAssign(projectId: string, userId: string) {
+    const member = await prisma.projectMember.findUnique({
+        where: { projectId_userId: { projectId, userId } },
+    });
+    if (!member) throw new PermissionError();
+    if (member.role === 'owner') return;
+    if (member.role === 'contributor' && member.canApprove) return;
+    throw new PermissionError();
+}
+
 async function createPendingChanges(
     projectId: string,
     authorId: string,
@@ -90,11 +100,15 @@ const PLAN_FIELDS_PHASE     = new Set(['title', 'description']);
 const PLAN_FIELDS_MILESTONE = new Set(['title', 'description', 'dueDate']);
 
 
+const MILESTONE_INCLUDE = {
+    assignees: { include: { user: { select: { id: true, name: true, email: true } } } },
+} as const;
+
 export async function getProjects(userId: string) {
     return prisma.project.findMany({
         where: { members: { some: { userId } } },
         include: {
-            phases: { include: { milestones: true } },
+            phases: { include: { milestones: { include: MILESTONE_INCLUDE } } },
             members: {
                 include: { user: { select: { id: true, name: true, email: true } } },
                 orderBy: { joinedAt: 'asc' },
@@ -129,10 +143,19 @@ export async function createPhase(projectId: string, userId: string, title: stri
     return prisma.phase.create({ data: { projectId, title, description, order } });
 }
 
-export async function createMilestone(phaseId: string, userId: string, title: string, description: string | undefined, order: number, dueDate?: string) {
+export async function createMilestone(phaseId: string, userId: string, title: string, description: string | undefined, order: number, dueDate?: string, assigneeIds?: string[]) {
     const projectId = await projectIdForPhase(phaseId);
     await requireRole(projectId, userId, 'contributor');
-    return prisma.milestone.create({ data: { phaseId, title, description, order, dueDate } });
+    if (assigneeIds && assigneeIds.length > 0) await requireCanAssign(projectId, userId);
+    return prisma.milestone.create({
+        data: {
+            phaseId, title, description, order, dueDate,
+            ...(assigneeIds && assigneeIds.length > 0 && {
+                assignees: { create: assigneeIds.map(uid => ({ userId: uid })) },
+            }),
+        },
+        include: MILESTONE_INCLUDE,
+    });
 }
 
 export async function updateProject(
@@ -210,14 +233,21 @@ export async function updateMilestone(
     data: {
         title?: string; description?: string; order?: number; dueDate?: string;
         completed?: boolean; effortRating?: string; blockReason?: string;
+        assigneeIds?: string[];
     },
 ): Promise<ApplyResult<object>> {
     const projectId = await projectIdForMilestone(id);
     await requireRole(projectId, userId, 'contributor');
 
+    if (data.assigneeIds !== undefined) {
+        await requireCanAssign(projectId, userId);
+    }
+
+    const { assigneeIds, ...rest } = data;
+
     const planData: Record<string, unknown>      = {};
     const immediateData: Record<string, unknown> = {};
-    for (const [key, val] of Object.entries(data)) {
+    for (const [key, val] of Object.entries(rest)) {
         if (val === undefined) continue;
         if (PLAN_FIELDS_MILESTONE.has(key)) planData[key] = val;
         else immediateData[key] = val;
@@ -230,12 +260,22 @@ export async function updateMilestone(
         await prisma.milestone.update({ where: { id }, data: update });
     }
 
-    const currentMilestone = await prisma.milestone.findUniqueOrThrow({ where: { id } });
+    if (assigneeIds !== undefined) {
+        await prisma.$transaction([
+            prisma.milestoneAssignee.deleteMany({ where: { milestoneId: id } }),
+            ...assigneeIds.map(uid => prisma.milestoneAssignee.create({ data: { milestoneId: id, userId: uid } })),
+        ]);
+    }
+
+    const currentMilestone = await prisma.milestone.findUniqueOrThrow({
+        where: { id },
+        include: MILESTONE_INCLUDE,
+    });
     if (Object.keys(planData).length > 0) {
         const { changed, old } = filterChanged(planData, currentMilestone as Record<string, unknown>);
         if (Object.keys(changed).length > 0) {
             if (await canApproveFor(projectId, userId)) {
-                const updated = await prisma.milestone.update({ where: { id }, data: changed });
+                const updated = await prisma.milestone.update({ where: { id }, data: changed, include: MILESTONE_INCLUDE });
                 return { applied: true, data: updated };
             }
             const changes = await createPendingChanges(projectId, userId, 'milestone', id, old, changed);
@@ -278,6 +318,78 @@ export async function setMemberPermission(
         where: { projectId_userId: { projectId, userId: targetUserId } },
         data: { canApprove },
         include: { user: { select: { id: true, name: true, email: true } } },
+    });
+}
+
+export async function getMemberPerformance(projectId: string, userId: string) {
+    await requireCanAssign(projectId, userId);
+
+    const members = await prisma.projectMember.findMany({
+        where: { projectId },
+        include: { user: { select: { id: true, name: true, email: true } } },
+        orderBy: { joinedAt: 'asc' },
+    });
+
+    const assignments = await prisma.milestoneAssignee.findMany({
+        where: { milestone: { phase: { projectId } } },
+        select: {
+            userId: true,
+            milestone: { select: { completed: true, completedAt: true, dueDate: true } },
+        },
+    });
+
+    const today = new Date().toISOString().split('T')[0];
+
+    return members.map(m => {
+        const mine = assignments.filter(a => a.userId === m.userId).map(a => a.milestone);
+        const assigned = mine.length;
+        let completed = 0, completedOnTime = 0, completedLate = 0, overdue = 0;
+        let totalDaysLate = 0, lateCount = 0;
+
+        for (const ms of mine) {
+            if (ms.completed) {
+                completed++;
+                if (ms.dueDate && ms.completedAt) {
+                    const due  = new Date(ms.dueDate + 'T23:59:59').getTime();
+                    const done = ms.completedAt.getTime();
+                    const diff = Math.ceil((done - due) / 86400000);
+                    if (diff <= 0) {
+                        completedOnTime++;
+                    } else {
+                        completedLate++;
+                        totalDaysLate += diff;
+                        lateCount++;
+                    }
+                } else {
+                    completedOnTime++;
+                }
+            } else if (ms.dueDate && ms.dueDate < today) {
+                overdue++;
+            }
+        }
+
+        const pending      = assigned - completed - overdue;
+        const avgDaysLate  = lateCount > 0 ? Math.round(totalDaysLate / lateCount * 10) / 10 : 0;
+
+        // Score: 0–100
+        // Completion weight 40, timeliness weight 40, overdue penalty 20
+        const completionScore  = assigned > 0 ? (completed / assigned) * 40 : 20;
+        const withDue          = completedOnTime + completedLate;
+        const timelinessScore  = withDue > 0 ? (completedOnTime / withDue) * 40 : 20;
+        const overduePenalty   = assigned > 0 ? (overdue / assigned) * 20 : 0;
+        const score            = Math.min(100, Math.max(0, Math.round(completionScore + timelinessScore - overduePenalty)));
+
+        return {
+            userId:     m.userId,
+            name:       m.user.name,
+            email:      m.user.email,
+            role:       m.role,
+            canApprove: m.canApprove,
+            assigned, completed, completedOnTime, completedLate, overdue,
+            pending:    Math.max(0, pending),
+            avgDaysLate,
+            score,
+        };
     });
 }
 
