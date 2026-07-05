@@ -69,9 +69,11 @@ export interface Phase {
   projectId: string;
   title: string;
   description: string | null;
+  dueDate: string | null;
   order: number;
   completed: boolean;
   milestones: Milestone[];
+  dependencies: { dependsOnId: string }[];
 }
 
 export interface Milestone {
@@ -102,6 +104,23 @@ export interface MemberPerformance {
   pending: number;
   avgDaysLate: number;
   score: number;
+}
+
+export interface MyObjective {
+  id: string;
+  title: string;
+  description: string | null;
+  dueDate: string | null;
+  completed: boolean;
+  completedAt: string | null;
+  effortRating: string | null;
+  blockReason: string | null;
+  order: number;
+  assignees: { id: string; name: string; email: string }[];
+  phaseId: string;
+  phaseName: string;
+  projectId: string;
+  projectTitle: string;
 }
 
 export interface Suggestion {

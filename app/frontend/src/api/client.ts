@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Task, Habit, HabitLog, Project, Phase, Milestone, Suggestion, PendingChange, MemberPerformance } from '../types';
+import type { Task, Habit, HabitLog, Project, Phase, Milestone, Suggestion, PendingChange, MemberPerformance, MyObjective } from '../types';
 import { localDate } from '../utils/date';
 /*
 
@@ -94,17 +94,35 @@ export const deleteHabit = (id: string) =>
 
 
 // Projects
+// Normalize milestone assignees — backend may return MilestoneAssignee join records
+// (with a nested `user` field) or already-flat User objects. Always produce flat User[].
+function normalizeMilestone(m: Record<string, unknown>): Record<string, unknown> {
+    const raw = (m['assignees'] as { user?: unknown; id?: unknown; name?: unknown }[] | undefined) ?? [];
+    return {
+        ...m,
+        assignees: raw.map(a => (a.user ? a.user : a)),
+    };
+}
+
 export const getProjects = () =>
-    api.get<Project[]>('/projects').then(r => r.data);
+    api.get<Project[]>('/projects').then(r =>
+        r.data.map(proj => ({
+            ...proj,
+            phases: (proj.phases ?? []).map(ph => ({
+                ...ph,
+                milestones: (ph.milestones ?? []).map(m => normalizeMilestone(m as unknown as Record<string, unknown>)),
+            })),
+        })) as unknown as Project[]
+    );
 
 export const createProject = (title: string, description?: string, targetEndDate?: string) =>
     api.post<Project>('/projects', { title, description, targetEndDate }).then(r => r.data);
 
-export const createPhase = (projectId: string, title: string, order: number) =>
-    api.post<Phase>(`/projects/${projectId}/phases`, { title, order }).then(r => r.data);
+export const createPhase = (projectId: string, title: string, order: number, description?: string, dueDate?: string) =>
+    api.post<Phase>(`/projects/${projectId}/phases`, { title, order, description, dueDate }).then(r => r.data);
 
-export const createMilestone = (phaseId: string, title: string, order: number, dueDate?: string, assigneeIds?: string[]) =>
-    api.post<Milestone>(`/projects/phases/${phaseId}/milestones`, { title, order, dueDate, assigneeIds }).then(r => r.data);
+export const createMilestone = (phaseId: string, title: string, order: number, dueDate?: string, assigneeIds?: string[], description?: string) =>
+    api.post<Milestone>(`/projects/phases/${phaseId}/milestones`, { title, order, dueDate, assigneeIds, description }).then(r => r.data);
 
 export type ApplyResult<T> =
     | { applied: true; data: T }
@@ -116,7 +134,10 @@ export const updateProject = (id: string, data: Partial<Project>) =>
 export const updatePhase = (id: string, data: Partial<Phase>) =>
     api.patch<ApplyResult<Phase>>(`/projects/phases/${id}`, data).then(r => r.data);
 
-export const updateMilestone = (id: string, data: Partial<Milestone>) =>
+export const setDependencies = (phaseId: string, dependsOnIds: string[]) =>
+    api.put(`/projects/phases/${phaseId}/dependencies`, { dependsOnIds }).then(r => r.data);
+
+export const updateMilestone = (id: string, data: Partial<Milestone> & { assigneeIds?: string[] }) =>
     api.patch<ApplyResult<Milestone>>(`/projects/milestones/${id}`, data).then(r => r.data);
 
 export const getProjectInsights = (projectId: string) =>
@@ -148,6 +169,9 @@ export const setMemberPermission = (projectId: string, memberId: string, canAppr
 
 export const getProjectPerformance = (projectId: string) =>
     api.get<MemberPerformance[]>(`/projects/${projectId}/performance`).then(r => r.data);
+
+export const getMyObjectives = () =>
+    api.get<MyObjective[]>('/projects/my-objectives').then(r => r.data);
 
 // Pending changes
 export const getAllPendingChangeCounts = () =>

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useSettings } from './hooks/useSettings';
 import ErrorBoundary    from './components/ErrorBoundary';
@@ -8,8 +8,10 @@ import DashboardPage    from './pages/DashboardPage';
 import TasksPage        from './pages/TasksPage';
 import HabitsPage       from './pages/HabitsPage';
 import ProjectsPage     from './pages/ProjectsPage';
-import ProjectDetailPage from './pages/ProjectDetailPage';
-import AccountPage      from './pages/AccountPage';
+import ProjectDetailPage  from './pages/ProjectDetailPage';
+import CreateProjectPage  from './pages/CreateProjectPage';
+import EditProjectPage    from './pages/EditProjectPage';
+import AccountPage        from './pages/AccountPage';
 import SuggestionsPage  from './pages/SuggestionsPage';
 import LoginPage        from './pages/LoginPage';
 import RegisterPage     from './pages/RegisterPage';
@@ -170,6 +172,8 @@ function AppShell() {
     const { logout } = useAuth();
     const { settings } = useSettings();
     const [collapsed, setCollapsed] = useState(false);
+    const location = useLocation();
+    const isFullscreenFlow = location.pathname === '/projects/new' || /^\/projects\/.+\/edit$/.test(location.pathname);
 
     useEffect(() => {
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -181,17 +185,19 @@ function AppShell() {
             <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c: boolean) => !c)} />
             <RolloverModal />
             <main
-                className={`flex-1 px-8 py-8 min-h-screen overflow-x-hidden transition-all duration-300 ease-in-out ${collapsed ? 'ml-12' : 'ml-52'}`}
+                className={`flex-1 min-h-screen transition-all duration-300 ease-in-out ${collapsed ? 'ml-12' : 'ml-52'} ${isFullscreenFlow ? 'p-0 overflow-hidden h-screen' : 'px-8 py-8 overflow-x-hidden'}`}
             >
                 <Routes>
-                    <Route path="/"             element={<DashboardPage />} />
-                    <Route path="/tasks"        element={<TasksPage />} />
-                    <Route path="/habits"       element={<HabitsPage />} />
-                    <Route path="/projects"     element={<ProjectsPage />} />
-                    <Route path="/projects/:id" element={<ProjectDetailPage />} />
-                    <Route path="/suggestions"  element={<SuggestionsPage />} />
-                    <Route path="/account"      element={<AccountPage onLogout={logout} />} />
-                    <Route path="*"             element={<Navigate to="/" replace />} />
+                    <Route path="/"                element={<DashboardPage />} />
+                    <Route path="/tasks"           element={<TasksPage />} />
+                    <Route path="/habits"          element={<HabitsPage />} />
+                    <Route path="/projects"        element={<ProjectsPage />} />
+                    <Route path="/projects/new"       element={<CreateProjectPage />} />
+                    <Route path="/projects/:id/edit" element={<EditProjectPage />} />
+                    <Route path="/projects/:id"       element={<ProjectDetailPage />} />
+                    <Route path="/suggestions"     element={<SuggestionsPage />} />
+                    <Route path="/account"         element={<AccountPage onLogout={logout} />} />
+                    <Route path="*"                element={<Navigate to="/" replace />} />
                 </Routes>
             </main>
         </div>

@@ -120,14 +120,26 @@ model PendingChange {
 }
 
 model Phase {
-  id         String      @id @default(uuid())
-  projectId  String
-  title      String
-  description String?
-  order      Int
-  completed  Boolean     @default(false)
-  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  milestones Milestone[]
+  id           String             @id @default(uuid())
+  projectId    String
+  title        String
+  description  String?
+  dueDate      String?
+  order        Int
+  completed    Boolean            @default(false)
+  project      Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestones   Milestone[]
+  dependencies PhaseDependency[]  @relation("PhaseDepends")
+  dependents   PhaseDependency[]  @relation("PhaseDependedOn")
+}
+
+model PhaseDependency {
+  phaseId     String
+  dependsOnId String
+  phase       Phase  @relation("PhaseDepends",    fields: [phaseId],     references: [id], onDelete: Cascade)
+  dependsOn   Phase  @relation("PhaseDependedOn", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+  @@id([phaseId, dependsOnId])
 }
 
 model Milestone {

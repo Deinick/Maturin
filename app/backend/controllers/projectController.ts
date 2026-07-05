@@ -44,9 +44,9 @@ export async function createPhase(req: Request, res: Response, next: NextFunctio
     try {
         const userId    = (req as AuthRequest).userId;
         const projectId = req.params['projectId'] as string;
-        const { title, description, order } = req.body;
+        const { title, description, dueDate, order } = req.body;
         if (!title || order === undefined) { res.status(400).json({ error: 'title and order are required' }); return; }
-        const phase = await projectService.createPhase(projectId, userId, title, description, order);
+        const phase = await projectService.createPhase(projectId, userId, title, description, order, dueDate);
         res.status(201).json(phase);
     } catch (err) { next(err); }
 }
@@ -79,8 +79,8 @@ export async function updatePhase(req: Request, res: Response, next: NextFunctio
     try {
         const userId = (req as AuthRequest).userId;
         const id     = req.params['id'] as string;
-        const { title, description, order, completed } = req.body;
-        const phase = await projectService.updatePhase(id, userId, { title, description, order, completed });
+        const { title, description, dueDate, order, completed } = req.body;
+        const phase = await projectService.updatePhase(id, userId, { title, description, dueDate, order, completed });
         res.json(phase);
     } catch (err) { next(err); }
 }
@@ -133,5 +133,25 @@ export async function getMemberPerformance(req: Request, res: Response, next: Ne
         const projectId = req.params['id'] as string;
         const data      = await projectService.getMemberPerformance(projectId, userId);
         res.json(data);
+    } catch (err) { next(err); }
+}
+
+export async function getMyObjectives(req: Request, res: Response, next: NextFunction): Promise<void>
+{
+    try {
+        const userId = (req as AuthRequest).userId;
+        const data   = await projectService.getMyObjectives(userId);
+        res.json(data);
+    } catch (err) { next(err); }
+}
+
+export async function setDependencies(req: Request, res: Response, next: NextFunction): Promise<void>
+{
+    try {
+        const userId      = (req as AuthRequest).userId;
+        const phaseId     = req.params['phaseId'] as string;
+        const { dependsOnIds } = req.body as { dependsOnIds: string[] };
+        await projectService.setDependencies(phaseId, dependsOnIds ?? [], userId);
+        res.json({ ok: true });
     } catch (err) { next(err); }
 }
