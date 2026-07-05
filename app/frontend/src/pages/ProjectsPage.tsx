@@ -6,7 +6,6 @@ import {
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import EditProjectModal from '../components/EditProjectModal';
-import sleepingTurtle from '../assets/Turtles/0609 (1).png';
 
 type CreateStep = 'project' | 'phases' | 'milestones';
 
@@ -128,9 +127,13 @@ export default function ProjectsPage() {
 
       {projects.length === 0 ? (
         <div className="flex flex-col items-center py-20 gap-4">
-          <img src={sleepingTurtle} alt="Resting turtle" className="turtle-img w-40 h-40 object-contain opacity-80" />
+          <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
+            <svg className="w-7 h-7 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+            </svg>
+          </div>
           <div className="text-center">
-            <p className="serif text-xl font-semibold text-stone-700">No projects yet</p>
+            <p className="text-xl font-semibold text-slate-700">No projects yet</p>
             <p className="text-stone-400 text-sm mt-1">Break your big goals into phases and milestones — start with one.</p>
           </div>
           <button onClick={() => setShowModal(true)}

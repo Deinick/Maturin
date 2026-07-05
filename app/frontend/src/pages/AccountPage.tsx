@@ -49,7 +49,7 @@ export default function AccountPage({ onLogout }: { onLogout: () => void }) {
             {/* Profile card */}
             <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-6 flex items-center justify-between gap-5">
                 <div className="flex items-center gap-5">
-                    <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-2xl font-bold text-emerald-700 shrink-0 serif">
+                    <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-2xl font-bold text-emerald-700 shrink-0">
                         {user?.name?.[0]?.toUpperCase() ?? '?'}
                     </div>
                     <div>
@@ -174,7 +174,7 @@ function StatCard({ value, label, color, bg }: {
 }) {
     return (
         <div className={`${bg} rounded-xl p-4 text-center`}>
-            <p className={`text-3xl font-light ${color} serif`}>{value}</p>
+            <p className={`text-3xl font-light ${color}`}>{value}</p>
             <p className="text-xs text-stone-500 mt-1">{label}</p>
         </div>
     );

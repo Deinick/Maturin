@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Suggestion } from '../types';
 import { getSuggestions } from '../api/client';
-import thinkingTurtle from '../assets/Turtles/0609 (1)(1).png';
 
 const TYPE_META: Record<string, { label: string; icon: string; accent: string }> = {
     split_task:       { label: 'Split task',        icon: '✂️',  accent: 'border-rose-300'   },
@@ -44,7 +43,7 @@ export default function SuggestionsPage()
             <div className="flex items-center gap-4">
                 <button
                     onClick={() => navigate(-1)}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors text-lg"
+                    className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors text-lg"
                 >
                     ←
                 </button>
@@ -56,9 +55,13 @@ export default function SuggestionsPage()
 
             {!loading && suggestions.length === 0 && (
                 <div className="flex flex-col items-center py-20 gap-4">
-                    <img src={thinkingTurtle} alt="Thinking turtle" className="turtle-img w-40 h-40 object-contain opacity-80" />
+                    <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
+                      <svg className="w-7 h-7 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" />
+                      </svg>
+                    </div>
                     <div className="text-center">
-                        <p className="serif text-xl font-semibold text-stone-700">All looking good</p>
+                        <p className="text-xl font-semibold text-slate-700">All looking good</p>
                         <p className="text-stone-400 text-sm mt-1">No suggestions right now — keep up the steady pace.</p>
                     </div>
                 </div>
@@ -67,7 +70,7 @@ export default function SuggestionsPage()
             {grouped.map(group => (
                 <div key={group.key}>
                     <div className="mb-3">
-                        <span className="label-tape label-tape-red">{group.label}</span>
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{group.label}</span>
                     </div>
                     <div className="space-y-2">
                         {group.items.map((s, i) => (
