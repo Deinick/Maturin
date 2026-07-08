@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, memo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { Project, Milestone, Phase, ProjectMember, PendingChange, MemberPerformance } from '../types';
 import {
@@ -126,8 +127,8 @@ const BLOCK_OPTIONS: { value: 'no_time' | 'unclear' | 'external' | 'motivation';
 ];
 
 const EFFORT_OPTIONS: { value: 'easier' | 'as_expected' | 'harder'; label: string; color: string }[] = [
-  { value: 'easier',      label: 'Easier',      color: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' },
-  { value: 'as_expected', label: 'About right', color: 'bg-sky-100 text-sky-700 hover:bg-sky-200' },
+  { value: 'easier',      label: 'Easier',      color: 'bg-[#c8eadf] text-[#16342d] hover:bg-[#adcec3]' },
+  { value: 'as_expected', label: 'About right', color: 'bg-[#c8eadf] text-[#16342d] hover:bg-[#adcec3]' },
   { value: 'harder',      label: 'Harder',      color: 'bg-rose-100 text-rose-700 hover:bg-rose-200' },
 ];
 
@@ -162,6 +163,7 @@ export default function ProjectDetailPage() {
   const { id }   = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const [project,          setProject]         = useState<Project | null>(null);
   const [insights,         setInsights]        = useState<Insights | null>(null);
@@ -198,18 +200,29 @@ export default function ProjectDetailPage() {
     }
   }
 
+  const { data: allProjects }    = useQuery({ queryKey: ['projects'], queryFn: getProjects });
+  const { data: insightsData }   = useQuery({ queryKey: ['projectInsights', id], queryFn: () => getProjectInsights(id!), enabled: !!id });
+
+  // project/insights are local editable copies (optimistic milestone edits, etc.) seeded
+  // from the cached query data, so this sync can't be expressed as derived render state.
   useEffect(() => {
-    Promise.all([getProjects(), getProjectInsights(id!)])
-      .then(([all, ins]) => {
-        const found = all.find(p => p.id === id);
-        if (found) {
-          setProject(found);
-          const me = found.members?.find(m => m.user.id === user?.id);
-          if (me) refreshPending(me.role, me.canApprove);
-        }
-        setInsights(ins);
-      });
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!allProjects) return;
+    const found = allProjects.find(p => p.id === id);
+    if (found) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setProject(found);
+      const me = found.members?.find(m => m.user.id === user?.id);
+      if (me) refreshPending(me.role, me.canApprove);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allProjects, id]);
+
+  useEffect(() => {
+    if (insightsData) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setInsights(insightsData);
+    }
+  }, [insightsData]);
 
   useEffect(() => {
     if (activeTab !== 'team' || !canAssign) return;
@@ -241,6 +254,7 @@ export default function ProjectDetailPage() {
           )
         } : prev);
         setSelectedMilestone(prev => prev?.id === m.id ? { ...prev, ...updatedMs } : prev);
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
       }
     } catch {
       setProject(prev => prev ? {
@@ -339,7 +353,7 @@ export default function ProjectDetailPage() {
   }
 
   if (!project) return (
-    <div className="flex items-center justify-center h-64 text-slate-400 text-sm">Loading…</div>
+    <div className="flex items-center justify-center h-64 text-[#8A7265] text-sm">Loading…</div>
   );
 
   const sortedPhases = [...project.phases].sort((a, b) => a.order - b.order);
@@ -368,10 +382,10 @@ export default function ProjectDetailPage() {
   const isOwner = myRole === 'owner';
 
   const healthScore = insights?.healthScore ?? null;
-  const healthBg    = healthScore === null ? 'bg-slate-50 border-slate-200 text-slate-400'
-    : healthScore >= 70 ? 'bg-emerald-50 border-emerald-200 text-emerald-600'
+  const healthBg    = healthScore === null ? 'bg-[#FFF5E9] border-[#E0CFC4] text-[#8A7265]'
+    : healthScore >= 70 ? 'bg-[#E8FAF7] border-[#c8eadf] text-[#4C8077]'
     : healthScore >= 40 ? 'bg-amber-50 border-amber-200 text-amber-600'
-    : 'bg-red-50 border-red-200 text-red-600';
+    : 'bg-[#ffdad6] border-[#ffdad6] text-[#ba1a1a]';
 
   const vel         = insights?.velocity;
   const showVelocity = vel?.available === true;
@@ -386,10 +400,10 @@ export default function ProjectDetailPage() {
     : overdueCount > 0 ? 'At Risk'
     : completedCount > 0 ? 'In Progress'
     : 'Not Started';
-  const statusStyle = pct === 100 || project.completed ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+  const statusStyle = pct === 100 || project.completed ? 'bg-[#c8eadf] text-[#16342d] border-[#c8eadf]'
     : overdueCount > 0 ? 'bg-amber-100 text-amber-700 border-amber-200'
-    : completedCount > 0 ? 'bg-blue-100 text-blue-700 border-blue-200'
-    : 'bg-slate-100 text-slate-600 border-slate-200';
+    : completedCount > 0 ? 'bg-blue-100 text-blue-700 border-[#c8eadf]'
+    : 'bg-[#F0E9E0] text-[#54433A] border-[#E0CFC4]';
 
   // Kanban columns
   const activePhaseMilestones = activePhase
@@ -429,7 +443,7 @@ export default function ProjectDetailPage() {
       <div className="mb-6">
         <button
           onClick={() => navigate('/projects')}
-          className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-600 mb-4 transition-colors"
+          className="flex items-center gap-1.5 text-sm text-[#8A7265] hover:text-[#54433A] mb-4 transition-colors"
         >
           ← Projects
         </button>
@@ -437,7 +451,7 @@ export default function ProjectDetailPage() {
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-2 flex-wrap">
-              <h1 className="text-2xl font-semibold text-slate-900 leading-tight">{project.title}</h1>
+              <h1 className="text-2xl font-semibold text-[#2D1E1A] font-serif leading-tight">{project.title}</h1>
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border shrink-0 ${statusStyle}`}>
                 {statusLabel}
               </span>
@@ -448,7 +462,7 @@ export default function ProjectDetailPage() {
               )}
             </div>
             {project.description && (
-              <p className="text-sm text-slate-500 leading-relaxed max-w-2xl">{project.description}</p>
+              <p className="text-sm text-[#8A7265] leading-relaxed max-w-2xl">{project.description}</p>
             )}
           </div>
 
@@ -465,7 +479,7 @@ export default function ProjectDetailPage() {
                   </div>
                 ))}
                 {project.members.length > 4 && (
-                  <div className="w-9 h-9 rounded-full border-2 border-white bg-slate-200 flex items-center justify-center text-slate-600 text-xs font-semibold shrink-0">
+                  <div className="w-9 h-9 rounded-full border-2 border-white bg-[#E0CFC4] flex items-center justify-center text-[#54433A] text-xs font-semibold shrink-0">
                     +{project.members.length - 4}
                   </div>
                 )}
@@ -484,7 +498,7 @@ export default function ProjectDetailPage() {
             {canEdit && (
               <button
                 onClick={() => navigate(`/projects/${id}/edit`)}
-                className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-500 hover:bg-blue-50 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-blue-200 transition-colors"
+                className="flex items-center gap-1.5 text-sm text-[#8A7265] hover:text-[#C4601A] hover:bg-[#FFF5E9] px-3 py-1.5 rounded-lg border border-[#E0CFC4] hover:border-[#c8eadf] transition-colors"
               >
                 ✎ Edit
               </button>
@@ -492,7 +506,7 @@ export default function ProjectDetailPage() {
             {isOwner && (
               <button
                 onClick={() => setShowInvite(true)}
-                className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-emerald-200 transition-colors"
+                className="flex items-center gap-1.5 text-sm text-[#8A7265] hover:text-[#4C8077] hover:bg-[#FFF5E9] px-3 py-1.5 rounded-lg border border-[#E0CFC4] hover:border-[#c8eadf] transition-colors"
               >
                 + Invite
               </button>
@@ -502,15 +516,15 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* ── Tab bar ──────────────────────────────────────────── */}
-      <div className="flex items-end gap-6 border-b border-slate-200 mb-6">
+      <div className="flex items-end gap-6 border-b border-[#E0CFC4] mb-6">
         {(['overview', 'team'] as Tab[]).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`pb-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
               activeTab === tab
-                ? 'border-slate-900 text-slate-900'
-                : 'border-transparent text-slate-400 hover:text-slate-600'
+                ? 'border-[#2D1E1A] text-[#2D1E1A]'
+                : 'border-transparent text-[#8A7265] hover:text-[#54433A]'
             }`}
           >
             {{ overview: 'Overview', team: 'Team' }[tab]}
@@ -527,8 +541,8 @@ export default function ProjectDetailPage() {
           <div className="col-span-2 space-y-5">
 
             {/* Milestone Kanban */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <div className="bg-white rounded-2xl border border-[#E0CFC4] shadow-sm p-6">
+              <h3 className="text-xs font-semibold text-[#8A7265] uppercase tracking-widest mb-4 flex items-center gap-2">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
                 </svg>
@@ -538,14 +552,14 @@ export default function ProjectDetailPage() {
               <div className="grid grid-cols-3 gap-3">
 
                 {/* To Do */}
-                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                <div className="bg-[#FFF5E9] rounded-xl p-3 border border-[#E0CFC4]">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold text-slate-500">To Do</span>
-                    <span className="text-xs bg-white text-slate-500 px-2 py-0.5 rounded-full border border-slate-200">{upcomingMilestones.length}</span>
+                    <span className="text-xs font-semibold text-[#8A7265]">To Do</span>
+                    <span className="text-xs bg-white text-[#8A7265] px-2 py-0.5 rounded-full border border-[#E0CFC4]">{upcomingMilestones.length}</span>
                   </div>
                   <div className="space-y-2">
                     {upcomingMilestones.length === 0 ? (
-                      <p className="text-xs text-slate-400 text-center py-3">Nothing queued</p>
+                      <p className="text-xs text-[#8A7265] text-center py-3">Nothing queued</p>
                     ) : upcomingMilestones.map(m => (
                       <KanbanCard key={m.id} m={m} today={TODAY} onClick={() => selectMilestone(m)} />
                     ))}
@@ -553,14 +567,14 @@ export default function ProjectDetailPage() {
                 </div>
 
                 {/* In Progress */}
-                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                <div className="bg-[#FFF5E9] rounded-xl p-3 border border-[#E0CFC4]">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold text-blue-600">In Progress</span>
-                    <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">{activePhaseMilestones.length}</span>
+                    <span className="text-xs font-semibold text-[#4C8077]">In Progress</span>
+                    <span className="text-xs bg-blue-100 text-[#4C8077] px-2 py-0.5 rounded-full">{activePhaseMilestones.length}</span>
                   </div>
                   <div className="space-y-2">
                     {activePhaseMilestones.length === 0 ? (
-                      <p className="text-xs text-slate-400 text-center py-3 leading-relaxed px-2">
+                      <p className="text-xs text-[#8A7265] text-center py-3 leading-relaxed px-2">
                         {totalMilestones === 0 ? 'No objectives yet'
                           : lockedPhaseIds.size > 0 && completedCount === allMilestones.filter(m => !m.phaseLocked).length
                             ? 'Complete required phases to unlock the next ones'
@@ -573,24 +587,24 @@ export default function ProjectDetailPage() {
                 </div>
 
                 {/* Done */}
-                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 opacity-90">
+                <div className="bg-[#FFF5E9] rounded-xl p-3 border border-[#E0CFC4] opacity-90">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold text-slate-500">Done</span>
-                    <span className="text-xs bg-white text-slate-500 px-2 py-0.5 rounded-full border border-slate-200">{completedCount}</span>
+                    <span className="text-xs font-semibold text-[#8A7265]">Done</span>
+                    <span className="text-xs bg-white text-[#8A7265] px-2 py-0.5 rounded-full border border-[#E0CFC4]">{completedCount}</span>
                   </div>
                   <div className="space-y-2">
                     {recentlyDone.length === 0 ? (
-                      <p className="text-xs text-slate-400 text-center py-3">None completed yet</p>
+                      <p className="text-xs text-[#8A7265] text-center py-3">None completed yet</p>
                     ) : recentlyDone.map(m => (
                       <div key={m.id}
                         onClick={() => selectMilestone(m)}
-                        className="bg-white p-3 rounded-lg border border-slate-100 cursor-pointer hover:border-slate-200 transition-colors">
-                        <p className="text-xs text-slate-400 line-through leading-snug">{m.title}</p>
-                        <span className="text-[10px] text-emerald-600 mt-1 block">{m.phaseName}</span>
+                        className="bg-white p-3 rounded-lg border border-[#E0CFC4] cursor-pointer hover:border-[#E0CFC4] transition-colors">
+                        <p className="text-xs text-[#8A7265] line-through leading-snug">{m.title}</p>
+                        <span className="text-[10px] text-[#4C8077] mt-1 block">{m.phaseName}</span>
                       </div>
                     ))}
                     {completedCount > 5 && (
-                      <p className="text-xs text-slate-400 text-center">+{completedCount - 5} more</p>
+                      <p className="text-xs text-[#8A7265] text-center">+{completedCount - 5} more</p>
                     )}
                   </div>
                 </div>
@@ -601,17 +615,17 @@ export default function ProjectDetailPage() {
             {/* Phase Structure preview card */}
             {sortedPhases.length > 0 && (
               <div
-                className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden cursor-pointer group hover:border-slate-300 hover:shadow-md transition-all"
+                className="bg-white rounded-2xl border border-[#E0CFC4] shadow-sm overflow-hidden cursor-pointer group hover:border-[#E0CFC4] hover:shadow-md transition-all"
                 onClick={() => setCanvasExpanded(true)}
               >
-                <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <div className="px-5 py-3 border-b border-[#E0CFC4] flex items-center justify-between">
+                  <h3 className="text-xs font-semibold text-[#8A7265] uppercase tracking-widest flex items-center gap-2">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
                     </svg>
                     Phase Structure
                   </h3>
-                  <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors flex items-center gap-1 font-medium">
+                  <span className="text-[10px] text-[#8A7265] group-hover:text-[#C4601A] transition-colors flex items-center gap-1 font-medium">
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
                     </svg>
@@ -629,31 +643,31 @@ export default function ProjectDetailPage() {
           <div className="space-y-5">
 
             {/* Project Status */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">Project Status</h3>
+            <div className="bg-white rounded-2xl border border-[#E0CFC4] shadow-sm p-5">
+              <h3 className="text-xs font-semibold text-[#8A7265] uppercase tracking-widest mb-4">Project Status</h3>
               <div className="space-y-5">
                 <div>
                   <div className="flex justify-between items-end mb-1.5">
-                    <span className="text-sm font-medium text-slate-700">Completion</span>
-                    <span className="text-xl font-semibold text-slate-900">{pct}%</span>
+                    <span className="text-sm font-medium text-[#54433A]">Completion</span>
+                    <span className="text-xl font-semibold text-[#2D1E1A]">{pct}%</span>
                   </div>
-                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-slate-900 h-full rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                  <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--c-surface-mid)' }}>
+                    <div className="h-full rounded-full transition-all duration-500" style={{ background: 'var(--c-primary)', width: `${pct}%` }} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-50">
+                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-[#E0CFC4]">
                   <div>
-                    <p className="text-[11px] text-slate-400 uppercase tracking-wide">Phases</p>
-                    <p className="text-lg font-semibold text-slate-800 mt-0.5">{completedPhases}/{totalPhases}</p>
+                    <p className="text-[11px] text-[#8A7265] uppercase tracking-wide">Phases</p>
+                    <p className="text-lg font-semibold text-[#2D1E1A] mt-0.5">{completedPhases}/{totalPhases}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] text-slate-400 uppercase tracking-wide">Remaining</p>
-                    <p className="text-lg font-semibold text-slate-800 mt-0.5">{remainingCount}</p>
+                    <p className="text-[11px] text-[#8A7265] uppercase tracking-wide">Remaining</p>
+                    <p className="text-lg font-semibold text-[#2D1E1A] mt-0.5">{remainingCount}</p>
                   </div>
                   {daysLeft !== null && (
                     <div className="col-span-2 pt-1">
-                      <p className="text-[11px] text-slate-400 uppercase tracking-wide">Target date</p>
-                      <p className={`text-base font-semibold mt-0.5 ${daysLeft < 0 ? 'text-red-500' : daysLeft <= 7 ? 'text-amber-600' : 'text-slate-800'}`}>
+                      <p className="text-[11px] text-[#8A7265] uppercase tracking-wide">Target date</p>
+                      <p className={`text-base font-semibold mt-0.5 ${daysLeft < 0 ? 'text-[#ba1a1a]' : daysLeft <= 7 ? 'text-amber-600' : 'text-[#2D1E1A]'}`}>
                         {daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? 'Due today' : `${daysLeft}d left`}
                       </p>
                     </div>
@@ -671,21 +685,21 @@ export default function ProjectDetailPage() {
 
             {/* Velocity (if available) */}
             {showVelocity && vel && vel.available && (
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Velocity</h3>
-                <p className="text-2xl font-light text-slate-900 mb-1">
-                  {vel.actualPerWeek}<span className="text-sm text-slate-400 ml-1">/wk</span>
+              <div className="bg-white rounded-2xl border border-[#E0CFC4] shadow-sm p-5">
+                <h3 className="text-xs font-semibold text-[#8A7265] uppercase tracking-widest mb-3">Velocity</h3>
+                <p className="text-2xl font-light text-[#2D1E1A] mb-1">
+                  {vel.actualPerWeek}<span className="text-sm text-[#8A7265] ml-1">/wk</span>
                 </p>
-                <p className="text-xs text-slate-500 leading-relaxed">
+                <p className="text-xs text-[#8A7265] leading-relaxed">
                   {vel.plannedPerWeek !== null && (
                     vel.actualPerWeek < vel.plannedPerWeek * 0.8 ? <span className="text-amber-600">Behind — planned {vel.plannedPerWeek}/wk</span>
-                    : vel.actualPerWeek >= vel.plannedPerWeek * 1.1 ? <span className="text-emerald-600">Ahead — planned {vel.plannedPerWeek}/wk</span>
-                    : <span className="text-emerald-600">On track</span>
+                    : vel.actualPerWeek >= vel.plannedPerWeek * 1.1 ? <span className="text-[#4C8077]">Ahead — planned {vel.plannedPerWeek}/wk</span>
+                    : <span className="text-[#4C8077]">On track</span>
                   )}
                 </p>
                 {vel.revisedFinishDate && (
-                  <p className="text-xs text-slate-400 mt-2">
-                    Est. finish: <span className={`font-medium ${vel.targetFinishDate && vel.revisedFinishDate > vel.targetFinishDate ? 'text-amber-600' : 'text-slate-700'}`}>
+                  <p className="text-xs text-[#8A7265] mt-2">
+                    Est. finish: <span className={`font-medium ${vel.targetFinishDate && vel.revisedFinishDate > vel.targetFinishDate ? 'text-amber-600' : 'text-[#54433A]'}`}>
                       {vel.revisedFinishDate}
                     </span>
                   </p>
@@ -695,27 +709,27 @@ export default function ProjectDetailPage() {
 
             {/* Recent Activity */}
             {activityItems.length > 0 && (
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">Activity</h3>
-                <div className="relative space-y-3 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
+              <div className="bg-white rounded-2xl border border-[#E0CFC4] shadow-sm p-5">
+                <h3 className="text-xs font-semibold text-[#8A7265] uppercase tracking-widest mb-4">Activity</h3>
+                <div className="relative space-y-3 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-[#F0E9E0]">
                   {activityItems.map((item, i) => (
                     <div key={i} className="relative flex items-start gap-3 pl-1">
                       <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 z-10 border-2 border-white mt-0.5 ${
-                        item.type === 'change' ? 'bg-amber-100' : 'bg-emerald-100'
+                        item.type === 'change' ? 'bg-amber-100' : 'bg-[#c8eadf]'
                       }`}>
                         {item.type === 'change' ? (
                           <svg className="w-2.5 h-2.5 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                           </svg>
                         ) : (
-                          <svg className="w-2.5 h-2.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <svg className="w-2.5 h-2.5 text-[#4C8077]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                           </svg>
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs text-slate-700 leading-snug">{item.label}</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">{item.sub} · {relativeTime(item.date)}</p>
+                        <p className="text-xs text-[#54433A] leading-snug">{item.label}</p>
+                        <p className="text-[10px] text-[#8A7265] mt-0.5">{item.sub} · {relativeTime(item.date)}</p>
                       </div>
                     </div>
                   ))}
@@ -725,14 +739,14 @@ export default function ProjectDetailPage() {
 
             {/* Next up quick info */}
             {nextDueMilestone && (
-              <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5">
-                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Next Due</h3>
-                <p className="text-sm font-medium text-slate-800 leading-snug mb-1">{nextDueMilestone.title}</p>
-                <p className={`text-xs font-medium ${nextDueMilestone.dueDate! < TODAY ? 'text-red-500' : 'text-slate-500'}`}>
+              <div className="bg-[#FFF5E9] rounded-2xl border border-[#E0CFC4] p-5">
+                <h3 className="text-xs font-semibold text-[#8A7265] uppercase tracking-widest mb-2">Next Due</h3>
+                <p className="text-sm font-medium text-[#2D1E1A] leading-snug mb-1">{nextDueMilestone.title}</p>
+                <p className={`text-xs font-medium ${nextDueMilestone.dueDate! < TODAY ? 'text-[#ba1a1a]' : 'text-[#8A7265]'}`}>
                   {nextDueMilestone.dueDate}
                   {nextDueMilestone.dueDate! < TODAY && ' (overdue)'}
                 </p>
-                <p className="text-[10px] text-slate-400 mt-1">{nextDueMilestone.phaseName}</p>
+                <p className="text-[10px] text-[#8A7265] mt-1">{nextDueMilestone.phaseName}</p>
               </div>
             )}
           </div>
@@ -753,6 +767,7 @@ export default function ProjectDetailPage() {
           onInvite={() => setShowInvite(true)}
           onToggleCanApprove={async (memberId, val) => {
             await setMemberPermission(project.id, memberId, val);
+            await queryClient.invalidateQueries({ queryKey: ['projects'] });
             const all = await getProjects();
             const fresh = all.find(p => p.id === project.id);
             if (fresh) setProject(fresh);
@@ -769,6 +784,7 @@ export default function ProjectDetailPage() {
             setPendingChanges(prev => {
               const next = prev.filter(c => c.id !== changeId);
               if (next.length === 0) {
+                queryClient.invalidateQueries({ queryKey: ['projects'] });
                 getProjects().then(all => {
                   const fresh = all.find(p => p.id === id);
                   if (fresh) setProject(fresh);
@@ -797,22 +813,22 @@ export default function ProjectDetailPage() {
             style={{ width: '90vw', height: '85vh' }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 shrink-0">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#E0CFC4] shrink-0">
               <div className="flex items-center gap-4">
-                <h2 className="text-sm font-semibold text-slate-700">Phase Structure</h2>
-                <div className="flex items-center gap-4 text-[10px] text-slate-400">
+                <h2 className="text-sm font-semibold text-[#54433A]">Phase Structure</h2>
+                <div className="flex items-center gap-4 text-[10px] text-[#8A7265]">
                   <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />Complete</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />Active</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#4C8077] inline-block" />Active</span>
                   <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />Overdue</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-300 inline-block" />Pending</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-200 inline-block" />Locked</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#c1c8c4] inline-block" />Pending</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#E0CFC4] inline-block" />Locked</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 {canEdit && (
                   <button
                     onClick={() => { setCanvasExpanded(false); navigate(`/projects/${id}/edit`, { state: { step: 2 } }); }}
-                    className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 text-xs font-medium text-[#8A7265] hover:text-[#4C8077] hover:bg-[#FFF5E9] px-3 py-1.5 rounded-lg transition-colors"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
@@ -822,7 +838,7 @@ export default function ProjectDetailPage() {
                 )}
                 <button
                   onClick={() => setCanvasExpanded(false)}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors text-xl leading-none"
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-[#8A7265] hover:text-[#54433A] hover:bg-[#F0E9E0] transition-colors text-xl leading-none"
                   aria-label="Close"
                 >×</button>
               </div>
@@ -853,40 +869,43 @@ export default function ProjectDetailPage() {
 
             {/* Header */}
             <div className={`px-6 py-4 border-b shrink-0 ${
-              phaseDetail.locked ? 'bg-slate-50 border-slate-200'
-              : phaseDetail.complete ? 'bg-emerald-50 border-emerald-100'
+              phaseDetail.locked ? 'bg-[#FFF5E9] border-[#E0CFC4]'
+              : phaseDetail.complete ? 'bg-[#E8FAF7] border-[#E0CFC4]'
               : phaseDetail.overdue ? 'bg-amber-50 border-amber-100'
-              : 'bg-white border-slate-100'
+              : 'bg-white border-[#E0CFC4]'
             }`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                  <p className="text-[10px] font-bold text-[#8A7265] uppercase tracking-widest mb-1">
                     Phase {String(phaseDetail.phaseNum).padStart(2, '0')}
                   </p>
-                  <h2 className="text-xl font-bold text-slate-900 leading-snug break-words">{phaseDetail.phase.title || 'Unnamed Phase'}</h2>
+                  <h2 className="text-xl font-bold text-[#2D1E1A] leading-snug break-words">{phaseDetail.phase.title || 'Unnamed Phase'}</h2>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 mt-1">
                   <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                    phaseDetail.locked ? 'bg-slate-100 text-slate-500'
-                    : phaseDetail.complete ? 'bg-emerald-100 text-emerald-700'
+                    phaseDetail.locked ? 'bg-[#F0E9E0] text-[#8A7265]'
+                    : phaseDetail.complete ? 'bg-[#c8eadf] text-[#16342d]'
                     : phaseDetail.overdue ? 'bg-amber-100 text-amber-700'
                     : phaseDetail.active ? 'bg-blue-100 text-blue-700'
-                    : 'bg-slate-100 text-slate-500'
+                    : 'bg-[#F0E9E0] text-[#8A7265]'
                   }`}>
                     {phaseDetail.locked ? 'Locked' : phaseDetail.complete ? 'Complete' : phaseDetail.overdue ? 'Overdue' : phaseDetail.active ? 'In Progress' : 'Pending'}
                   </span>
-                  <button onClick={() => setPhaseDetail(null)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors text-xl leading-none">×</button>
+                  <button onClick={() => setPhaseDetail(null)} className="w-8 h-8 flex items-center justify-center text-[#8A7265] hover:text-[#54433A] hover:bg-[#F0E9E0] rounded-lg transition-colors text-xl leading-none">×</button>
                 </div>
               </div>
               {phaseDetail.total > 0 && (
                 <div className="mt-3">
-                  <div className="flex justify-between text-xs text-slate-400 mb-1.5">
+                  <div className="flex justify-between text-xs text-[#8A7265] mb-1.5">
                     <span>{phaseDetail.done}/{phaseDetail.total} objectives</span>
                     <span>{Math.round(phaseDetail.done / phaseDetail.total * 100)}%</span>
                   </div>
-                  <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full transition-all ${phaseDetail.complete ? 'bg-emerald-400' : phaseDetail.overdue ? 'bg-amber-400' : 'bg-blue-400'}`}
-                      style={{ width: `${Math.round(phaseDetail.done / phaseDetail.total * 100)}%` }} />
+                  <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--c-surface-mid)' }}>
+                    <div className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${Math.round(phaseDetail.done / phaseDetail.total * 100)}%`,
+                        background: phaseDetail.complete ? '#4ade80' : phaseDetail.overdue ? '#fbbf24' : '#C4601A',
+                      }} />
                   </div>
                 </div>
               )}
@@ -897,24 +916,24 @@ export default function ProjectDetailPage() {
               <div className="grid grid-cols-2 gap-4">
                 {phaseDetail.phase.description && (
                   <div className="col-span-2">
-                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Description</p>
-                    <p className="text-sm text-slate-700 leading-relaxed break-words whitespace-pre-wrap">{phaseDetail.phase.description}</p>
+                    <p className="text-[10px] font-semibold text-[#8A7265] uppercase tracking-wider mb-1.5">Description</p>
+                    <p className="text-sm text-[#54433A] leading-relaxed break-words whitespace-pre-wrap">{phaseDetail.phase.description}</p>
                   </div>
                 )}
                 {phaseDetail.phase.dueDate && (
                   <div>
-                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Due Date</p>
-                    <p className={`text-sm font-medium ${!phaseDetail.complete && phaseDetail.phase.dueDate < TODAY ? 'text-amber-600' : 'text-slate-700'}`}>
+                    <p className="text-[10px] font-semibold text-[#8A7265] uppercase tracking-wider mb-1.5">Due Date</p>
+                    <p className={`text-sm font-medium ${!phaseDetail.complete && phaseDetail.phase.dueDate < TODAY ? 'text-amber-600' : 'text-[#54433A]'}`}>
                       {phaseDetail.phase.dueDate}{!phaseDetail.complete && phaseDetail.phase.dueDate < TODAY && ' (overdue)'}
                     </p>
                   </div>
                 )}
                 {phaseDetail.locked && phaseDetail.blockingNames.length > 0 && (
                   <div className="col-span-2">
-                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Waiting For</p>
+                    <p className="text-[10px] font-semibold text-[#8A7265] uppercase tracking-wider mb-1.5">Waiting For</p>
                     <div className="flex flex-wrap gap-1.5">
                       {phaseDetail.blockingNames.map(name => (
-                        <span key={name} className="text-xs px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full font-medium">{name}</span>
+                        <span key={name} className="text-xs px-2.5 py-1 bg-[#F0E9E0] text-[#54433A] rounded-full font-medium">{name}</span>
                       ))}
                     </div>
                   </div>
@@ -924,14 +943,14 @@ export default function ProjectDetailPage() {
               {/* Objectives */}
               {phaseDetail.phase.milestones.length > 0 ? (
                 <div>
-                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+                  <h3 className="text-[10px] font-bold text-[#8A7265] uppercase tracking-widest mb-3">
                     Objectives ({phaseDetail.phase.milestones.length})
                   </h3>
                   <div className="space-y-2.5">
                     {[...phaseDetail.phase.milestones].sort((a, b) => a.order - b.order).map(ms => {
                       const isOverdueMs = !ms.completed && ms.dueDate && ms.dueDate < TODAY;
                       return (
-                        <div key={ms.id} className={`p-4 rounded-xl border ${ms.completed ? 'bg-emerald-50 border-emerald-100' : isOverdueMs ? 'bg-amber-50 border-amber-100' : 'bg-white border-slate-200'}`}>
+                        <div key={ms.id} className={`p-4 rounded-xl border ${ms.completed ? 'bg-[#E8FAF7] border-[#E0CFC4]' : isOverdueMs ? 'bg-amber-50 border-amber-100' : 'bg-white border-[#E0CFC4]'}`}>
                           <div className="flex items-start gap-3">
                             {ms.completed ? (
                               <div className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center shrink-0 mt-px">
@@ -940,18 +959,18 @@ export default function ProjectDetailPage() {
                                 </svg>
                               </div>
                             ) : phaseDetail.locked ? (
-                              <svg className="w-5 h-5 text-slate-300 shrink-0 mt-px" viewBox="0 0 20 20" fill="currentColor">
+                              <svg className="w-5 h-5 text-[#BBA79C] shrink-0 mt-px" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                               </svg>
                             ) : (
-                              <div className={`w-5 h-5 rounded-full border-2 shrink-0 mt-px ${isOverdueMs ? 'border-amber-400' : 'border-slate-300'}`} />
+                              <div className={`w-5 h-5 rounded-full border-2 shrink-0 mt-px ${isOverdueMs ? 'border-amber-400' : 'border-[#E0CFC4]'}`} />
                             )}
                             <div className="flex-1 min-w-0">
-                              <p className={`text-sm font-semibold leading-snug break-words ${ms.completed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{ms.title}</p>
-                              {ms.description && <p className="text-xs text-slate-500 mt-1 leading-relaxed break-words whitespace-pre-wrap">{ms.description}</p>}
+                              <p className={`text-sm font-semibold leading-snug break-words ${ms.completed ? 'text-[#8A7265] line-through' : 'text-[#2D1E1A]'}`}>{ms.title}</p>
+                              {ms.description && <p className="text-xs text-[#8A7265] mt-1 leading-relaxed break-words whitespace-pre-wrap">{ms.description}</p>}
                               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2">
                                 {ms.dueDate && (
-                                  <span className={`flex items-center gap-1 text-xs ${isOverdueMs ? 'text-amber-600 font-medium' : 'text-slate-400'}`}>
+                                  <span className={`flex items-center gap-1 text-xs ${isOverdueMs ? 'text-amber-600 font-medium' : 'text-[#8A7265]'}`}>
                                     <svg className="w-3 h-3 shrink-0" viewBox="0 0 20 20" fill="currentColor">
                                       <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
                                     </svg>
@@ -959,18 +978,18 @@ export default function ProjectDetailPage() {
                                   </span>
                                 )}
                                 {ms.assignees && ms.assignees.length > 0 && (
-                                  <span className="flex items-center gap-1.5 text-xs text-slate-500">
+                                  <span className="flex items-center gap-1.5 text-xs text-[#8A7265]">
                                     {ms.assignees.slice(0, 3).map(a => (
                                       <span key={a.id} className="flex items-center gap-1">
                                         <div className={`w-4 h-4 rounded-full ${memberColor(a.name)} flex items-center justify-center text-[8px] text-white font-bold shrink-0`}>{a.name[0]?.toUpperCase()}</div>
                                         <span>{a.name.split(' ')[0]}</span>
                                       </span>
                                     ))}
-                                    {ms.assignees.length > 3 && <span className="text-slate-400">+{ms.assignees.length - 3}</span>}
+                                    {ms.assignees.length > 3 && <span className="text-[#8A7265]">+{ms.assignees.length - 3}</span>}
                                   </span>
                                 )}
                                 {ms.effortRating && (
-                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${ms.effortRating === 'easier' ? 'bg-emerald-100 text-emerald-700' : ms.effortRating === 'harder' ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'}`}>
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${ms.effortRating === 'easier' ? 'bg-[#c8eadf] text-[#16342d]' : ms.effortRating === 'harder' ? 'bg-rose-100 text-rose-700' : 'bg-[#c8eadf] text-[#16342d]'}`}>
                                     {ms.effortRating === 'easier' ? 'Easier than expected' : ms.effortRating === 'harder' ? 'Harder than expected' : 'About right'}
                                   </span>
                                 )}
@@ -988,7 +1007,7 @@ export default function ProjectDetailPage() {
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-slate-400 italic text-center py-4">No objectives in this phase.</p>
+                <p className="text-sm text-[#8A7265] italic text-center py-4">No objectives in this phase.</p>
               )}
             </div>
           </div>
@@ -1000,15 +1019,15 @@ export default function ProjectDetailPage() {
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setTracePathChain(null)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl z-10 overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+            <div className="px-6 py-4 border-b border-[#E0CFC4] flex items-center justify-between shrink-0">
               <div>
-                <h2 className="text-base font-bold text-slate-900">Dependency Chain</h2>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <h2 className="text-base font-bold text-[#2D1E1A]">Dependency Chain</h2>
+                <p className="text-xs text-[#8A7265] mt-0.5">
                   Complete in this order to unlock{' '}
-                  <span className="font-semibold text-slate-700">{tracePathChain[tracePathChain.length - 1]?.title || 'this phase'}</span>
+                  <span className="font-semibold text-[#54433A]">{tracePathChain[tracePathChain.length - 1]?.title || 'this phase'}</span>
                 </p>
               </div>
-              <button onClick={() => setTracePathChain(null)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors text-xl leading-none">×</button>
+              <button onClick={() => setTracePathChain(null)} className="w-8 h-8 flex items-center justify-center text-[#8A7265] hover:text-[#54433A] hover:bg-[#F0E9E0] rounded-lg transition-colors text-xl leading-none">×</button>
             </div>
 
             {/* Phase chain */}
@@ -1035,35 +1054,35 @@ export default function ProjectDetailPage() {
                           setPhaseDetail({ phase: ph, phaseNum: phNum, done, total, complete, overdue, active, locked, blockingNames: locked ? getBlockingPhaseNames(ph, sortedPhases) : [], today: TODAY });
                         }}
                         className={`w-44 rounded-xl border p-3.5 text-left transition-all hover:shadow-md ${
-                          isTarget ? 'border-blue-300 bg-blue-50 shadow-blue-100/60 shadow-sm'
-                          : phComplete ? 'border-emerald-200 bg-emerald-50'
-                          : 'border-slate-200 bg-white hover:border-slate-300'
+                          isTarget ? 'border-[#adcec3] bg-[#E8FAF7] shadow-blue-100/60 shadow-sm'
+                          : phComplete ? 'border-[#c8eadf] bg-[#E8FAF7]'
+                          : 'border-[#E0CFC4] bg-white hover:border-[#E0CFC4]'
                         }`}
                       >
                         <div className="flex items-center justify-between mb-1.5">
-                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Phase {String(phNum).padStart(2, '0')}</p>
-                          {isTarget && <span className="text-[8px] font-bold bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded uppercase tracking-wide">Target</span>}
+                          <p className="text-[9px] font-bold text-[#8A7265] uppercase tracking-widest">Phase {String(phNum).padStart(2, '0')}</p>
+                          {isTarget && <span className="text-[8px] font-bold bg-blue-100 text-[#4C8077] px-1.5 py-0.5 rounded uppercase tracking-wide">Target</span>}
                         </div>
-                        <p className="text-sm font-semibold text-slate-800 leading-snug truncate mb-2">{ph.title || 'Unnamed'}</p>
+                        <p className="text-sm font-semibold text-[#2D1E1A] leading-snug truncate mb-2">{ph.title || 'Unnamed'}</p>
                         <div className="flex items-center gap-1.5">
                           {phComplete ? (
                             <>
                               <div className="w-3.5 h-3.5 rounded-full bg-emerald-400 flex items-center justify-center shrink-0">
                                 <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
                               </div>
-                              <span className="text-[10px] text-emerald-600 font-medium">Complete</span>
+                              <span className="text-[10px] text-[#4C8077] font-medium">Complete</span>
                             </>
                           ) : (
                             <>
-                              <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 shrink-0" />
-                              <span className="text-[10px] text-slate-400">{doneMs}/{ph.milestones.length} done</span>
+                              <div className="w-3.5 h-3.5 rounded-full border-2 border-[#E0CFC4] shrink-0" />
+                              <span className="text-[10px] text-[#8A7265]">{doneMs}/{ph.milestones.length} done</span>
                             </>
                           )}
                         </div>
                       </button>
                       {i < tracePathChain.length - 1 && (
                         <div className="flex items-center px-2 shrink-0">
-                          <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <svg className="w-5 h-5 text-[#BBA79C]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                           </svg>
                         </div>
@@ -1076,11 +1095,11 @@ export default function ProjectDetailPage() {
 
             {/* Progress summary */}
             <div className="px-6 pb-5 pt-1">
-              <div className="bg-slate-50 rounded-xl px-4 py-3 flex items-center justify-between gap-4">
+              <div className="bg-[#FFF5E9] rounded-xl px-4 py-3 flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Chain Progress</p>
-                  <p className="text-sm text-slate-700 mt-0.5">
-                    <span className="font-bold text-slate-900">
+                  <p className="text-[10px] font-semibold text-[#8A7265] uppercase tracking-wider">Chain Progress</p>
+                  <p className="text-sm text-[#54433A] mt-0.5">
+                    <span className="font-bold text-[#2D1E1A]">
                       {tracePathChain.filter(ph => ph.milestones.length > 0 && ph.milestones.every(m => m.completed)).length}
                     </span>{' '}of {tracePathChain.length} phases complete
                   </p>
@@ -1091,9 +1110,9 @@ export default function ProjectDetailPage() {
                     const pct = tracePathChain.length === 0 ? 0 : Math.round(done / tracePathChain.length * 100);
                     return (
                       <>
-                        <div className="flex justify-between text-[10px] text-slate-400 mb-1"><span>Progress</span><span>{pct}%</span></div>
-                        <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                          <div className="bg-slate-700 h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
+                        <div className="flex justify-between text-[10px] text-[#8A7265] mb-1"><span>Progress</span><span>{pct}%</span></div>
+                        <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--c-surface-mid)' }}>
+                          <div className="h-full rounded-full transition-all" style={{ background: 'var(--c-text-dim)', width: `${pct}%` }} />
                         </div>
                       </>
                     );
@@ -1114,8 +1133,8 @@ export default function ProjectDetailPage() {
               /* ── Effort rating ── */
               <div className="text-center p-8">
                 <p className="text-2xl mb-2">✓</p>
-                <p className="text-base font-semibold text-slate-800 mb-1">Marked complete!</p>
-                <p className="text-sm text-slate-400 mb-5">How did this compare to your estimate?</p>
+                <p className="text-base font-semibold text-[#2D1E1A] mb-1">Marked complete!</p>
+                <p className="text-sm text-[#8A7265] mb-5">How did this compare to your estimate?</p>
                 <div className="flex gap-2 mb-4">
                   {EFFORT_OPTIONS.map(opt => (
                     <button key={opt.value}
@@ -1127,7 +1146,7 @@ export default function ProjectDetailPage() {
                 </div>
                 <button
                   onClick={() => { setEffortPending(null); selectMilestone(null); }}
-                  className="text-xs text-slate-400 hover:text-slate-600 transition-colors">
+                  className="text-xs text-[#8A7265] hover:text-[#54433A] transition-colors">
                   Skip
                 </button>
               </div>
@@ -1135,54 +1154,54 @@ export default function ProjectDetailPage() {
             ) : editMode ? (
               /* ── Edit form ── */
               <>
-                <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100 shrink-0">
-                  <h2 className="text-base font-bold text-slate-900">Edit Objective</h2>
+                <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-[#E0CFC4] shrink-0">
+                  <h2 className="text-base font-bold text-[#2D1E1A]">Edit Objective</h2>
                   <button
                     onClick={() => setEditMode(false)}
-                    className="text-slate-300 hover:text-slate-500 text-2xl leading-none shrink-0"
+                    className="text-[#BBA79C] hover:text-[#8A7265] text-2xl leading-none shrink-0"
                   >×</button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
                   {/* Title */}
                   <div>
-                    <label className="text-xs font-semibold text-slate-400 block mb-1.5">Title</label>
+                    <label className="text-xs font-semibold text-[#8A7265] block mb-1.5">Title</label>
                     <input
                       value={editFields.title}
                       onChange={e => setEditFields(prev => ({ ...prev, title: e.target.value }))}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-800 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+                      className="w-full px-3 py-2 rounded-lg border border-[#E0CFC4] text-sm text-[#2D1E1A] focus:outline-none focus:border-[#46645c] focus:ring-1 focus:ring-[#c8eadf]"
                     />
                   </div>
 
                   {/* Description */}
                   <div>
-                    <label className="text-xs font-semibold text-slate-400 block mb-1.5">Description</label>
+                    <label className="text-xs font-semibold text-[#8A7265] block mb-1.5">Description</label>
                     <textarea
                       value={editFields.description}
                       onChange={e => setEditFields(prev => ({ ...prev, description: e.target.value }))}
                       rows={4}
                       placeholder="Add a description…"
-                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-800 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 resize-none placeholder:text-slate-300"
+                      className="w-full px-3 py-2 rounded-lg border border-[#E0CFC4] text-sm text-[#2D1E1A] focus:outline-none focus:border-[#46645c] focus:ring-1 focus:ring-[#c8eadf] resize-none placeholder:text-[#BBA79C]"
                     />
                   </div>
 
                   {/* Due date */}
                   <div>
-                    <label className="text-xs font-semibold text-slate-400 block mb-1.5">Due date</label>
+                    <label className="text-xs font-semibold text-[#8A7265] block mb-1.5">Due date</label>
                     <input
                       type="date"
                       value={editFields.dueDate}
                       onChange={e => setEditFields(prev => ({ ...prev, dueDate: e.target.value }))}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-800 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+                      className="w-full px-3 py-2 rounded-lg border border-[#E0CFC4] text-sm text-[#2D1E1A] focus:outline-none focus:border-[#46645c] focus:ring-1 focus:ring-[#c8eadf]"
                     />
                   </div>
 
-                  {/* Assignees */}
-                  {project.members && project.members.length > 0 && (
+                  {/* Assignees — only owners and contributors with canApprove can set assignments; viewers cannot be assigned */}
+                  {canAssign && project.members && project.members.filter(m => m.role !== 'viewer').length > 0 && (
                     <div>
-                      <label className="text-xs font-semibold text-slate-400 block mb-1.5">Assign to</label>
+                      <label className="text-xs font-semibold text-[#8A7265] block mb-1.5">Assign to</label>
                       <div className="space-y-1.5">
-                        {project.members.map(m => {
+                        {project.members.filter(m => m.role !== 'viewer').map(m => {
                           const sel = editAssigneeIds.includes(m.user.id);
                           return (
                             <button
@@ -1192,16 +1211,16 @@ export default function ProjectDetailPage() {
                                 sel ? prev.filter(id => id !== m.user.id) : [...prev, m.user.id]
                               )}
                               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left transition-colors ${
-                                sel ? 'border-blue-200 bg-blue-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                sel ? 'border-[#c8eadf] bg-[#E8FAF7]' : 'border-[#E0CFC4] hover:border-[#E0CFC4] hover:bg-[#FFF5E9]'
                               }`}
                             >
                               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0 ${memberColor(m.user.name)}`}>
                                 {m.user.name[0]?.toUpperCase()}
                               </div>
-                              <span className="text-sm text-slate-700 flex-1">{m.user.name}</span>
-                              <span className="text-[10px] text-slate-400 capitalize shrink-0">{m.role}</span>
+                              <span className="text-sm text-[#54433A] flex-1">{m.user.name}</span>
+                              <span className="text-[10px] text-[#8A7265] capitalize shrink-0">{m.role}{m.canApprove ? ' · approver' : ''}</span>
                               {sel && (
-                                <svg className="w-4 h-4 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <svg className="w-4 h-4 text-[#46645c] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                                 </svg>
                               )}
@@ -1213,15 +1232,15 @@ export default function ProjectDetailPage() {
                   )}
                 </div>
 
-                <div className="px-6 pb-6 pt-3 border-t border-slate-100 flex gap-2 shrink-0">
+                <div className="px-6 pb-6 pt-3 border-t border-[#E0CFC4] flex gap-2 shrink-0">
                   <button
                     onClick={() => setEditMode(false)}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors"
+                    className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-[#F0E9E0] text-[#8A7265] hover:bg-[#E0CFC4] transition-colors"
                   >Cancel</button>
                   <button
                     onClick={handleEditSave}
                     disabled={editSaving || !editFields.title.trim()}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-[#0f172a] text-white hover:bg-[#1e293b] transition-colors disabled:opacity-40"
+                    className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-[#C4601A] text-white hover:bg-[#C4601A] transition-colors disabled:opacity-40"
                   >
                     {editSaving ? 'Saving…' : 'Save changes'}
                   </button>
@@ -1232,20 +1251,20 @@ export default function ProjectDetailPage() {
               /* ── Detail view ── */
               <>
                 {/* Header */}
-                <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-slate-100 shrink-0">
-                  <h2 className="text-lg font-bold text-slate-900 pr-4 leading-snug">{selectedMilestone.title}</h2>
+                <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-[#E0CFC4] shrink-0">
+                  <h2 className="text-lg font-bold text-[#2D1E1A] pr-4 leading-snug">{selectedMilestone.title}</h2>
                   <div className="flex items-center gap-2 shrink-0">
                     {canEdit && (
                       <button
                         onClick={enterEditMode}
-                        className="text-xs font-medium text-slate-400 hover:text-blue-500 hover:bg-blue-50 px-2.5 py-1 rounded-lg border border-slate-200 hover:border-blue-200 transition-colors"
+                        className="text-xs font-medium text-[#8A7265] hover:text-[#C4601A] hover:bg-[#FFF5E9] px-2.5 py-1 rounded-lg border border-[#E0CFC4] hover:border-[#c8eadf] transition-colors"
                       >
                         Edit
                       </button>
                     )}
                     <button
                       onClick={() => { selectMilestone(null); setEffortPending(null); }}
-                      className="text-slate-300 hover:text-slate-500 text-2xl leading-none mt-0.5"
+                      className="text-[#BBA79C] hover:text-[#8A7265] text-2xl leading-none mt-0.5"
                     >×</button>
                   </div>
                 </div>
@@ -1255,14 +1274,14 @@ export default function ProjectDetailPage() {
 
                   {/* Phase locked banner */}
                   {selectedMilestone.phaseLocked && (
-                    <div className="flex items-start gap-2.5 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl">
-                      <svg className="w-4 h-4 text-slate-400 shrink-0 mt-px" viewBox="0 0 20 20" fill="currentColor">
+                    <div className="flex items-start gap-2.5 px-4 py-3 bg-[#FFF5E9] border border-[#E0CFC4] rounded-xl">
+                      <svg className="w-4 h-4 text-[#8A7265] shrink-0 mt-px" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                       </svg>
                       <div>
-                        <p className="text-xs font-semibold text-slate-600">Phase locked</p>
-                        <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
-                          Complete first: <span className="text-slate-600 font-medium">{selectedMilestone.blockingPhaseNames.join(', ')}</span>
+                        <p className="text-xs font-semibold text-[#54433A]">Phase locked</p>
+                        <p className="text-xs text-[#8A7265] mt-0.5 leading-relaxed">
+                          Complete first: <span className="text-[#54433A] font-medium">{selectedMilestone.blockingPhaseNames.join(', ')}</span>
                         </p>
                       </div>
                     </div>
@@ -1270,11 +1289,11 @@ export default function ProjectDetailPage() {
 
                   {/* Saved / pending feedback */}
                   {editResult === 'saved' && (
-                    <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-100 rounded-xl">
-                      <svg className="w-4 h-4 text-emerald-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <div className="flex items-center gap-2 px-4 py-2.5 bg-[#E8FAF7] border border-[#E0CFC4] rounded-xl">
+                      <svg className="w-4 h-4 text-[#46645c] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                       </svg>
-                      <p className="text-xs font-medium text-emerald-700">Changes saved successfully.</p>
+                      <p className="text-xs font-medium text-[#16342d]">Changes saved successfully.</p>
                     </div>
                   )}
                   {editResult === 'pending' && (
@@ -1288,38 +1307,38 @@ export default function ProjectDetailPage() {
 
                   {/* Phase */}
                   <div className="flex items-start gap-3">
-                    <span className="text-xs font-semibold text-slate-400 w-24 shrink-0 pt-0.5">Phase</span>
-                    <span className="text-sm text-slate-700 font-medium">{selectedMilestone.phaseName}</span>
+                    <span className="text-xs font-semibold text-[#8A7265] w-24 shrink-0 pt-0.5">Phase</span>
+                    <span className="text-sm text-[#54433A] font-medium">{selectedMilestone.phaseName}</span>
                   </div>
 
                   {/* Description */}
                   <div className="flex items-start gap-3">
-                    <span className="text-xs font-semibold text-slate-400 w-24 shrink-0 pt-0.5">Description</span>
+                    <span className="text-xs font-semibold text-[#8A7265] w-24 shrink-0 pt-0.5">Description</span>
                     {selectedMilestone.description ? (
-                      <p className="text-sm text-slate-600 leading-relaxed break-words whitespace-pre-wrap min-w-0">
+                      <p className="text-sm text-[#54433A] leading-relaxed break-words whitespace-pre-wrap min-w-0">
                         {selectedMilestone.description}
                       </p>
                     ) : (
-                      <p className="text-sm text-slate-300 italic">No description</p>
+                      <p className="text-sm text-[#BBA79C] italic">No description</p>
                     )}
                   </div>
 
                   {/* Due date */}
                   <div className="flex items-start gap-3">
-                    <span className="text-xs font-semibold text-slate-400 w-24 shrink-0 pt-0.5">Due date</span>
+                    <span className="text-xs font-semibold text-[#8A7265] w-24 shrink-0 pt-0.5">Due date</span>
                     {selectedMilestone.dueDate ? (
-                      <span className={`text-sm font-medium ${!selectedMilestone.completed && selectedMilestone.dueDate < TODAY ? 'text-amber-600' : 'text-slate-700'}`}>
+                      <span className={`text-sm font-medium ${!selectedMilestone.completed && selectedMilestone.dueDate < TODAY ? 'text-amber-600' : 'text-[#54433A]'}`}>
                         {selectedMilestone.dueDate}
                         {!selectedMilestone.completed && selectedMilestone.dueDate < TODAY && <span className="ml-1.5 text-xs font-normal text-amber-500">(overdue)</span>}
                       </span>
                     ) : (
-                      <p className="text-sm text-slate-300 italic">No due date</p>
+                      <p className="text-sm text-[#BBA79C] italic">No due date</p>
                     )}
                   </div>
 
                   {/* Assigned to */}
                   <div className="flex items-start gap-3">
-                    <span className="text-xs font-semibold text-slate-400 w-24 shrink-0 pt-0.5">Assigned to</span>
+                    <span className="text-xs font-semibold text-[#8A7265] w-24 shrink-0 pt-0.5">Assigned to</span>
                     {selectedMilestone.assignees && selectedMilestone.assignees.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
                         {selectedMilestone.assignees.map(a => (
@@ -1327,26 +1346,26 @@ export default function ProjectDetailPage() {
                             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-semibold ${memberColor(a.name)}`}>
                               {a.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
                             </div>
-                            <span className="text-sm font-medium text-slate-700">{a.name}</span>
+                            <span className="text-sm font-medium text-[#54433A]">{a.name}</span>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-slate-300 italic">Anyone</p>
+                      <p className="text-sm text-[#BBA79C] italic">Anyone</p>
                     )}
                   </div>
 
                   {/* Status + effort */}
                   <div className="flex items-center gap-2 flex-wrap">
                     <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium
-                      ${selectedMilestone.completed ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                      ${selectedMilestone.completed ? 'bg-[#E8FAF7] text-[#4C8077]' : 'bg-[#F0E9E0] text-[#8A7265]'}`}>
                       {selectedMilestone.completed ? '✓ Completed' : '○ Not completed'}
                     </div>
                     {selectedMilestone.effortRating && (
                       <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium
-                        ${selectedMilestone.effortRating === 'easier' ? 'bg-emerald-50 text-emerald-600'
+                        ${selectedMilestone.effortRating === 'easier' ? 'bg-[#E8FAF7] text-[#4C8077]'
                           : selectedMilestone.effortRating === 'harder' ? 'bg-rose-50 text-rose-600'
-                          : 'bg-sky-50 text-sky-600'}`}>
+                          : 'bg-[#E8FAF7] text-[#4C8077]'}`}>
                         {selectedMilestone.effortRating === 'easier' ? 'Easier than expected'
                           : selectedMilestone.effortRating === 'harder' ? 'Harder than expected'
                           : 'About right'}
@@ -1359,7 +1378,7 @@ export default function ProjectDetailPage() {
                     <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
                       {selectedMilestone.blockReason ? (
                         <div>
-                          <p className="text-xs font-semibold text-slate-500 mb-2">Blocked by:</p>
+                          <p className="text-xs font-semibold text-[#8A7265] mb-2">Blocked by:</p>
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium text-amber-800">
                               {BLOCK_LABELS[selectedMilestone.blockReason] ?? selectedMilestone.blockReason}
@@ -1374,12 +1393,12 @@ export default function ProjectDetailPage() {
                         </div>
                       ) : canEdit ? (
                         <div>
-                          <p className="text-xs font-semibold text-slate-500 mb-2.5">What's blocking this?</p>
+                          <p className="text-xs font-semibold text-[#8A7265] mb-2.5">What's blocking this?</p>
                           <div className="grid grid-cols-2 gap-1.5">
                             {BLOCK_OPTIONS.map(opt => (
                               <button key={opt.value}
                                 onClick={() => handleBlockReason(selectedMilestone.id, opt.value)}
-                                className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-white border border-amber-200 text-xs text-slate-700 hover:border-amber-400 hover:bg-amber-50 transition-colors text-left font-medium">
+                                className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-white border border-amber-200 text-xs text-[#54433A] hover:border-amber-400 hover:bg-amber-50 transition-colors text-left font-medium">
                                 <span>{opt.icon}</span> {opt.label}
                               </button>
                             ))}
@@ -1399,8 +1418,8 @@ export default function ProjectDetailPage() {
                       onClick={() => handleToggleMilestone(selectedMilestone)}
                       className={`w-full py-2.5 rounded-xl text-sm font-medium transition-colors
                         ${selectedMilestone.completed
-                          ? 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                          : 'bg-[#0f172a] text-white hover:bg-[#1e293b]'}`}
+                          ? 'bg-[#F0E9E0] text-[#8A7265] hover:bg-[#E0CFC4]'
+                          : 'bg-[#C4601A] text-white hover:bg-[#C4601A]'}`}
                     >
                       {selectedMilestone.completed ? 'Mark as incomplete' : 'Mark as complete'}
                     </button>
@@ -1435,24 +1454,24 @@ const OverviewPhaseNode = memo(function OverviewPhaseNode({ data }: NodeProps<ON
   const { phase, phaseNum, done, total, complete, overdue, active, locked, blockingNames } = data;
   const pct        = total === 0 ? 0 : Math.round(done / total * 100);
   const statusText  = locked ? 'Locked' : complete ? 'Done' : overdue ? 'Overdue' : active ? `${pct}%` : 'Pending';
-  const statusColor = locked ? 'text-slate-500 bg-slate-100' : complete ? 'text-emerald-600 bg-emerald-50' : overdue ? 'text-amber-600 bg-amber-50' : active ? 'text-blue-600 bg-blue-50' : 'text-slate-400 bg-slate-50';
+  const statusColor = locked ? 'text-[#8A7265] bg-[#F0E9E0]' : complete ? 'text-[#4C8077] bg-[#E8FAF7]' : overdue ? 'text-amber-600 bg-amber-50' : active ? 'text-[#4C8077] bg-[#E8FAF7]' : 'text-[#8A7265] bg-[#FFF5E9]';
   const invisibleHandle: React.CSSProperties = { opacity: 0, pointerEvents: 'none', width: 8, height: 8, minWidth: 0, minHeight: 0, border: 'none', background: 'transparent' };
   return (
     <div
-      className={`w-80 bg-white rounded-2xl overflow-hidden shadow-xl border transition-shadow cursor-pointer hover:shadow-2xl ${locked ? 'border-slate-200 shadow-slate-100/60 opacity-60' : 'border-slate-200 shadow-slate-200/60'}`}
+      className={`w-80 bg-white rounded-2xl overflow-hidden shadow-xl border transition-shadow cursor-pointer hover:shadow-2xl ${locked ? 'border-[#E0CFC4] shadow-slate-100/60 opacity-60' : 'border-[#E0CFC4] shadow-slate-200/60'}`}
     >
       {/* Invisible handles so React Flow can route edges between nodes */}
       <Handle type="target" position={Position.Top}    style={invisibleHandle} />
       <Handle type="source" position={Position.Bottom} style={invisibleHandle} />
       {/* Header */}
-      <div className={`px-4 py-2.5 border-b flex items-center justify-between ${locked ? 'bg-slate-100 border-slate-200' : 'bg-slate-50 border-slate-100'}`}>
+      <div className={`px-4 py-2.5 border-b flex items-center justify-between ${locked ? 'bg-[#F0E9E0] border-[#E0CFC4]' : 'bg-[#FFF5E9] border-[#E0CFC4]'}`}>
         <div className="flex items-center gap-2">
           {locked && (
-            <svg className="w-3 h-3 text-slate-400 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+            <svg className="w-3 h-3 text-[#8A7265] shrink-0" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
             </svg>
           )}
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+          <span className="text-[10px] font-bold text-[#8A7265] uppercase tracking-widest">
             Phase {String(phaseNum).padStart(2, '0')}
           </span>
         </div>
@@ -1460,17 +1479,17 @@ const OverviewPhaseNode = memo(function OverviewPhaseNode({ data }: NodeProps<ON
       </div>
       {/* Phase info */}
       <div className="px-4 py-3">
-        <h4 className={`font-bold text-[15px] leading-snug ${locked ? 'text-slate-400' : 'text-slate-800'}`}>
-          {phase.title || <span className="text-slate-300 font-normal italic">Unnamed phase</span>}
+        <h4 className={`font-bold text-[15px] leading-snug ${locked ? 'text-[#8A7265]' : 'text-[#2D1E1A]'}`}>
+          {phase.title || <span className="text-[#BBA79C] font-normal italic">Unnamed phase</span>}
         </h4>
         {locked && blockingNames.length > 0 && (
-          <p className="text-[10px] text-slate-400 mt-1.5 leading-relaxed">
-            Waiting for: <span className="font-medium text-slate-500">{blockingNames.join(', ')}</span>
+          <p className="text-[10px] text-[#8A7265] mt-1.5 leading-relaxed">
+            Waiting for: <span className="font-medium text-[#8A7265]">{blockingNames.join(', ')}</span>
           </p>
         )}
-        {!locked && phase.description && <p className="text-xs text-slate-400 mt-1 line-clamp-2">{phase.description}</p>}
+        {!locked && phase.description && <p className="text-xs text-[#8A7265] mt-1 line-clamp-2">{phase.description}</p>}
         {!locked && phase.dueDate && (
-          <p className="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1">
+          <p className="text-[10px] text-[#8A7265] mt-1.5 flex items-center gap-1">
             <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
             </svg>
@@ -1480,7 +1499,7 @@ const OverviewPhaseNode = memo(function OverviewPhaseNode({ data }: NodeProps<ON
       </div>
       {/* Objectives */}
       {phase.milestones.length > 0 && (
-        <div className="px-4 pb-3 border-t border-slate-100 pt-2 space-y-2">
+        <div className="px-4 pb-3 border-t border-[#E0CFC4] pt-2 space-y-2">
           {phase.milestones.slice(0, 3).map(ms => (
             <div key={ms.id} className="flex items-center gap-2">
               {ms.completed ? (
@@ -1490,19 +1509,19 @@ const OverviewPhaseNode = memo(function OverviewPhaseNode({ data }: NodeProps<ON
                   </svg>
                 </div>
               ) : locked ? (
-                <svg className="w-3.5 h-3.5 text-slate-300 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <svg className="w-3.5 h-3.5 text-[#BBA79C] shrink-0" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                 </svg>
               ) : (
-                <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 shrink-0" />
+                <div className="w-3.5 h-3.5 rounded-full border-2 border-[#E0CFC4] shrink-0" />
               )}
-              <p className={`text-xs truncate ${ms.completed ? 'text-slate-400 line-through' : locked ? 'text-slate-300' : 'text-slate-600'}`}>
+              <p className={`text-xs truncate ${ms.completed ? 'text-[#8A7265] line-through' : locked ? 'text-[#BBA79C]' : 'text-[#54433A]'}`}>
                 {ms.title || 'Untitled'}
               </p>
             </div>
           ))}
           {phase.milestones.length > 3 && (
-            <p className="text-[10px] text-slate-400 pl-5">+{phase.milestones.length - 3} more</p>
+            <p className="text-[10px] text-[#8A7265] pl-5">+{phase.milestones.length - 3} more</p>
           )}
         </div>
       )}
@@ -1633,27 +1652,27 @@ function KanbanCard({ m, today, onClick, highlight = false }: {
       onClick={onClick}
       className={`p-3 rounded-lg border shadow-sm cursor-pointer transition-colors ${
         m.phaseLocked
-          ? 'bg-slate-50 border-slate-200 opacity-65 hover:opacity-80'
+          ? 'bg-[#FFF5E9] border-[#E0CFC4] opacity-65 hover:opacity-80'
           : highlight
-            ? 'bg-white border-l-2 border-l-blue-400 border-slate-100 hover:border-blue-200'
-            : 'bg-white border-slate-100 hover:border-slate-200'
+            ? 'bg-white border-l-2 border-l-blue-400 border-[#E0CFC4] hover:border-[#c8eadf]'
+            : 'bg-white border-[#E0CFC4] hover:border-[#E0CFC4]'
       }`}
     >
       <div className="flex items-start justify-between gap-1.5 mb-1.5">
-        <p className={`text-xs leading-snug flex-1 ${m.phaseLocked ? 'text-slate-400' : 'text-slate-800'}`}>{m.title}</p>
+        <p className={`text-xs leading-snug flex-1 ${m.phaseLocked ? 'text-[#8A7265]' : 'text-[#2D1E1A]'}`}>{m.title}</p>
         {m.phaseLocked && (
-          <svg className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-px" viewBox="0 0 20 20" fill="currentColor">
+          <svg className="w-3.5 h-3.5 text-[#8A7265] shrink-0 mt-px" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
           </svg>
         )}
       </div>
       {m.phaseLocked ? (
-        <p className="text-[10px] text-slate-400 leading-relaxed">
+        <p className="text-[10px] text-[#8A7265] leading-relaxed">
           Requires: <span className="font-medium">{m.blockingPhaseNames.join(', ')}</span>
         </p>
       ) : (
         <div className="flex items-center justify-between gap-1 flex-wrap">
-          <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded truncate max-w-[80px]">{m.phaseName}</span>
+          <span className="text-[10px] bg-[#F0E9E0] text-[#8A7265] px-1.5 py-0.5 rounded truncate max-w-[80px]">{m.phaseName}</span>
           <div className="flex items-center gap-1.5">
             {m.assignees && m.assignees.length > 0 && (
               <div className="flex items-center gap-1 mt-0.5">
@@ -1665,13 +1684,13 @@ function KanbanCard({ m, today, onClick, highlight = false }: {
                     </div>
                   ))}
                 </div>
-                <span className="text-[10px] text-slate-500 leading-none">
+                <span className="text-[10px] text-[#8A7265] leading-none">
                   {m.assignees[0].name.split(' ')[0]}{m.assignees.length > 1 ? ` +${m.assignees.length - 1}` : ''}
                 </span>
               </div>
             )}
             {m.dueDate && (
-              <span className={`text-[10px] font-medium ${isOverdue ? 'text-red-500' : 'text-slate-400'}`}>
+              <span className={`text-[10px] font-medium ${isOverdue ? 'text-[#ba1a1a]' : 'text-[#8A7265]'}`}>
                 {isOverdue ? '⚠ ' : ''}{m.dueDate}
               </span>
             )}
@@ -1689,15 +1708,15 @@ function KanbanCard({ m, today, onClick, highlight = false }: {
 
 
 const ROLE_COLORS: Record<string, string> = {
-  owner:       'bg-emerald-50 text-emerald-700 border-emerald-200',
-  contributor: 'bg-blue-50 text-blue-700 border-blue-200',
-  viewer:      'bg-slate-50 text-slate-500 border-slate-200',
+  owner:       'bg-[#E8FAF7] text-[#16342d] border-[#c8eadf]',
+  contributor: 'bg-[#E8FAF7] text-blue-700 border-[#c8eadf]',
+  viewer:      'bg-[#FFF5E9] text-[#8A7265] border-[#E0CFC4]',
 };
 
 function scoreColor(score: number) {
-  if (score >= 75) return { ring: 'text-emerald-600', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+  if (score >= 75) return { ring: 'text-[#4C8077]', bg: 'bg-[#E8FAF7] text-[#16342d] border-[#c8eadf]' };
   if (score >= 45) return { ring: 'text-amber-500',   bg: 'bg-amber-50 text-amber-700 border-amber-200'     };
-  return               { ring: 'text-red-500',        bg: 'bg-red-50 text-red-700 border-red-200'           };
+  return               { ring: 'text-[#ba1a1a]',        bg: 'bg-[#ffdad6] text-[#93000a] border-[#ffdad6]'           };
 }
 
 function MembersSection({ members, currentUserId, isOwner, canAssign, performance, onInvite, onToggleCanApprove }: {
@@ -1714,10 +1733,10 @@ function MembersSection({ members, currentUserId, isOwner, canAssign, performanc
   return (
     <div className="space-y-5">
       {/* Member list */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-50">
+      <div className="bg-white rounded-2xl border border-[#E0CFC4] shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E0CFC4]">
           <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Team</p>
+            <p className="text-xs font-semibold text-[#8A7265] uppercase tracking-widest">Team</p>
             {myMember && (
               <span className={`inline-block mt-1 text-xs font-medium px-2 py-0.5 rounded-full border capitalize ${ROLE_COLORS[myMember.role] ?? ROLE_COLORS.viewer}`}>
                 You — {myMember.role}
@@ -1727,15 +1746,15 @@ function MembersSection({ members, currentUserId, isOwner, canAssign, performanc
           {isOwner ? (
             <button
               onClick={onInvite}
-              className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 border border-emerald-200 hover:bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 text-xs font-medium text-[#4C8077] border border-[#c8eadf] hover:bg-[#FFF5E9] px-3 py-1.5 rounded-lg transition-colors"
             >
               + Invite member
             </button>
           ) : (
-            <span className="text-xs text-slate-300">{members.length} member{members.length !== 1 ? 's' : ''}</span>
+            <span className="text-xs text-[#BBA79C]">{members.length} member{members.length !== 1 ? 's' : ''}</span>
           )}
         </div>
-        <ul className="divide-y divide-slate-50">
+        <ul className="divide-y divide-[#e4e2e2]">
           {members.map(m => (
             <li key={m.id} className="flex items-center justify-between px-5 py-3.5">
               <div className="flex items-center gap-3 min-w-0">
@@ -1743,11 +1762,11 @@ function MembersSection({ members, currentUserId, isOwner, canAssign, performanc
                   {m.user.name[0]?.toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-800 truncate">
+                  <p className="text-sm font-medium text-[#2D1E1A] truncate">
                     {m.user.name}
-                    {m.user.id === currentUserId && <span className="text-slate-400 font-normal"> (you)</span>}
+                    {m.user.id === currentUserId && <span className="text-[#8A7265] font-normal"> (you)</span>}
                   </p>
-                  <p className="text-xs text-slate-400 truncate">{m.user.email}</p>
+                  <p className="text-xs text-[#8A7265] truncate">{m.user.email}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-3">
@@ -1758,7 +1777,7 @@ function MembersSection({ members, currentUserId, isOwner, canAssign, performanc
                     className={`text-xs px-2 py-1 rounded-lg border transition-colors ${
                       m.canApprove
                         ? 'bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100'
-                        : 'bg-slate-50 text-slate-400 border-slate-200 hover:border-violet-300 hover:text-violet-500'
+                        : 'bg-[#FFF5E9] text-[#8A7265] border-[#E0CFC4] hover:border-violet-300 hover:text-violet-500'
                     }`}
                   >
                     {m.canApprove ? '✓ can approve' : 'can approve?'}
@@ -1775,21 +1794,21 @@ function MembersSection({ members, currentUserId, isOwner, canAssign, performanc
 
       {/* Performance panel — visible only to owner / canApprove contributors */}
       {canAssign && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-50">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Member Performance</p>
-            <p className="text-xs text-slate-400 mt-0.5">Based on assigned milestones and deadline adherence</p>
+        <div className="bg-white rounded-2xl border border-[#E0CFC4] shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#E0CFC4]">
+            <p className="text-xs font-semibold text-[#8A7265] uppercase tracking-widest">Member Performance</p>
+            <p className="text-xs text-[#8A7265] mt-0.5">Based on assigned milestones and deadline adherence</p>
           </div>
 
           {!performance ? (
-            <div className="px-5 py-8 text-center text-sm text-slate-400">Loading…</div>
+            <div className="px-5 py-8 text-center text-sm text-[#8A7265]">Loading…</div>
           ) : performance.every(p => p.assigned === 0) ? (
             <div className="px-5 py-8 text-center">
-              <p className="text-sm text-slate-500 font-medium">No milestones assigned yet</p>
-              <p className="text-xs text-slate-400 mt-1">Assign objectives to team members from the Objectives tab to track performance.</p>
+              <p className="text-sm text-[#8A7265] font-medium">No milestones assigned yet</p>
+              <p className="text-xs text-[#8A7265] mt-1">Assign objectives to team members from the Objectives tab to track performance.</p>
             </div>
           ) : (
-            <ul className="divide-y divide-slate-50">
+            <ul className="divide-y divide-[#e4e2e2]">
               {performance.map(p => {
                 const colors  = scoreColor(p.score);
                 const onTimePct = (p.completedOnTime + p.completedLate) > 0
@@ -1806,8 +1825,8 @@ function MembersSection({ members, currentUserId, isOwner, canAssign, performanc
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-2">
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-slate-800 truncate">{p.name}</p>
-                            <p className="text-xs text-slate-400 capitalize">{p.role}{p.canApprove ? ' · can approve' : ''}</p>
+                            <p className="text-sm font-medium text-[#2D1E1A] truncate">{p.name}</p>
+                            <p className="text-xs text-[#8A7265] capitalize">{p.role}{p.canApprove ? ' · can approve' : ''}</p>
                           </div>
                           {/* Score badge */}
                           {p.assigned > 0 && (
@@ -1818,40 +1837,43 @@ function MembersSection({ members, currentUserId, isOwner, canAssign, performanc
                         </div>
 
                         {p.assigned === 0 ? (
-                          <p className="text-xs text-slate-400">No milestones assigned</p>
+                          <p className="text-xs text-[#8A7265]">No milestones assigned</p>
                         ) : (
                           <>
                             {/* Stats row */}
                             <div className="grid grid-cols-4 gap-2 mb-2.5">
                               <div className="text-center">
-                                <p className="text-base font-semibold text-slate-800">{p.assigned}</p>
-                                <p className="text-[10px] text-slate-400 uppercase tracking-wide">Assigned</p>
+                                <p className="text-base font-semibold text-[#2D1E1A]">{p.assigned}</p>
+                                <p className="text-[10px] text-[#8A7265] uppercase tracking-wide">Assigned</p>
                               </div>
                               <div className="text-center">
-                                <p className="text-base font-semibold text-slate-800">{p.completed}</p>
-                                <p className="text-[10px] text-slate-400 uppercase tracking-wide">Done</p>
+                                <p className="text-base font-semibold text-[#2D1E1A]">{p.completed}</p>
+                                <p className="text-[10px] text-[#8A7265] uppercase tracking-wide">Done</p>
                               </div>
                               <div className="text-center">
-                                <p className={`text-base font-semibold ${p.overdue > 0 ? 'text-amber-600' : 'text-slate-800'}`}>{p.overdue}</p>
-                                <p className="text-[10px] text-slate-400 uppercase tracking-wide">Overdue</p>
+                                <p className={`text-base font-semibold ${p.overdue > 0 ? 'text-amber-600' : 'text-[#2D1E1A]'}`}>{p.overdue}</p>
+                                <p className="text-[10px] text-[#8A7265] uppercase tracking-wide">Overdue</p>
                               </div>
                               <div className="text-center">
-                                <p className={`text-base font-semibold ${onTimePct !== null && onTimePct < 60 ? 'text-amber-600' : 'text-slate-800'}`}>
+                                <p className={`text-base font-semibold ${onTimePct !== null && onTimePct < 60 ? 'text-amber-600' : 'text-[#2D1E1A]'}`}>
                                   {onTimePct !== null ? `${onTimePct}%` : '—'}
                                 </p>
-                                <p className="text-[10px] text-slate-400 uppercase tracking-wide">On time</p>
+                                <p className="text-[10px] text-[#8A7265] uppercase tracking-wide">On time</p>
                               </div>
                             </div>
 
                             {/* Completion bar */}
-                            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                            <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--c-surface-mid)' }}>
                               <div
-                                className={`h-full rounded-full transition-all ${p.score >= 75 ? 'bg-emerald-400' : p.score >= 45 ? 'bg-amber-400' : 'bg-red-400'}`}
-                                style={{ width: `${Math.round(p.completed / p.assigned * 100)}%` }}
+                                className="h-full rounded-full transition-all"
+                                style={{
+                                  width: `${Math.round(p.completed / p.assigned * 100)}%`,
+                                  background: p.score >= 75 ? '#4ade80' : p.score >= 45 ? '#fbbf24' : '#f87171',
+                                }}
                               />
                             </div>
                             <div className="flex justify-between mt-1">
-                              <span className="text-[10px] text-slate-400">{p.completed}/{p.assigned} completed</span>
+                              <span className="text-[10px] text-[#8A7265]">{p.completed}/{p.assigned} completed</span>
                               {p.completedLate > 0 && (
                                 <span className="text-[10px] text-amber-500">{p.completedLate} late · avg {p.avgDaysLate}d</span>
                               )}

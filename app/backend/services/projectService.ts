@@ -50,6 +50,16 @@ async function requireCanAssign(projectId: string, userId: string) {
     throw new PermissionError();
 }
 
+async function requireAssigneesNotViewers(projectId: string, assigneeIds: string[]) {
+    if (assigneeIds.length === 0) return;
+    const memberRoles = await prisma.projectMember.findMany({
+        where: { projectId, userId: { in: assigneeIds } },
+        select: { userId: true, role: true },
+    });
+    const viewers = memberRoles.filter(m => m.role === 'viewer');
+    if (viewers.length > 0) throw new PermissionError();
+}
+
 async function createPendingChanges(
     projectId: string,
     authorId: string,
@@ -176,7 +186,10 @@ export async function createPhase(projectId: string, userId: string, title: stri
 export async function createMilestone(phaseId: string, userId: string, title: string, description: string | undefined, order: number, dueDate?: string, assigneeIds?: string[]) {
     const projectId = await projectIdForPhase(phaseId);
     await requireRole(projectId, userId, 'contributor');
-    if (assigneeIds && assigneeIds.length > 0) await requireCanAssign(projectId, userId);
+    if (assigneeIds && assigneeIds.length > 0) {
+        await requireCanAssign(projectId, userId);
+        await requireAssigneesNotViewers(projectId, assigneeIds);
+    }
     const created = await prisma.milestone.create({
         data: {
             phaseId, title, description, order, dueDate,
@@ -272,6 +285,7 @@ export async function updateMilestone(
 
     if (data.assigneeIds !== undefined) {
         await requireCanAssign(projectId, userId);
+        if (data.assigneeIds.length > 0) await requireAssigneesNotViewers(projectId, data.assigneeIds);
     }
 
     const { assigneeIds, ...rest } = data;

@@ -42,53 +42,53 @@ export default function RegisterPage()
             <div className="w-full max-w-sm">
 
                 <div className="text-center mb-8">
-                    <p className="text-3xl font-bold text-slate-900 tracking-tight">Steadily</p>
-                    <p className="text-sm text-slate-400 mt-1">Slow &amp; Consistent</p>
+                    <p className="text-3xl font-bold text-[#2D1E1A] tracking-tight">Steadily</p>
+                    <p className="text-sm text-[#8A7265] mt-1">Slow &amp; Consistent</p>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-8">
-                    <h1 className="text-lg font-semibold text-stone-800 mb-6">Create your account</h1>
+                <div className="bg-white rounded-2xl border border-[#E0CFC4] shadow-sm p-8">
+                    <h1 className="text-lg font-semibold text-[#2D1E1A] mb-6">Create your account</h1>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            <label className="text-xs font-medium text-stone-500 uppercase tracking-wide">Name</label>
+                            <label className="text-xs font-medium text-[#8A7265] uppercase tracking-wide">Name</label>
                             <input
                                 type="text"
                                 autoFocus
                                 required
                                 value={name}
                                 onChange={e => setName(e.target.value)}
-                                className="w-full mt-1.5 border border-stone-200 rounded-xl px-3 py-2.5 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-200 bg-stone-50"
+                                className="w-full mt-1.5 border border-[#E0CFC4] rounded-xl px-3 py-2.5 text-sm text-[#2D1E1A] focus:outline-none focus:ring-2 focus:ring-[#c8eadf] bg-[#FFF5E9]"
                                 placeholder="Your name"
                             />
                         </div>
 
                         <div>
-                            <label className="text-xs font-medium text-stone-500 uppercase tracking-wide">Email</label>
+                            <label className="text-xs font-medium text-[#8A7265] uppercase tracking-wide">Email</label>
                             <input
                                 type="email"
                                 required
                                 value={email}
                                 onChange={e => setEmail(e.target.value)}
-                                className="w-full mt-1.5 border border-stone-200 rounded-xl px-3 py-2.5 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-200 bg-stone-50"
+                                className="w-full mt-1.5 border border-[#E0CFC4] rounded-xl px-3 py-2.5 text-sm text-[#2D1E1A] focus:outline-none focus:ring-2 focus:ring-[#c8eadf] bg-[#FFF5E9]"
                                 placeholder="you@example.com"
                             />
                         </div>
 
                         <div>
-                            <label className="text-xs font-medium text-stone-500 uppercase tracking-wide">Password</label>
+                            <label className="text-xs font-medium text-[#8A7265] uppercase tracking-wide">Password</label>
                             <input
                                 type="password"
                                 required
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
-                                className="w-full mt-1.5 border border-stone-200 rounded-xl px-3 py-2.5 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-emerald-200 bg-stone-50"
+                                className="w-full mt-1.5 border border-[#E0CFC4] rounded-xl px-3 py-2.5 text-sm text-[#2D1E1A] focus:outline-none focus:ring-2 focus:ring-[#c8eadf] bg-[#FFF5E9]"
                                 placeholder="At least 8 characters"
                             />
                         </div>
 
                         {error && (
-                            <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                            <p className="text-xs text-[#ba1a1a] bg-[#ffdad6] border border-[#ffdad6] rounded-lg px-3 py-2">
                                 {error}
                             </p>
                         )}
@@ -96,16 +96,16 @@ export default function RegisterPage()
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-2.5 rounded-xl text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 transition-colors mt-2"
+                            className="w-full py-2.5 rounded-xl text-sm font-medium text-white bg-[#C4601A] hover:bg-[#C4601A] disabled:opacity-40 transition-colors mt-2"
                         >
                             {loading ? 'Creating account…' : 'Create account'}
                         </button>
                     </form>
                 </div>
 
-                <p className="text-center text-sm text-stone-400 mt-6">
+                <p className="text-center text-sm text-[#8A7265] mt-6">
                     Already have an account?{' '}
-                    <Link to="/login" className="text-emerald-600 hover:text-emerald-700 font-medium transition-colors">
+                    <Link to="/login" className="text-[#4C8077] hover:text-[#16342d] font-medium transition-colors">
                         Sign in
                     </Link>
                 </p>

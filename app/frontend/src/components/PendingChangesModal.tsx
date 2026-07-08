@@ -38,7 +38,7 @@ function FieldRow({ label, currentValue, change, acting, onApprove, onReject }: 
     return (
         <div>
             <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-medium text-stone-500 uppercase tracking-wide flex items-center gap-1.5">
+                <span className="text-xs font-medium text-[#8A7265] uppercase tracking-wide flex items-center gap-1.5">
                     {label}
                     {change && (
                         <span className="w-4 h-4 rounded-full bg-amber-400 text-white text-[9px] font-bold flex items-center justify-center shrink-0">!</span>
@@ -50,30 +50,30 @@ function FieldRow({ label, currentValue, change, acting, onApprove, onReject }: 
                             onClick={onApprove}
                             disabled={acting}
                             title="Approve"
-                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-40 transition-colors text-xs border border-emerald-200 font-bold"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#E8FAF7] text-[#4C8077] hover:bg-[#FFE8D1] disabled:opacity-40 transition-colors text-xs border border-[#c8eadf] font-bold"
                         >✓</button>
                         <button
                             onClick={onReject}
                             disabled={acting}
                             title="Reject"
-                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-100 disabled:opacity-40 transition-colors text-xs border border-red-200 font-bold"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#ffdad6] text-[#ba1a1a] hover:bg-red-100 disabled:opacity-40 transition-colors text-xs border border-[#ffdad6] font-bold"
                         >✕</button>
                     </div>
                 )}
             </div>
             {change ? (
                 <div className="flex items-start gap-2 flex-wrap">
-                    <span className="px-2.5 py-1.5 rounded-lg text-xs bg-stone-100 text-stone-600 border border-stone-200 break-words">
-                        {oldVal || <span className="italic text-stone-300">empty</span>}
+                    <span className="px-2.5 py-1.5 rounded-lg text-xs bg-[#F0E9E0] text-[#54433A] border border-[#E0CFC4] break-words">
+                        {oldVal || <span className="italic text-[#BBA79C]">empty</span>}
                     </span>
-                    <span className="text-stone-300 self-center text-sm">→</span>
-                    <span className="px-2.5 py-1.5 rounded-lg text-xs bg-emerald-50 text-emerald-700 border border-emerald-100 font-medium break-words">
-                        {newVal || <span className="italic font-normal text-stone-300">empty</span>}
+                    <span className="text-[#BBA79C] self-center text-sm">→</span>
+                    <span className="px-2.5 py-1.5 rounded-lg text-xs bg-[#E8FAF7] text-[#16342d] border border-[#E0CFC4] font-medium break-words">
+                        {newVal || <span className="italic font-normal text-[#BBA79C]">empty</span>}
                     </span>
                 </div>
             ) : (
-                <div className="px-3 py-2.5 rounded-lg bg-stone-50 border border-stone-100 text-sm text-stone-600 min-h-[38px] break-words">
-                    {currentValue || <span className="text-stone-300 italic text-xs">—</span>}
+                <div className="px-3 py-2.5 rounded-lg bg-[#FFF5E9] border border-[#E0CFC4] text-sm text-[#54433A] min-h-[38px] break-words">
+                    {currentValue || <span className="text-[#BBA79C] italic text-xs">—</span>}
                 </div>
             )}
         </div>
@@ -119,8 +119,8 @@ export default function PendingChangesModal({ project, changes, onResolved, onCl
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
 
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-stone-100">
-                    <h2 className="text-lg font-semibold text-stone-800">Review changes</h2>
+                <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-[#E0CFC4]">
+                    <h2 className="text-lg font-semibold text-[#2D1E1A]">Review changes</h2>
                     <div className="flex items-center gap-3">
                         {totalPending > 0 && (
                             <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full font-medium">
@@ -129,13 +129,13 @@ export default function PendingChangesModal({ project, changes, onResolved, onCl
                         )}
                         <button
                             onClick={onClose}
-                            className="text-stone-300 hover:text-stone-500 text-xl leading-none w-8 h-8 flex items-center justify-center transition-colors"
+                            className="text-[#BBA79C] hover:text-[#8A7265] text-xl leading-none w-8 h-8 flex items-center justify-center transition-colors"
                         >×</button>
                     </div>
                 </div>
 
                 {/* Step indicator — mirrors EditProjectModal */}
-                <div className="flex items-center gap-2 px-6 pt-5 pb-4 border-b border-stone-100">
+                <div className="flex items-center gap-2 px-6 pt-5 pb-4 border-b border-[#E0CFC4]">
                     {STEPS.map((s, i) => {
                         const hasChanges = s.key === 'project'
                             ? hasChangesFor('project')
@@ -149,8 +149,8 @@ export default function PendingChangesModal({ project, changes, onResolved, onCl
                                     onClick={() => setStep(s.key)}
                                     className={`relative w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium transition-colors ${
                                         isActive
-                                            ? 'bg-blue-500 text-white'
-                                            : 'bg-stone-100 text-stone-500 hover:bg-blue-100 hover:text-blue-600'
+                                            ? 'bg-[#C4601A] text-white'
+                                            : 'bg-[#F0E9E0] text-[#8A7265] hover:bg-[#FFE8D1] hover:text-[#4C8077]'
                                     }`}
                                 >
                                     {i + 1}
@@ -158,10 +158,10 @@ export default function PendingChangesModal({ project, changes, onResolved, onCl
                                         <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-white" />
                                     )}
                                 </button>
-                                <span className={`text-xs ${isActive ? 'text-stone-700 font-medium' : 'text-stone-400'}`}>
+                                <span className={`text-xs ${isActive ? 'text-[#54433A] font-medium' : 'text-[#8A7265]'}`}>
                                     {s.label}
                                 </span>
-                                {i < 2 && <div className="w-6 h-px bg-stone-200 mx-1" />}
+                                {i < 2 && <div className="w-6 h-px bg-[#E0CFC4] mx-1" />}
                             </div>
                         );
                     })}
@@ -173,7 +173,7 @@ export default function PendingChangesModal({ project, changes, onResolved, onCl
                     {/* Step 1: Details */}
                     {step === 'project' && (
                         <div className="space-y-4">
-                            <h3 className="text-base font-semibold text-stone-800">Project details</h3>
+                            <h3 className="text-base font-semibold text-[#2D1E1A]">Project details</h3>
                             {(
                                 [
                                     { field: 'title',         label: 'Title',           value: project.title         },
@@ -200,16 +200,16 @@ export default function PendingChangesModal({ project, changes, onResolved, onCl
                     {/* Step 2: Phases */}
                     {step === 'phases' && (
                         <div className="space-y-4">
-                            <h3 className="text-base font-semibold text-stone-800">Phases</h3>
+                            <h3 className="text-base font-semibold text-[#2D1E1A]">Phases</h3>
                             {sortedPhases.length === 0 ? (
-                                <p className="text-sm text-stone-400 text-center py-8">No phases yet</p>
+                                <p className="text-sm text-[#8A7265] text-center py-8">No phases yet</p>
                             ) : (
                                 <div className="space-y-4">
                                     {sortedPhases.map((ph, i) => {
                                         const titleChange = fc('phase', ph.id, 'title');
                                         return (
-                                            <div key={ph.id} className="rounded-xl bg-stone-50 border border-stone-100 p-3">
-                                                <p className="text-xs text-stone-400 mb-2.5">Phase {i + 1}</p>
+                                            <div key={ph.id} className="rounded-xl bg-[#FFF5E9] border border-[#E0CFC4] p-3">
+                                                <p className="text-xs text-[#8A7265] mb-2.5">Phase {i + 1}</p>
                                                 <FieldRow
                                                     label="Title"
                                                     currentValue={ph.title}
@@ -229,7 +229,7 @@ export default function PendingChangesModal({ project, changes, onResolved, onCl
                     {/* Step 3: Milestones */}
                     {step === 'milestones' && (
                         <div className="space-y-4">
-                            <h3 className="text-base font-semibold text-stone-800">
+                            <h3 className="text-base font-semibold text-[#2D1E1A]">
                                 Milestones for {sortedPhases[activePhaseIdx]?.title || `Phase ${activePhaseIdx + 1}`}
                             </h3>
                             {/* Phase tabs */}
@@ -244,8 +244,8 @@ export default function PendingChangesModal({ project, changes, onResolved, onCl
                                             onClick={() => setActivePhaseIdx(i)}
                                             className={`relative px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                                                 activePhaseIdx === i
-                                                    ? 'bg-blue-500 text-white'
-                                                    : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+                                                    ? 'bg-[#C4601A] text-white'
+                                                    : 'bg-[#F0E9E0] text-[#8A7265] hover:bg-[#E0CFC4]'
                                             }`}
                                         >
                                             {ph.title || `Phase ${i + 1}`}
@@ -265,7 +265,7 @@ export default function PendingChangesModal({ project, changes, onResolved, onCl
                                             const titleChange   = fc('milestone', m.id, 'title');
                                             const dueDateChange = fc('milestone', m.id, 'dueDate');
                                             return (
-                                                <div key={m.id} className="rounded-xl bg-stone-50 border border-stone-100 p-3 space-y-3">
+                                                <div key={m.id} className="rounded-xl bg-[#FFF5E9] border border-[#E0CFC4] p-3 space-y-3">
                                                     <FieldRow
                                                         label="Title"
                                                         currentValue={m.title}
@@ -285,10 +285,10 @@ export default function PendingChangesModal({ project, changes, onResolved, onCl
                                                 </div>
                                             );
                                         })
-                                    : <p className="text-sm text-stone-400 text-center py-8">No milestones in this phase</p>
+                                    : <p className="text-sm text-[#8A7265] text-center py-8">No milestones in this phase</p>
                                 }
                                 {sortedPhases[activePhaseIdx]?.milestones.length === 0 && (
-                                    <p className="text-sm text-stone-400 text-center py-8">No milestones in this phase</p>
+                                    <p className="text-sm text-[#8A7265] text-center py-8">No milestones in this phase</p>
                                 )}
                             </div>
                         </div>
@@ -296,28 +296,28 @@ export default function PendingChangesModal({ project, changes, onResolved, onCl
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between px-6 py-4 border-t border-stone-100">
+                <div className="flex items-center justify-between px-6 py-4 border-t border-[#E0CFC4]">
                     <button
                         onClick={stepIdx === 0 ? onClose : () => setStep(STEPS[stepIdx - 1].key)}
-                        className="px-4 py-2.5 rounded-lg text-sm text-stone-500 bg-stone-100 hover:bg-stone-200 transition-colors"
+                        className="px-4 py-2.5 rounded-lg text-sm text-[#8A7265] bg-[#F0E9E0] hover:bg-[#E0CFC4] transition-colors"
                     >
                         {stepIdx === 0 ? 'Close' : '← Back'}
                     </button>
                     {totalPending === 0
-                        ? <span className="text-xs text-emerald-600 font-medium">✓ All resolved</span>
-                        : <span className="text-xs text-stone-400">{totalPending} remaining</span>
+                        ? <span className="text-xs text-[#4C8077] font-medium">✓ All resolved</span>
+                        : <span className="text-xs text-[#8A7265]">{totalPending} remaining</span>
                     }
                     {stepIdx < 2 ? (
                         <button
                             onClick={() => setStep(STEPS[stepIdx + 1].key)}
-                            className="px-4 py-2.5 rounded-lg text-sm text-stone-600 bg-stone-100 hover:bg-stone-200 transition-colors"
+                            className="px-4 py-2.5 rounded-lg text-sm text-[#54433A] bg-[#F0E9E0] hover:bg-[#E0CFC4] transition-colors"
                         >
                             Next →
                         </button>
                     ) : (
                         <button
                             onClick={onClose}
-                            className="px-4 py-2.5 rounded-lg text-sm text-stone-600 bg-stone-100 hover:bg-stone-200 transition-colors"
+                            className="px-4 py-2.5 rounded-lg text-sm text-[#54433A] bg-[#F0E9E0] hover:bg-[#E0CFC4] transition-colors"
                         >
                             Done
                         </button>

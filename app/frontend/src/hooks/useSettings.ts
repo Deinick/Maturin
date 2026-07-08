@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-export type Theme        = 'light' | 'system';
+export type Theme        = 'light' | 'dark' | 'system';
 export type WeekStart    = 'monday' | 'sunday';
 
 interface Settings {
@@ -21,14 +21,21 @@ function load(): Settings {
 
 function applyTheme(theme: Theme) {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const dark = theme === 'system' ? prefersDark : false;
+    const dark = theme === 'dark' || (theme === 'system' && prefersDark);
     document.documentElement.classList.toggle('dark', dark);
 }
 
 export function useSettings() {
     const [settings, setSettings] = useState<Settings>(load);
 
-    useEffect(() => { applyTheme(settings.theme); }, [settings.theme]);
+    useEffect(() => {
+        applyTheme(settings.theme);
+        if (settings.theme !== 'system') return;
+        const mql = window.matchMedia('(prefers-color-scheme: dark)');
+        const onChange = () => applyTheme(settings.theme);
+        mql.addEventListener('change', onChange);
+        return () => mql.removeEventListener('change', onChange);
+    }, [settings.theme]);
 
     function update<K extends keyof Settings>(key: K, value: Settings[K]) {
         setSettings(prev => {

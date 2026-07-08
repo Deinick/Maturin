@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useSettings } from './hooks/useSettings';
@@ -105,12 +105,24 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
             {/* ── Content ── */}
             <div className="flex flex-col h-full">
 
+                {/* Brand */}
+                <div className="flex items-center justify-center pt-15 pb-1 px-0">
+                    {!collapsed && (
+                        <span
+                            className="text-xl tracking-tight select-none"
+                            style={{ color: 'rgba(245,237,229,0.85)' }}
+                        >
+                            𝙎𝙩𝙚𝙖𝙙𝙞𝙡𝙮
+                        </span>
+                    )}
+                </div>
+
                 {/* Toggle button row */}
-                <div className={`flex items-center py-4 ${collapsed ? 'justify-center px-0' : 'justify-end px-3'}`}>
+                <div className={`flex items-center py-3 ${collapsed ? 'justify-center px-0' : 'justify-end px-3'}`}>
                     <button
                         onClick={onToggle}
                         title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                        className="nav-glass w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700"
+                        className="nav-glass w-7 h-7 rounded-full flex items-center justify-center"
                     >
                         {collapsed
                             ? <IconChevronRight className="w-3.5 h-3.5" />
@@ -129,9 +141,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
                             title={collapsed ? label : undefined}
                             className={({ isActive }) =>
                                 `nav-glass flex items-center gap-3 px-2.5 py-2.5 text-sm font-medium ${
-                                    isActive
-                                        ? 'nav-glass-active text-slate-900'
-                                        : 'text-slate-400 hover:text-slate-700'
+                                    isActive ? 'nav-glass-active' : ''
                                 } ${collapsed ? 'justify-center' : ''}`
                             }
                         >
@@ -142,7 +152,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
                 </nav>
 
                 {/* User profile */}
-                <div className="px-2 py-4 border-t border-slate-100">
+                <div className="px-2 py-4 sidebar-bottom-border" style={{ borderTop: '1px solid rgba(245,237,229,0.12)' }}>
                     <NavLink
                         to="/account"
                         title={collapsed ? (user?.name ?? 'Account') : undefined}
@@ -152,13 +162,14 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
                             } ${collapsed ? 'justify-center' : ''}`
                         }
                     >
-                        <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs font-semibold shrink-0">
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
+                            style={{ background: 'rgba(245,237,229,0.15)', border: '1px solid rgba(245,237,229,0.2)', color: '#F5EDE5' }}>
                             {user?.name?.[0]?.toUpperCase() ?? '?'}
                         </div>
                         {!collapsed && (
                             <div className="min-w-0 flex-1">
-                                <p className="text-slate-800 text-xs font-medium leading-none truncate">{user?.name ?? 'Account'}</p>
-                                <p className="text-slate-400 text-[10px] mt-0.5 truncate">{user?.email ?? ''}</p>
+                                <p className="sidebar-user-name text-xs font-medium leading-none truncate">{user?.name ?? 'Account'}</p>
+                                <p className="sidebar-user-email text-[10px] mt-0.5 truncate">{user?.email ?? ''}</p>
                             </div>
                         )}
                     </NavLink>
@@ -170,35 +181,32 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
 
 function AppShell() {
     const { logout } = useAuth();
-    const { settings } = useSettings();
+    useSettings();
     const [collapsed, setCollapsed] = useState(false);
     const location = useLocation();
     const isFullscreenFlow = location.pathname === '/projects/new' || /^\/projects\/.+\/edit$/.test(location.pathname);
 
-    useEffect(() => {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.classList.toggle('dark', settings.theme === 'system' && prefersDark);
-    }, [settings.theme]);
-
     return (
-        <div className="flex min-h-screen bg-[#f7f9fb]">
+        <div className="flex min-h-screen" style={{ background: 'var(--c-bg)' }}>
             <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c: boolean) => !c)} />
             <RolloverModal />
             <main
                 className={`flex-1 min-h-screen transition-all duration-300 ease-in-out ${collapsed ? 'ml-12' : 'ml-52'} ${isFullscreenFlow ? 'p-0 overflow-hidden h-screen' : 'px-8 py-8 overflow-x-hidden'}`}
             >
-                <Routes>
-                    <Route path="/"                element={<DashboardPage />} />
-                    <Route path="/tasks"           element={<TasksPage />} />
-                    <Route path="/habits"          element={<HabitsPage />} />
-                    <Route path="/projects"        element={<ProjectsPage />} />
-                    <Route path="/projects/new"       element={<CreateProjectPage />} />
-                    <Route path="/projects/:id/edit" element={<EditProjectPage />} />
-                    <Route path="/projects/:id"       element={<ProjectDetailPage />} />
-                    <Route path="/suggestions"     element={<SuggestionsPage />} />
-                    <Route path="/account"         element={<AccountPage onLogout={logout} />} />
-                    <Route path="*"                element={<Navigate to="/" replace />} />
-                </Routes>
+                <div key={location.pathname} className="page-fade">
+                    <Routes>
+                        <Route path="/"                element={<DashboardPage />} />
+                        <Route path="/tasks"           element={<TasksPage />} />
+                        <Route path="/habits"          element={<HabitsPage />} />
+                        <Route path="/projects"        element={<ProjectsPage />} />
+                        <Route path="/projects/new"       element={<CreateProjectPage />} />
+                        <Route path="/projects/:id/edit" element={<EditProjectPage />} />
+                        <Route path="/projects/:id"       element={<ProjectDetailPage />} />
+                        <Route path="/suggestions"     element={<SuggestionsPage />} />
+                        <Route path="/account"         element={<AccountPage onLogout={logout} />} />
+                        <Route path="*"                element={<Navigate to="/" replace />} />
+                    </Routes>
+                </div>
             </main>
         </div>
     );

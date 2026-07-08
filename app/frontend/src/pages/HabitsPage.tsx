@@ -1,6 +1,7 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Habit, HabitLog } from '../types';
-import { getHabits, createHabit, logHabit, updateHabitLog, deleteHabit } from '../api/client';
+import { getHabits, createHabit, logHabit, updateHabitLog, updateHabit, deleteHabit } from '../api/client';
 import HabitRecordModal from '../components/HabitRecordModal';
 import { localDate } from '../utils/date';
 
@@ -13,10 +14,10 @@ const DIFFICULTY_OPTIONS = [
   { value: 'hard',   label: 'Hard',   active: 'bg-rose-500 text-white',   idle: 'bg-rose-50 text-rose-700 hover:bg-rose-100'     },
 ] as const;
 
-const DIFF_BADGE: Record<string, string> = {
-  easy:   'bg-green-50 text-green-600',
-  medium: 'bg-amber-50 text-amber-600',
-  hard:   'bg-rose-50 text-rose-600',
+const DIFF_BADGE: Record<string, { background: string; color: string }> = {
+  easy:   { background: 'var(--c-teal-xlight)',    color: 'var(--c-teal)'    },
+  medium: { background: 'var(--c-primary-xlight)', color: 'var(--c-primary)' },
+  hard:   { background: 'var(--c-error-light)',    color: 'var(--c-error)'   },
 };
 
 const DAY_LABELS = ['M','T','W','T','F','S','S'];
@@ -93,20 +94,6 @@ function completionRateLast30(habits: Habit[]): number {
   return expected === 0 ? 0 : Math.round(completed / expected * 100);
 }
 
-function focusScore(rate: number): string {
-  if (rate >= 80) return 'Excellent';
-  if (rate >= 60) return 'Good';
-  if (rate >= 40) return 'Fair';
-  return 'Needs Work';
-}
-
-function focusScoreColor(rate: number): string {
-  if (rate >= 80) return 'text-emerald-600';
-  if (rate >= 60) return 'text-blue-600';
-  if (rate >= 40) return 'text-amber-600';
-  return 'text-rose-500';
-}
-
 // ── Heatmap ─────────────────────────────────────────────────────────────────
 
 function buildHeatmapData(habits: Habit[]): { date: string; pct: number; isFuture: boolean }[] {
@@ -126,19 +113,20 @@ function buildHeatmapData(habits: Habit[]): { date: string; pct: number; isFutur
   });
 }
 
-function heatmapColor(pct: number, isFuture: boolean, isToday: boolean): string {
-  if (isToday) return 'bg-transparent border border-[#14B8A6]';
-  if (isFuture) return 'bg-slate-100 border border-dashed border-slate-200';
-  if (pct === 0)  return 'bg-slate-100';
-  if (pct < 40)  return 'bg-teal-200/50';
-  if (pct < 70)  return 'bg-teal-300/70';
-  return 'bg-[#14B8A6]';
+function heatmapBg(pct: number, isFuture: boolean): string {
+  if (isFuture) return 'var(--c-surface-mid)';
+  if (pct === 0)  return 'var(--c-surface-mid)';
+  if (pct < 40)  return 'var(--c-teal-light)';
+  if (pct < 70)  return 'var(--c-teal-bright)';
+  return 'var(--c-teal)';
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function HabitsPage() {
-  const [habits,       setHabits]       = useState<Habit[]>([]);
+  const queryClient = useQueryClient();
+  const habitsKey = ['habits'];
+
   const [showModal,    setShowModal]    = useState(false);
   const [showRecord,   setShowRecord]   = useState(false);
   const [newName,      setNewName]      = useState('');
@@ -146,15 +134,17 @@ export default function HabitsPage() {
   const [newActiveDays,setNewActiveDays]= useState<Set<number>>(new Set([1,2,3,4,5,6,7]));
   const [deleteConfirm,setDeleteConfirm]= useState<string | null>(null);
   const [loggingIds,   setLoggingIds]   = useState<Set<string>>(new Set());
+  const [editHabit,     setEditHabit]     = useState<Habit | null>(null);
+  const [editName,      setEditName]      = useState('');
+  const [editDifficulty,setEditDifficulty]= useState<'easy'|'medium'|'hard'>('medium');
+  const [editActiveDays,setEditActiveDays]= useState<Set<number>>(new Set([1,2,3,4,5,6,7]));
 
   const days = getCurrentWeekDays();
 
-  useEffect(() => { getHabits().then(setHabits); }, []);
+  const { data: habits = [], isLoading: habitsLoading } = useQuery({ queryKey: habitsKey, queryFn: getHabits });
 
   const longestStreak = useMemo(() => longestStreakAcrossHabits(habits), [habits]);
   const completionRate = useMemo(() => completionRateLast30(habits), [habits]);
-  const focusLabel = focusScore(completionRate);
-  const focusColor = focusScoreColor(completionRate);
   const heatmapData = useMemo(() => buildHeatmapData(habits), [habits]);
 
   const todayLoggedCount = habits.filter(h => h.logs.find(l => l.date === TODAY)?.status === 'completed').length;
@@ -173,12 +163,12 @@ export default function HabitsPage() {
       const existing = getLog(habit, date);
       if (existing) {
         const updated = await updateHabitLog(existing.id, existing.status === 'completed' ? 'skipped' : 'completed');
-        setHabits(prev => prev.map(h => h.id === habit.id
+        queryClient.setQueryData<Habit[]>(habitsKey, prev => prev?.map(h => h.id === habit.id
           ? { ...h, logs: h.logs.map(l => l.id === updated.id ? updated : l) }
           : h));
       } else {
         const newLog = await logHabit(habit.id, date, 'completed');
-        setHabits(prev => prev.map(h => h.id === habit.id
+        queryClient.setQueryData<Habit[]>(habitsKey, prev => prev?.map(h => h.id === habit.id
           ? { ...h, logs: [...h.logs, newLog] }
           : h));
       }
@@ -191,7 +181,7 @@ export default function HabitsPage() {
     if (!newName.trim()) return;
     const activeDaysStr = Array.from(newActiveDays).sort((a,b) => a - b).join(',');
     const habit = await createHabit(newName.trim(), newDifficulty, activeDaysStr);
-    setHabits(prev => [...prev, { ...habit, logs: [] }]);
+    queryClient.setQueryData<Habit[]>(habitsKey, prev => [...(prev ?? []), { ...habit, logs: [] }]);
     setNewName('');
     setNewDifficulty('medium');
     setNewActiveDays(new Set([1,2,3,4,5,6,7]));
@@ -200,7 +190,7 @@ export default function HabitsPage() {
 
   async function handleDelete(id: string) {
     await deleteHabit(id);
-    setHabits(prev => prev.filter(h => h.id !== id));
+    queryClient.setQueryData<Habit[]>(habitsKey, prev => prev?.filter(h => h.id !== id));
     setDeleteConfirm(null);
   }
 
@@ -213,6 +203,30 @@ export default function HabitsPage() {
     });
   }
 
+  function openEdit(habit: Habit) {
+    setEditHabit(habit);
+    setEditName(habit.name);
+    setEditDifficulty(habit.difficulty as 'easy'|'medium'|'hard');
+    setEditActiveDays(new Set(habit.activeDays.split(',').map(Number)));
+  }
+
+  function toggleEditDay(dayNum: number) {
+    setEditActiveDays(prev => {
+      const next = new Set(prev);
+      if (next.has(dayNum) && next.size > 1) next.delete(dayNum);
+      else if (!next.has(dayNum)) next.add(dayNum);
+      return next;
+    });
+  }
+
+  async function handleEditSave() {
+    if (!editHabit || !editName.trim()) return;
+    const activeDaysStr = Array.from(editActiveDays).sort((a,b) => a - b).join(',');
+    const updated = await updateHabit(editHabit.id, editName.trim(), editDifficulty, activeDaysStr);
+    queryClient.setQueryData<Habit[]>(habitsKey, prev => prev?.map(h => h.id === updated.id ? { ...h, ...updated } : h));
+    setEditHabit(null);
+  }
+
   const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   const monthLabel = new Date().toLocaleDateString('en-US', { month: 'long' });
 
@@ -222,19 +236,19 @@ export default function HabitsPage() {
       {/* ── Page header ────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-3 mb-7">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Daily Habits</h1>
-          <p className="text-sm text-slate-400 mt-0.5">{dateLabel}</p>
+          <h1 className="text-2xl font-semibold text-[#2D1E1A] font-serif">Habits</h1>
+          <p className="text-sm text-[#8A7265] mt-0.5">{dateLabel}</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowRecord(true)}
-            className="flex items-center gap-2 border border-slate-200 hover:border-slate-300 text-slate-500 hover:text-slate-700 px-4 py-2 rounded-xl text-sm font-medium transition-colors">
+            className="flex items-center gap-2 border border-[#E0CFC4] hover:border-[#E0CFC4] text-[#8A7265] hover:text-[#54433A] px-4 py-2 rounded-xl text-sm font-medium transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
             </svg>
             Full Record
           </button>
           <button onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 bg-[#0f172a] hover:bg-[#1e293b] text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors">
+            className="flex items-center gap-2 btn-primary text-white px-4 py-2 text-sm font-medium transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
@@ -243,20 +257,20 @@ export default function HabitsPage() {
         </div>
       </div>
 
-      {habits.length === 0 ? (
+      {habitsLoading ? null : habits.length === 0 ? (
         /* ── Empty state ──────────────────────────────────── */
         <div className="flex flex-col items-center py-24 gap-4">
-          <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
-            <svg className="w-7 h-7 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <div className="w-16 h-16 rounded-full bg-[#F0E9E0] flex items-center justify-center">
+            <svg className="w-7 h-7 text-[#BBA79C]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
             </svg>
           </div>
           <div className="text-center">
-            <p className="text-xl font-semibold text-slate-700">No habits tracked yet</p>
-            <p className="text-slate-400 text-sm mt-1">Small actions, done daily, add up to big change.</p>
+            <p className="text-xl font-semibold text-[#54433A]">No habits tracked yet</p>
+            <p className="text-[#8A7265] text-sm mt-1">Small actions, done daily, add up to big change.</p>
           </div>
           <button onClick={() => setShowModal(true)}
-            className="mt-2 px-5 py-2 bg-[#0f172a] text-white text-sm font-medium rounded-xl hover:bg-[#1e293b] transition-colors">
+            className="mt-2 px-5 py-2 btn-primary text-white text-sm font-medium transition-colors">
             Start your first habit
           </button>
         </div>
@@ -267,10 +281,10 @@ export default function HabitsPage() {
           {/* Left: Active Habits list */}
           <div className="lg:col-span-2 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
+              <h3 className="text-xs font-semibold text-[#8A7265] uppercase tracking-widest">
                 Active Habits
               </h3>
-              <span className="text-xs text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full">
+              <span className="text-xs text-[#8A7265] bg-[#FFF5E9] px-2.5 py-1 rounded-full">
                 {todayLoggedCount}/{habits.length} today
               </span>
             </div>
@@ -283,8 +297,8 @@ export default function HabitsPage() {
 
               return (
                 <div key={habit.id}
-                  className={`bg-white border rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-slate-200 transition-all ${
-                    todayDone ? 'border-slate-100' : 'border-slate-100 hover:shadow-sm'
+                  className={`bg-white border rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-[#E0CFC4] transition-all ${
+                    todayDone ? 'border-[#E0CFC4]' : 'border-[#E0CFC4] hover:shadow-sm'
                   }`}>
 
                   {/* Left: checkbox + name */}
@@ -292,13 +306,12 @@ export default function HabitsPage() {
                     <button
                       disabled={!isDayActive(habit, TODAY) || loading}
                       onClick={() => handleCircleClick(habit, TODAY)}
-                      className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${
-                        todayDone
-                          ? 'bg-[#14B8A6] border-[#14B8A6]'
-                          : !isDayActive(habit, TODAY)
-                          ? 'border-slate-200 bg-slate-50 cursor-not-allowed'
-                          : 'border-slate-300 hover:border-[#14B8A6] cursor-pointer'
-                      } ${loading ? 'opacity-60' : ''}`}
+                      className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${loading ? 'opacity-60' : ''}`}
+                      style={todayDone
+                        ? { background: 'var(--c-teal)', borderColor: 'var(--c-teal)' }
+                        : !isDayActive(habit, TODAY)
+                        ? { borderColor: 'var(--c-border)', background: 'var(--c-surface-mid)', cursor: 'not-allowed' }
+                        : { borderColor: 'var(--c-border)', cursor: 'pointer' }}
                     >
                       {todayDone && (
                         <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -306,7 +319,7 @@ export default function HabitsPage() {
                         </svg>
                       )}
                       {loading && !todayDone && (
-                        <svg className="w-3 h-3 text-slate-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <svg className="w-3 h-3 text-[#8A7265] animate-spin" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
@@ -314,14 +327,15 @@ export default function HabitsPage() {
                     </button>
 
                     <div className="min-w-0">
-                      <p className={`text-sm font-semibold leading-tight ${todayDone ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
+                      <p className={`text-sm font-semibold leading-tight ${todayDone ? 'text-[#8A7265] line-through' : 'text-[#2D1E1A]'}`}>
                         {habit.name}
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">
                         {streak > 0
                           ? <span className="text-xs text-amber-500">🔥 {streak}d streak</span>
-                          : <span className="text-xs text-slate-300">No streak</span>}
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium capitalize ${DIFF_BADGE[habit.difficulty] ?? 'bg-slate-50 text-slate-400'}`}>
+                          : <span className="text-xs text-[#BBA79C]">No streak</span>}
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-medium capitalize"
+                          style={DIFF_BADGE[habit.difficulty] ?? { background: 'var(--c-surface-mid)', color: 'var(--c-text-muted)' } as React.CSSProperties}>
                           {habit.difficulty}
                         </span>
                       </div>
@@ -340,17 +354,21 @@ export default function HabitsPage() {
                         const isFuture  = day > TODAY;
                         const isToday   = day === TODAY;
 
-                        let barColor = 'bg-slate-200';
-                        if (!active) barColor = 'bg-slate-100';
-                        else if (isFuture) barColor = 'bg-slate-100';
-                        else if (completed) barColor = 'bg-[#14B8A6]';
-                        else if (skipped) barColor = 'bg-rose-200';
-                        else if (!isFuture) barColor = 'bg-slate-200';
+                        let barColor = 'var(--c-border)';
+                        if (!active) barColor = 'var(--c-border)';
+                        else if (isFuture) barColor = 'var(--c-surface-mid)';
+                        else if (completed) barColor = 'var(--c-teal)';
+                        else if (skipped) barColor = 'var(--c-primary-dim)';
+                        else if (!isFuture) barColor = 'var(--c-border)';
 
                         return (
                           <div key={day}
-                            className={`w-2 rounded-sm transition-colors ${barColor} ${isToday ? 'ring-1 ring-offset-1 ring-[#14B8A6]/50' : ''}`}
-                            style={{ height: active ? (completed ? '16px' : '10px') : '6px' }}
+                            className={`w-2 rounded-sm transition-colors`}
+                            style={{
+                              height: active ? (completed ? '16px' : '10px') : '6px',
+                              background: barColor,
+                              ...(isToday ? { outline: '1px solid #C4601A', outlineOffset: '1px' } : {}),
+                            }}
                             title={day}
                           />
                         );
@@ -358,8 +376,18 @@ export default function HabitsPage() {
                     </div>
 
                     <button
+                      onClick={() => openEdit(habit)}
+                      className="w-6 h-6 flex items-center justify-center rounded-full text-[#BBA79C] hover:text-[#54433A] hover:bg-[#F0E9E0] transition-colors"
+                      title="Edit"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                      </svg>
+                    </button>
+
+                    <button
                       onClick={() => setDeleteConfirm(habit.id)}
-                      className="w-6 h-6 flex items-center justify-center rounded-full text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors text-base font-bold leading-none"
+                      className="w-6 h-6 flex items-center justify-center rounded-full text-[#BBA79C] hover:text-[#ba1a1a] hover:bg-[#ffdad6] transition-colors text-base font-bold leading-none"
                       title="Delete"
                     >×</button>
                   </div>
@@ -373,57 +401,40 @@ export default function HabitsPage() {
 
             {/* Analytics grid */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-white border border-slate-100 rounded-2xl p-4 flex flex-col gap-2">
+              <div className="bg-white border border-[#E0CFC4] rounded-2xl p-4 flex flex-col gap-2">
                 <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z" />
                 </svg>
                 <div>
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Longest Streak</p>
-                  <p className="text-2xl font-semibold text-slate-900 mt-0.5">{longestStreak}<span className="text-sm font-normal text-slate-400 ml-1">days</span></p>
+                  <p className="text-[10px] font-semibold text-[#8A7265] uppercase tracking-wide">Longest Streak</p>
+                  <p className="text-2xl font-semibold text-[#2D1E1A] font-serif mt-0.5">{longestStreak}<span className="text-sm font-normal text-[#8A7265] ml-1">days</span></p>
                 </div>
               </div>
 
-              <div className="bg-white border border-slate-100 rounded-2xl p-4 flex flex-col gap-2">
-                <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <div className="bg-white border border-[#E0CFC4] rounded-2xl p-4 flex flex-col gap-2">
+                <svg className="w-5 h-5 text-[#46645c]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
                 </svg>
                 <div>
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Completion Rate</p>
-                  <p className="text-2xl font-semibold text-slate-900 mt-0.5">{completionRate}<span className="text-sm font-normal text-slate-400 ml-0.5">%</span></p>
-                  <p className="text-[10px] text-slate-300 mt-0.5">last 30 days</p>
+                  <p className="text-[10px] font-semibold text-[#8A7265] uppercase tracking-wide">Completion Rate</p>
+                  <p className="text-2xl font-semibold text-[#2D1E1A] font-serif mt-0.5">{completionRate}<span className="text-sm font-normal text-[#8A7265] ml-0.5">%</span></p>
+                  <p className="text-[10px] text-[#BBA79C] mt-0.5">last 30 days</p>
                 </div>
               </div>
 
-              <div className="bg-white border border-slate-100 rounded-2xl p-4 flex flex-col gap-2 col-span-2">
-                <svg className="w-5 h-5 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" />
-                </svg>
-                <div className="flex items-end justify-between">
-                  <div>
-                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Focus Score</p>
-                    <p className={`text-xl font-semibold mt-0.5 ${focusColor}`}>{focusLabel}</p>
-                  </div>
-                  <div className="flex-1 ml-4">
-                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-[#14B8A6] rounded-full transition-all duration-700"
-                        style={{ width: `${completionRate}%` }} />
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* Consistency Heatmap */}
-            <div className="bg-white border border-slate-100 rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-50">
-                <h3 className="text-xs font-semibold text-slate-800">Habit Consistency</h3>
-                <span className="text-xs text-slate-400">{monthLabel}</span>
+            <div className="bg-white border border-[#E0CFC4] rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#E0CFC4]">
+                <h3 className="text-xs font-semibold text-[#2D1E1A]">Habit Consistency</h3>
+                <span className="text-xs text-[#8A7265]">{monthLabel}</span>
               </div>
 
               {/* Day-of-week header */}
               <div className="grid grid-cols-7 gap-1 mb-1">
                 {['M','T','W','T','F','S','S'].map((l, i) => (
-                  <div key={i} className="text-[9px] text-center text-slate-400 font-medium">{l}</div>
+                  <div key={i} className="text-[9px] text-center text-[#8A7265] font-medium">{l}</div>
                 ))}
               </div>
 
@@ -439,7 +450,12 @@ export default function HabitsPage() {
                   return (
                     <div key={date}
                       title={`${date}: ${isFuture ? 'Future' : pct === 0 ? 'No habits completed' : `${pct}% completed`}`}
-                      className={`aspect-square rounded-sm ${heatmapColor(pct, isFuture, isToday)}`}
+                      className="aspect-square rounded-sm"
+                      style={{
+                        background: heatmapBg(pct, isFuture),
+                        ...(isToday ? { outline: '2px solid #C4601A', outlineOffset: '1px' } : {}),
+                        ...(isFuture ? { border: '1px dashed #E0CFC4', background: 'transparent' } : {}),
+                      }}
                     />
                   );
                 })}
@@ -447,12 +463,12 @@ export default function HabitsPage() {
 
               {/* Legend */}
               <div className="flex justify-end items-center gap-1.5 mt-3">
-                <span className="text-[9px] text-slate-400">Less</span>
-                <div className="w-3 h-3 rounded-sm bg-slate-100" />
-                <div className="w-3 h-3 rounded-sm bg-teal-200/50" />
-                <div className="w-3 h-3 rounded-sm bg-teal-300/70" />
-                <div className="w-3 h-3 rounded-sm bg-[#14B8A6]" />
-                <span className="text-[9px] text-slate-400">More</span>
+                <span className="text-[9px] text-[#8A7265]">Less</span>
+                <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--c-surface-mid)' }} />
+                <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--c-teal-light)' }} />
+                <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--c-teal-bright)' }} />
+                <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--c-teal)' }} />
+                <span className="text-[9px] text-[#8A7265]">More</span>
               </div>
             </div>
 
@@ -463,11 +479,11 @@ export default function HabitsPage() {
       {/* ── Add Habit Modal ─────────────────────────────────────────── */}
       {showModal && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 border border-slate-100">
-            <h2 className="text-lg font-semibold text-slate-800 mb-5">New Habit</h2>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 border border-[#E0CFC4]">
+            <h2 className="text-lg font-semibold text-[#2D1E1A] mb-5">New Habit</h2>
 
             <input autoFocus
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#14B8A6]/30 bg-slate-50 mb-5"
+              className="w-full border border-[#E0CFC4] rounded-xl px-3 py-2.5 text-sm text-[#2D1E1A] focus:outline-none focus:ring-2 focus:ring-[#C4601A]/30 bg-[#FFF5E9] mb-5"
               placeholder="e.g. Read before bed"
               value={newName}
               onChange={e => setNewName(e.target.value)}
@@ -475,7 +491,7 @@ export default function HabitsPage() {
             />
 
             <div className="mb-5">
-              <p className="text-xs font-medium text-slate-500 mb-2">How hard on a bad day?</p>
+              <p className="text-xs font-medium text-[#8A7265] mb-2">How hard on a bad day?</p>
               <div className="flex gap-2">
                 {DIFFICULTY_OPTIONS.map(opt => (
                   <button key={opt.value} type="button"
@@ -490,7 +506,7 @@ export default function HabitsPage() {
             </div>
 
             <div className="mb-5">
-              <p className="text-xs font-medium text-slate-500 mb-2">Active days</p>
+              <p className="text-xs font-medium text-[#8A7265] mb-2">Active days</p>
               <div className="flex gap-1.5">
                 {DAY_LABELS.map((label, i) => {
                   const dayNum = DAY_NUMS[i];
@@ -499,7 +515,7 @@ export default function HabitsPage() {
                     <button key={dayNum} type="button"
                       onClick={() => toggleDay(dayNum)}
                       className={`w-8 h-8 rounded-lg text-xs font-semibold transition-colors ${
-                        isOn ? 'bg-[#0f172a] text-white' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                        isOn ? 'bg-[#C4601A] text-white' : 'bg-[#F0E9E0] text-[#8A7265] hover:bg-[#E0CFC4]'
                       }`}>
                       {label}
                     </button>
@@ -511,12 +527,75 @@ export default function HabitsPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => { setShowModal(false); setNewName(''); setNewDifficulty('medium'); setNewActiveDays(new Set([1,2,3,4,5,6,7])); }}
-                className="flex-1 py-2.5 rounded-xl text-sm text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors">
+                className="flex-1 py-2.5 rounded-xl text-sm text-[#8A7265] bg-[#F0E9E0] hover:bg-[#E0CFC4] transition-colors">
                 Cancel
               </button>
               <button onClick={handleAdd}
-                className="flex-1 py-2.5 rounded-xl text-sm text-white bg-[#0f172a] hover:bg-[#1e293b] transition-colors font-medium">
+                className="flex-1 py-2.5 rounded-xl text-sm text-white bg-[#C4601A] hover:bg-[#C4601A] transition-colors font-medium">
                 Add
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Habit Modal ────────────────────────────────────────── */}
+      {editHabit && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 border border-[#E0CFC4]">
+            <h2 className="text-lg font-semibold text-[#2D1E1A] mb-5">Edit Habit</h2>
+
+            <input autoFocus
+              className="w-full border border-[#E0CFC4] rounded-xl px-3 py-2.5 text-sm text-[#2D1E1A] focus:outline-none focus:ring-2 focus:ring-[#C4601A]/30 bg-[#FFF5E9] mb-5"
+              placeholder="e.g. Read before bed"
+              value={editName}
+              onChange={e => setEditName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleEditSave()}
+            />
+
+            <div className="mb-5">
+              <p className="text-xs font-medium text-[#8A7265] mb-2">How hard on a bad day?</p>
+              <div className="flex gap-2">
+                {DIFFICULTY_OPTIONS.map(opt => (
+                  <button key={opt.value} type="button"
+                    onClick={() => setEditDifficulty(opt.value)}
+                    className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                      editDifficulty === opt.value ? opt.active : opt.idle
+                    }`}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-5">
+              <p className="text-xs font-medium text-[#8A7265] mb-2">Active days</p>
+              <div className="flex gap-1.5">
+                {DAY_LABELS.map((label, i) => {
+                  const dayNum = DAY_NUMS[i];
+                  const isOn = editActiveDays.has(dayNum);
+                  return (
+                    <button key={dayNum} type="button"
+                      onClick={() => toggleEditDay(dayNum)}
+                      className={`w-8 h-8 rounded-lg text-xs font-semibold transition-colors ${
+                        isOn ? 'bg-[#C4601A] text-white' : 'bg-[#F0E9E0] text-[#8A7265] hover:bg-[#E0CFC4]'
+                      }`}>
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setEditHabit(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm text-[#8A7265] bg-[#F0E9E0] hover:bg-[#E0CFC4] transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleEditSave}
+                className="flex-1 py-2.5 rounded-xl text-sm text-white bg-[#C4601A] hover:bg-[#C4601A] transition-colors font-medium">
+                Save
               </button>
             </div>
           </div>
@@ -529,21 +608,21 @@ export default function HabitsPage() {
       {/* ── Delete Confirm Modal ───────────────────────────────────── */}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 text-center border border-slate-100">
-            <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-3">
-              <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 text-center border border-[#E0CFC4]">
+            <div className="w-10 h-10 rounded-full bg-[#ffdad6] flex items-center justify-center mx-auto mb-3">
+              <svg className="w-5 h-5 text-[#ba1a1a]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
               </svg>
             </div>
-            <h2 className="text-base font-semibold text-slate-800 mb-1">Delete this habit?</h2>
-            <p className="text-sm text-slate-400 mb-5">All logs will be lost.</p>
+            <h2 className="text-base font-semibold text-[#2D1E1A] mb-1">Delete this habit?</h2>
+            <p className="text-sm text-[#8A7265] mb-5">All logs will be lost.</p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteConfirm(null)}
-                className="flex-1 py-2.5 rounded-xl text-sm text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors">
+                className="flex-1 py-2.5 rounded-xl text-sm text-[#8A7265] bg-[#F0E9E0] hover:bg-[#E0CFC4] transition-colors">
                 Cancel
               </button>
               <button onClick={() => handleDelete(deleteConfirm)}
-                className="flex-1 py-2.5 rounded-xl text-sm text-white bg-red-400 hover:bg-red-500 transition-colors font-medium">
+                className="flex-1 py-2.5 rounded-xl text-sm text-white bg-red-400 hover:bg-[#ba1a1a] transition-colors font-medium">
                 Delete
               </button>
             </div>

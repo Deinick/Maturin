@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import backgroundVideo from '../background/background.mp4';
 import type { Task, Habit, Project } from '../types';
 import {
     getTasks, getHabits, getProductivity, getWeeklySummary,
     getAllPendingChangeCounts, getProjects,
-    updateTask, rolloverTask, logHabit, updateHabitLog,
+    updateTask, logHabit, updateHabitLog,
 } from '../api/client';
 
 const TODAY      = new Date().toISOString().split('T')[0];
@@ -32,10 +34,7 @@ function projectCompletion(project: Project): number {
     return Math.round(all.filter(m => m.completed).length / all.length * 100);
 }
 
-const MEMBER_COLORS = [
-    'bg-blue-500', 'bg-violet-500', 'bg-emerald-500',
-    'bg-rose-500', 'bg-amber-500', 'bg-cyan-500', 'bg-indigo-500',
-];
+const MEMBER_COLORS = ['#008671','#00864D','#488427','#777E00','#A07200','#C4601A','#C24650','#A14574','#6F4D81','#414F74','#2F4858'];
 function memberColor(name: string): string {
     let h = 0;
     for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) & 0xffff;
@@ -48,7 +47,7 @@ function Ring({ value, size = 80, stroke = 7, color }: { value: number; size?: n
     const pct  = Math.max(0, Math.min(100, value));
     return (
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
-            <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e2e8f0" strokeWidth={stroke} />
+            <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--c-surface-mid)" strokeWidth={stroke} />
             <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
                 strokeDasharray={`${(pct / 100) * circ} ${circ}`} strokeLinecap="round"
                 className="transition-all duration-700" />
@@ -59,31 +58,19 @@ function Ring({ value, size = 80, stroke = 7, color }: { value: number; size?: n
 export default function DashboardPage() {
     const navigate = useNavigate();
     const { user }  = useAuth();
+    const queryClient = useQueryClient();
 
-    const [tasks,          setTasks]          = useState<Task[]>([]);
-    const [habits,         setHabits]         = useState<Habit[]>([]);
-    const [stats,          setStats]          = useState<Stats | null>(null);
-    const [weekly,         setWeekly]         = useState<WeeklySummary | null>(null);
-    const [projects,       setProjects]       = useState<Project[]>([]);
-    const [pendingReviews, setPendingReviews] = useState<{ projectId: string; projectTitle: string; count: number }[]>([]);
+    const tasksKey = ['tasks', TODAY];
+    const habitsKey = ['habits'];
+
+    const { data: tasks = [] }    = useQuery({ queryKey: tasksKey, queryFn: () => getTasks(TODAY) });
+    const { data: habits = [] }   = useQuery({ queryKey: habitsKey, queryFn: getHabits });
+    const { data: stats = null }  = useQuery<Stats>({ queryKey: ['productivity'], queryFn: getProductivity as () => Promise<Stats> });
+    const { data: weekly = null } = useQuery<WeeklySummary>({ queryKey: ['weeklySummary'], queryFn: getWeeklySummary });
+    const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: getProjects });
+    const { data: pendingReviews = [] } = useQuery({ queryKey: ['pendingChangeCounts'], queryFn: getAllPendingChangeCounts });
+
     const [loggingHabits,  setLoggingHabits]  = useState<Set<string>>(new Set());
-
-    useEffect(() => {
-        Promise.all([
-            getTasks(TODAY),
-            getHabits(),
-            getProductivity(),
-            getWeeklySummary(),
-            getProjects(),
-        ]).then(([t, h, s, w, p]) => {
-            setTasks(t);
-            setHabits(h);
-            setStats(s as Stats);
-            setWeekly(w);
-            setProjects(p as Project[]);
-        });
-        getAllPendingChangeCounts().then(setPendingReviews).catch(() => {});
-    }, []);
 
     const activeTasks     = tasks.filter(t => !t.completed);
     const completedTasks  = tasks.filter(t => t.completed);
@@ -112,12 +99,7 @@ export default function DashboardPage() {
 
     async function handleComplete(task: Task) {
         await updateTask(task.id, { completed: true });
-        setTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed: true } : t));
-    }
-
-    async function handleDefer(task: Task) {
-        await rolloverTask(task.id);
-        setTasks(prev => prev.filter(t => t.id !== task.id));
+        queryClient.setQueryData<Task[]>(tasksKey, prev => prev?.map(t => t.id === task.id ? { ...t, completed: true } : t));
     }
 
     async function handleLogHabit(habit: Habit) {
@@ -128,12 +110,12 @@ export default function DashboardPage() {
             if (existingLog) {
                 const newStatus = existingLog.status === 'completed' ? 'skipped' : 'completed';
                 await updateHabitLog(existingLog.id, newStatus);
-                setHabits(prev => prev.map(h => h.id === habit.id
+                queryClient.setQueryData<Habit[]>(habitsKey, prev => prev?.map(h => h.id === habit.id
                     ? { ...h, logs: h.logs.map(l => l.id === existingLog.id ? { ...l, status: newStatus } : l) }
                     : h));
             } else {
                 const newLog = await logHabit(habit.id, TODAY, 'completed');
-                setHabits(prev => prev.map(h => h.id === habit.id
+                queryClient.setQueryData<Habit[]>(habitsKey, prev => prev?.map(h => h.id === habit.id
                     ? { ...h, logs: [...h.logs, newLog] }
                     : h));
             }
@@ -148,11 +130,11 @@ export default function DashboardPage() {
             {/* ── Hero ─────────────────────────────────────────── */}
             <div className="flex items-end justify-between mb-2">
                 <div>
-                    <p className="text-sm text-slate-400 mb-1">{DATE_LABEL}</p>
-                    <h1 className="text-2xl font-semibold text-slate-900">
+                    <p className="text-sm text-[#8A7265] mb-1">{DATE_LABEL}</p>
+                    <h1 className="text-2xl font-semibold text-[#2D1E1A] font-serif">
                         {GREETING}{firstName ? `, ${firstName}` : ''}.
                     </h1>
-                    <p className="text-sm text-slate-500 mt-1">
+                    <p className="text-sm text-[#8A7265] mt-1">
                         {habits.length > 0
                             ? `${habits.length - loggedToday} habit${habits.length - loggedToday !== 1 ? 's' : ''} remaining today.`
                             : stats
@@ -163,12 +145,12 @@ export default function DashboardPage() {
                 {stats && (
                     <div className="hidden md:flex items-center gap-6 shrink-0">
                         <div className="text-right">
-                            <p className="text-xs text-slate-400 uppercase tracking-wide">Tasks (30d)</p>
-                            <p className="text-lg font-semibold text-slate-800">{Math.round(stats.taskScore * 100)}%</p>
+                            <p className="text-xs text-[#8A7265] uppercase tracking-wide">Tasks (30d)</p>
+                            <p className="text-lg font-semibold text-[#2D1E1A]">{Math.round(stats.taskScore * 100)}%</p>
                         </div>
                         <div className="text-right">
-                            <p className="text-xs text-slate-400 uppercase tracking-wide">Habits (30d)</p>
-                            <p className="text-lg font-semibold text-slate-800">{Math.round(stats.habitScore * 100)}%</p>
+                            <p className="text-xs text-[#8A7265] uppercase tracking-wide">Habits (30d)</p>
+                            <p className="text-lg font-semibold text-[#2D1E1A]">{Math.round(stats.habitScore * 100)}%</p>
                         </div>
                     </div>
                 )}
@@ -200,17 +182,17 @@ export default function DashboardPage() {
             <div className="grid grid-cols-12 gap-5">
 
                 {/* Habits */}
-                <div className="col-span-12 md:col-span-4 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="col-span-12 md:col-span-4 bg-white rounded-2xl border border-[#E0CFC4] shadow-sm overflow-hidden">
                     <button
                         onClick={() => navigate('/habits')}
-                        className="w-full flex items-center justify-between px-5 py-4 border-b border-slate-100 hover:bg-slate-50 transition-colors group text-left"
+                        className="w-full flex items-center justify-between px-5 py-4 border-b border-[#E0CFC4] hover:bg-[#FFF5E9] transition-colors group text-left"
                     >
-                        <h3 className="text-sm font-semibold text-slate-900">Habits</h3>
+                        <h3 className="text-sm font-semibold text-[#2D1E1A]">Habits</h3>
                         <div className="flex items-center gap-2">
-                            <span className="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">
+                            <span className="text-xs text-[#8A7265] bg-[#F0E9E0] px-2.5 py-1 rounded-full">
                                 {loggedToday}/{habits.length} today
                             </span>
-                            <svg className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <svg className="w-3.5 h-3.5 text-[#BBA79C] group-hover:text-[#8A7265] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                             </svg>
                         </div>
@@ -219,9 +201,9 @@ export default function DashboardPage() {
                     <div className="p-5">
                         {habits.length === 0 ? (
                             <div className="py-6 text-center">
-                                <p className="text-slate-400 text-sm">No habits set up yet</p>
+                                <p className="text-[#8A7265] text-sm">No habits set up yet</p>
                                 <button onClick={() => navigate('/habits')}
-                                    className="mt-2 text-xs text-emerald-600 hover:underline">
+                                    className="mt-2 text-xs text-[#4C8077] hover:underline">
                                     Add your first habit →
                                 </button>
                             </div>
@@ -238,13 +220,15 @@ export default function DashboardPage() {
                                             disabled={loading}
                                             className={`w-full flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all text-left ${
                                                 done
-                                                    ? 'bg-slate-50 border border-slate-100'
-                                                    : 'bg-white border border-slate-100 hover:border-emerald-200 hover:shadow-sm'
+                                                    ? 'bg-[#FFF5E9] border border-[#E0CFC4]'
+                                                    : 'bg-white border border-[#E0CFC4] hover:border-[#c8eadf] hover:shadow-sm'
                                             } ${loading ? 'opacity-60' : ''}`}
                                         >
-                                            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-                                                done ? 'bg-emerald-100 text-emerald-600' : 'border-2 border-slate-200 text-slate-400'
-                                            }`}>
+                                            <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors"
+                                                style={done
+                                                    ? { background: '#C4FCF0', color: '#4C8077' }
+                                                    : { border: '2px solid var(--c-border)', color: 'var(--c-text-muted)' }
+                                                }>
                                                 {done ? (
                                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
@@ -255,32 +239,32 @@ export default function DashboardPage() {
                                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                                                     </svg>
                                                 ) : (
-                                                    <div className="w-2 h-2 rounded-full bg-slate-300" />
+                                                    <div className="w-2 h-2 rounded-full bg-[#c1c8c4]" />
                                                 )}
                                             </div>
-                                            <p className={`text-sm flex-1 min-w-0 truncate ${done ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                                            <p className={`text-sm flex-1 min-w-0 truncate ${done ? 'text-[#8A7265] line-through' : 'text-[#54433A]'}`}>
                                                 {h.name}
                                             </p>
                                         </button>
                                     );
                                 })}
                                 {habits.length > 6 && (
-                                    <p className="text-xs text-slate-400 text-center pt-1">+{habits.length - 6} more</p>
+                                    <p className="text-xs text-[#8A7265] text-center pt-1">+{habits.length - 6} more</p>
                                 )}
                             </div>
                         )}
 
                         {habits.length > 0 && (
-                            <div className="mt-4 pt-4 border-t border-slate-100">
+                            <div className="mt-4 pt-4 border-t border-[#E0CFC4]">
                                 <div className="flex items-center justify-between mb-1.5">
-                                    <span className="text-xs text-slate-400">Today's progress</span>
-                                    <span className="text-xs font-medium text-slate-600">
+                                    <span className="text-xs text-[#8A7265]">Today's progress</span>
+                                    <span className="text-xs font-medium text-[#54433A]">
                                         {Math.round(loggedToday / Math.max(1, habits.length) * 100)}%
                                     </span>
                                 </div>
-                                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                    <div className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                                        style={{ width: `${Math.round(loggedToday / Math.max(1, habits.length) * 100)}%` }} />
+                                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--c-surface-mid)' }}>
+                                    <div className="h-full rounded-full transition-all duration-500"
+                                        style={{ width: `${Math.round(loggedToday / Math.max(1, habits.length) * 100)}%`, background: 'var(--c-teal)' }} />
                                 </div>
                             </div>
                         )}
@@ -288,17 +272,17 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Projects */}
-                <div className="col-span-12 md:col-span-8 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="col-span-12 md:col-span-8 bg-white rounded-2xl border border-[#E0CFC4] shadow-sm overflow-hidden">
                     <button
                         onClick={() => navigate('/projects')}
-                        className="w-full flex items-center justify-between px-5 py-4 border-b border-slate-100 hover:bg-slate-50 transition-colors group text-left"
+                        className="w-full flex items-center justify-between px-5 py-4 border-b border-[#E0CFC4] hover:bg-[#FFF5E9] transition-colors group text-left"
                     >
-                        <h3 className="text-sm font-semibold text-slate-900">Projects</h3>
+                        <h3 className="text-sm font-semibold text-[#2D1E1A]">Projects</h3>
                         <div className="flex items-center gap-2">
-                            <span className="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">
+                            <span className="text-xs text-[#8A7265] bg-[#F0E9E0] px-2.5 py-1 rounded-full">
                                 {activeProjects.length} active
                             </span>
-                            <svg className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <svg className="w-3.5 h-3.5 text-[#BBA79C] group-hover:text-[#8A7265] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                             </svg>
                         </div>
@@ -307,9 +291,9 @@ export default function DashboardPage() {
                     <div className="p-5">
                         {activeProjects.length === 0 ? (
                             <div className="py-8 text-center">
-                                <p className="text-slate-400 text-sm">No active projects</p>
+                                <p className="text-[#8A7265] text-sm">No active projects</p>
                                 <button onClick={() => navigate('/projects')}
-                                    className="mt-2 text-xs text-emerald-600 hover:underline">
+                                    className="mt-2 text-xs text-[#4C8077] hover:underline">
                                     Start your first project →
                                 </button>
                             </div>
@@ -326,18 +310,18 @@ export default function DashboardPage() {
                                             className="w-full text-left group/proj">
                                             <div className="flex items-end justify-between mb-1.5">
                                                 <div className="min-w-0 pr-4">
-                                                    <h4 className="text-sm font-semibold text-slate-800 group-hover/proj:text-slate-900 transition-colors truncate">
+                                                    <h4 className="text-sm font-semibold text-[#2D1E1A] group-hover/proj:text-[#2D1E1A] transition-colors truncate">
                                                         {p.title}
                                                     </h4>
                                                     {p.description && (
-                                                        <p className="text-xs text-slate-400 mt-0.5 truncate">{p.description}</p>
+                                                        <p className="text-xs text-[#8A7265] mt-0.5 truncate">{p.description}</p>
                                                     )}
                                                 </div>
-                                                <span className="text-xl font-bold text-slate-900 shrink-0">{pct}%</span>
+                                                <span className="text-xl font-bold text-[#2D1E1A] shrink-0">{pct}%</span>
                                             </div>
-                                            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mb-2">
-                                                <div className="h-full bg-slate-900 rounded-full transition-all duration-500 group-hover/proj:bg-emerald-600"
-                                                    style={{ width: `${pct}%` }} />
+                                            <div className="w-full h-1.5 rounded-full overflow-hidden mb-2" style={{ background: 'var(--c-surface-mid)' }}>
+                                                <div className="h-full rounded-full transition-all duration-500"
+                                                    style={{ width: `${pct}%`, background: 'var(--c-primary)' }} />
                                             </div>
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-3">
@@ -345,26 +329,27 @@ export default function DashboardPage() {
                                                         <div className="flex -space-x-1.5">
                                                             {p.members.slice(0, 3).map(m => (
                                                                 <div key={m.id} title={m.user.name}
-                                                                    className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[8px] font-bold border-2 border-white shrink-0 ${memberColor(m.user.name)}`}>
+                                                                    className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[8px] font-bold border-2 border-white shrink-0"
+                                                                    style={{ background: memberColor(m.user.name) }}>
                                                                     {m.user.name[0]?.toUpperCase()}
                                                                 </div>
                                                             ))}
                                                             {p.members.length > 3 && (
-                                                                <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-[8px] font-bold text-slate-600 border-2 border-white">
+                                                                <div className="w-5 h-5 rounded-full bg-[#E0CFC4] flex items-center justify-center text-[8px] font-bold text-[#54433A] border-2 border-white">
                                                                     +{p.members.length - 3}
                                                                 </div>
                                                             )}
                                                         </div>
                                                     )}
-                                                    <span className="text-xs text-slate-400">
+                                                    <span className="text-xs text-[#8A7265]">
                                                         {milestones.filter(m => m.completed).length}/{milestones.length} objectives
                                                     </span>
                                                 </div>
                                                 {daysLeft !== null && (
                                                     <span className={`text-xs ${
-                                                        daysLeft < 0 ? 'text-red-500 font-medium' :
+                                                        daysLeft < 0 ? 'text-[#ba1a1a] font-medium' :
                                                         daysLeft <= 7 ? 'text-amber-500 font-medium' :
-                                                        'text-slate-400'
+                                                        'text-[#8A7265]'
                                                     }`}>
                                                         {daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? 'Due today' : `Due ${p.targetEndDate}`}
                                                     </span>
@@ -382,56 +367,81 @@ export default function DashboardPage() {
             {/* ── Row 2: Weekly Progress + Tasks ───────────────── */}
             <div className="grid grid-cols-12 gap-5">
 
-                {/* Weekly Progress */}
-                <div className="col-span-12 md:col-span-5 rounded-2xl p-6 text-white relative overflow-hidden flex flex-col justify-between"
-                    style={{ background: 'linear-gradient(135deg, #14532d 0%, #1a3a2f 100%)' }}>
-                    <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-600 rounded-full blur-3xl opacity-20 translate-x-1/3 -translate-y-1/3 pointer-events-none" />
+                {/* Weekly Progress — liquid glass */}
+                <div className="col-span-12 md:col-span-5 rounded-2xl relative overflow-hidden flex flex-col justify-between"
+                    style={{ minHeight: 220 }}>
 
-                    <div className="relative z-10">
-                        <p className="text-xs font-semibold text-emerald-300/70 uppercase tracking-widest mb-4">Weekly Progress</p>
-                        {weeklyPct !== null ? (
-                            <>
-                                <p className="text-4xl font-light text-white leading-none mb-1">{weeklyPct}%</p>
-                                <p className="text-emerald-200/70 text-xs uppercase tracking-widest">of tasks completed this week</p>
-                                {weekly && weekly.rolledOver > 0 && (
-                                    <p className="text-amber-300/80 text-xs mt-2">{weekly.rolledOver} task{weekly.rolledOver !== 1 ? 's' : ''} rolled over</p>
-                                )}
-                            </>
-                        ) : (
-                            <p className="text-emerald-200 text-sm">Start tracking to see your progress.</p>
-                        )}
-                    </div>
+                    {/* Video background */}
+                    <video
+                        className="absolute inset-0 w-full h-full object-cover"
+                        src={backgroundVideo}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                    />
 
-                    <div className="relative z-10 mt-5 pt-4 border-t border-white/10">
-                        <p className="text-[10px] text-emerald-300/50 uppercase tracking-widest mb-2">Habit completion — last 7 days</p>
-                        <div className="flex items-end gap-1 h-8">
-                            {habitDays.map((pct, i) => (
-                                <div key={i} className="flex-1 bg-white/10 rounded-sm relative overflow-hidden">
-                                    <div className="absolute bottom-0 w-full bg-emerald-300 rounded-sm transition-all duration-500"
-                                        style={{ height: `${pct}%` }} />
-                                </div>
-                            ))}
+                    {/* Dark overlay to improve text legibility */}
+                    <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.45)' }} />
+
+                    {/* Glass panel */}
+                    <div className="relative z-10 h-full flex flex-col justify-between p-6"
+                        style={{
+                            background: 'rgba(255,255,255,0.10)',
+                            backdropFilter: 'blur(18px) saturate(180%)',
+                            WebkitBackdropFilter: 'blur(18px) saturate(180%)',
+                            borderRadius: 'inherit',
+                            border: '1px solid rgba(255,255,255,0.25)',
+                            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.35), inset 0 -1px 0 rgba(0,0,0,0.05)',
+                        }}>
+
+                        <div>
+                            <p className="text-[10px] font-semibold text-white/90 uppercase tracking-widest mb-4" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>Weekly Progress</p>
+                            {weeklyPct !== null ? (
+                                <>
+                                    <p className="text-5xl font-thin text-white leading-none mb-1.5" style={{ textShadow: '0 2px 16px rgba(0,0,0,0.6)' }}>{weeklyPct}%</p>
+                                    <p className="text-white/90 text-xs uppercase tracking-widest" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>of tasks completed this week</p>
+                                    {weekly && weekly.rolledOver > 0 && (
+                                        <p className="text-amber-200 text-xs mt-2" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>{weekly.rolledOver} task{weekly.rolledOver !== 1 ? 's' : ''} rolled over</p>
+                                    )}
+                                </>
+                            ) : (
+                                <p className="text-white text-sm" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>Start tracking to see your progress.</p>
+                            )}
                         </div>
-                        {weekly?.bestDay && (
-                            <p className="text-emerald-300/50 text-[10px] mt-2">
-                                Best this week: {new Date(weekly.bestDay.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' })} · {weekly.bestDay.completed}/{weekly.bestDay.total}
-                            </p>
-                        )}
+
+                        <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.25)' }}>
+                            <p className="text-[10px] text-white/80 uppercase tracking-widest mb-2" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>Habit completion — last 7 days</p>
+                            <div className="flex items-end gap-1 h-8">
+                                {habitDays.map((pct, i) => (
+                                    <div key={i} className="flex-1 rounded-sm relative overflow-hidden" style={{ background: 'rgba(255,255,255,0.2)' }}>
+                                        <div className="absolute bottom-0 w-full rounded-sm transition-all duration-500"
+                                            style={{ height: `${pct}%`, background: 'rgba(255,255,255,0.75)' }} />
+                                    </div>
+                                ))}
+                            </div>
+                            {weekly?.bestDay && (
+                                <p className="text-white/70 text-[10px] mt-2" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>
+                                    Best this week: {new Date(weekly.bestDay.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' })} · {weekly.bestDay.completed}/{weekly.bestDay.total}
+                                </p>
+                            )}
+                        </div>
                     </div>
+
                 </div>
 
                 {/* Tasks */}
-                <div className="col-span-12 md:col-span-7 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="col-span-12 md:col-span-7 bg-white rounded-2xl border border-[#E0CFC4] shadow-sm overflow-hidden">
                     <button
                         onClick={() => navigate('/tasks')}
-                        className="w-full flex items-center justify-between px-5 py-4 border-b border-slate-100 hover:bg-slate-50 transition-colors group text-left"
+                        className="w-full flex items-center justify-between px-5 py-4 border-b border-[#E0CFC4] hover:bg-[#FFF5E9] transition-colors group text-left"
                     >
-                        <h3 className="text-sm font-semibold text-slate-900">Tasks</h3>
+                        <h3 className="text-sm font-semibold text-[#2D1E1A]">Tasks</h3>
                         <div className="flex items-center gap-2">
-                            <span className="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">
+                            <span className="text-xs text-[#8A7265] bg-[#F0E9E0] px-2.5 py-1 rounded-full">
                                 {activeTasks.length} remaining
                             </span>
-                            <svg className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <svg className="w-3.5 h-3.5 text-[#BBA79C] group-hover:text-[#8A7265] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                             </svg>
                         </div>
@@ -440,20 +450,20 @@ export default function DashboardPage() {
                     <div className="p-5">
                         <div className="flex items-center gap-5 mb-5">
                             <div className="relative shrink-0" style={{ width: 72, height: 72 }}>
-                                <Ring value={taskPct} size={72} stroke={6} color="#0ea5e9" />
+                                <Ring value={taskPct} size={72} stroke={6} color="#C4601A" />
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                    <span className="text-sm font-bold text-slate-800">{taskPct}%</span>
+                                    <span className="text-sm font-bold text-[#2D1E1A]">{taskPct}%</span>
                                 </div>
                             </div>
                             <div>
-                                <p className="text-sm font-medium text-slate-700">
+                                <p className="text-sm font-medium text-[#54433A]">
                                     {completedTasks.length} of {tasks.length} completed today
                                 </p>
-                                <p className="text-xs text-slate-400 mt-0.5">
+                                <p className="text-xs text-[#8A7265] mt-0.5">
                                     {activeTasks.length} remaining
                                 </p>
                                 {taskPct === 100 && tasks.length > 0 && (
-                                    <p className="text-xs text-emerald-600 font-medium mt-1">All tasks done today!</p>
+                                    <p className="text-xs text-[#4C8077] font-medium mt-1">All tasks done today!</p>
                                 )}
                             </div>
                         </div>
@@ -461,26 +471,21 @@ export default function DashboardPage() {
                         {activeTasks.length > 0 ? (
                             <div className="space-y-2">
                                 {activeTasks.slice(0, 4).map(task => (
-                                    <div key={task.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-white">
+                                    <div key={task.id} className="flex items-center gap-3 p-3 rounded-xl border border-[#E0CFC4] bg-white">
                                         <div className="flex items-center gap-2 flex-1 min-w-0">
                                             {task.priority >= 3 && (
                                                 <span className="text-amber-400 text-xs shrink-0">★</span>
                                             )}
-                                            <p className="text-sm text-slate-700 truncate">{task.text}</p>
+                                            <p className="text-sm text-[#54433A] truncate">{task.text}</p>
                                         </div>
                                         <div className="flex items-center gap-1.5 shrink-0">
                                             {task.timeEstimate && (
-                                                <span className="text-xs text-slate-400 capitalize">{task.timeEstimate}</span>
+                                                <span className="text-xs text-[#8A7265] capitalize">{task.timeEstimate}</span>
                                             )}
                                             <div className="flex gap-1">
                                                 <button
-                                                    onClick={() => handleDefer(task)}
-                                                    className="px-2 py-1 rounded-lg border border-slate-200 text-[10px] text-slate-500 hover:bg-slate-50 transition-colors"
-                                                    title="Defer to tomorrow"
-                                                >↩</button>
-                                                <button
                                                     onClick={() => handleComplete(task)}
-                                                    className="px-2 py-1 rounded-lg bg-slate-900 text-[10px] text-white hover:bg-slate-700 transition-colors"
+                                                    className="px-2 py-1 rounded-lg bg-[#C4601A] text-[10px] text-white hover:bg-[#A84E14] transition-colors"
                                                 >Done</button>
                                             </div>
                                         </div>
@@ -488,34 +493,34 @@ export default function DashboardPage() {
                                 ))}
                                 {activeTasks.length > 4 && (
                                     <button onClick={() => navigate('/tasks')}
-                                        className="w-full py-2 text-xs text-slate-400 hover:text-slate-600 transition-colors">
+                                        className="w-full py-2 text-xs text-[#8A7265] hover:text-[#54433A] transition-colors">
                                         +{activeTasks.length - 4} more · View all →
                                     </button>
                                 )}
                             </div>
                         ) : tasks.length > 0 ? (
                             <div className="py-4 text-center">
-                                <p className="text-slate-600 text-sm font-medium">All tasks done today!</p>
-                                <p className="text-xs text-slate-400 mt-0.5">{completedTasks.length} completed</p>
+                                <p className="text-[#54433A] text-sm font-medium">All tasks done today!</p>
+                                <p className="text-xs text-[#8A7265] mt-0.5">{completedTasks.length} completed</p>
                             </div>
                         ) : (
                             <div className="py-4 text-center">
-                                <p className="text-slate-400 text-sm">No tasks for today</p>
+                                <p className="text-[#8A7265] text-sm">No tasks for today</p>
                                 <button onClick={() => navigate('/tasks')}
-                                    className="mt-2 text-xs text-slate-400 hover:text-slate-600 transition-colors">
+                                    className="mt-2 text-xs text-[#8A7265] hover:text-[#54433A] transition-colors">
                                     Add tasks →
                                 </button>
                             </div>
                         )}
 
                         {weekly && weekly.categoryStats.filter(c => c.total > 0).length > 0 && (
-                            <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap gap-1.5">
+                            <div className="mt-4 pt-4 border-t border-[#E0CFC4] flex flex-wrap gap-1.5">
                                 {weekly.categoryStats.filter(c => c.total > 0).slice(0, 3).map(c => (
                                     <span key={c.category}
                                         className={`text-[10px] px-2 py-0.5 rounded-full font-medium capitalize ${
-                                            c.rate >= 0.7 ? 'bg-emerald-100 text-emerald-700'
+                                            c.rate >= 0.7 ? 'bg-[#c8eadf] text-[#16342d]'
                                             : c.rate >= 0.4 ? 'bg-amber-100 text-amber-700'
-                                            : 'bg-red-100 text-red-700'
+                                            : 'bg-red-100 text-[#93000a]'
                                         }`}>
                                         {c.category} {Math.round(c.rate * 100)}%
                                     </span>

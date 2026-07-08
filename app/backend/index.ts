@@ -20,6 +20,10 @@ import * as inviteController from './controllers/inviteController';
 const app  = express();
 const PORT = process.env.PORT || 3001;
 
+// Render sits behind a reverse proxy; trust its X-Forwarded-For header so
+// express-rate-limit and req.ip see the real client IP instead of the proxy's.
+app.set('trust proxy', 1);
+
 const ALLOWED_ORIGIN = process.env.FRONTEND_URL ?? 'http://localhost:5173';
 
 app.use(helmet());

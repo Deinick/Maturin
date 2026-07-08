@@ -231,19 +231,19 @@ export default function EditProjectModal({
       <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-xl flex flex-col max-h-[90vh]">
 
         {/* ── Header ─────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-stone-100 shrink-0">
-          <h2 className="text-lg font-semibold text-stone-800">Edit Project</h2>
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-[#E0CFC4] shrink-0">
+          <h2 className="text-lg font-semibold text-[#2D1E1A]">Edit Project</h2>
           <div className="flex items-center gap-2">
             {isOwner && (
               <button
                 onClick={() => setDeleteStep('confirm')}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-stone-300 hover:text-red-400 hover:bg-red-50 transition-colors text-base"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-[#BBA79C] hover:text-[#ba1a1a] hover:bg-[#ffdad6] transition-colors text-base"
                 title="Delete project"
               >🗑</button>
             )}
             <button
               onClick={onClose}
-              className="text-stone-300 hover:text-stone-500 text-xl leading-none w-8 h-8 flex items-center justify-center"
+              className="text-[#BBA79C] hover:text-[#8A7265] text-xl leading-none w-8 h-8 flex items-center justify-center"
             >×</button>
           </div>
         </div>
@@ -253,12 +253,12 @@ export default function EditProjectModal({
           <div className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center px-8 gap-5 z-10">
             <div className="text-4xl">⚠️</div>
             <div className="text-center">
-              <p className="text-base font-semibold text-stone-800">Delete this project?</p>
-              <p className="text-sm text-stone-500 mt-1">Permanent and cannot be undone. All phases and objectives will be lost.</p>
+              <p className="text-base font-semibold text-[#2D1E1A]">Delete this project?</p>
+              <p className="text-sm text-[#8A7265] mt-1">Permanent and cannot be undone. All phases and objectives will be lost.</p>
             </div>
             <div className="flex gap-3 w-full max-w-xs">
-              <button onClick={() => setDeleteStep('idle')} className="flex-1 py-2.5 rounded-lg text-sm text-stone-600 bg-stone-100 hover:bg-stone-200 transition-colors">No, keep it</button>
-              <button onClick={() => { setDeleteTyped(''); setDeleteStep('type'); }} className="flex-1 py-2.5 rounded-lg text-sm text-white bg-red-500 hover:bg-red-600 transition-colors font-medium">Yes, delete</button>
+              <button onClick={() => setDeleteStep('idle')} className="flex-1 py-2.5 rounded-lg text-sm text-[#54433A] bg-[#F0E9E0] hover:bg-[#E0CFC4] transition-colors">No, keep it</button>
+              <button onClick={() => { setDeleteTyped(''); setDeleteStep('type'); }} className="flex-1 py-2.5 rounded-lg text-sm text-white bg-[#ba1a1a] hover:bg-[#93000a] transition-colors font-medium">Yes, delete</button>
             </div>
           </div>
         )}
@@ -268,25 +268,25 @@ export default function EditProjectModal({
           <div className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center px-8 gap-5 z-10">
             <div className="text-4xl">🗑</div>
             <div className="text-center">
-              <p className="text-base font-semibold text-stone-800">Confirm deletion</p>
-              <p className="text-sm text-stone-500 mt-1">
-                Type <span className="font-mono text-red-500 bg-red-50 px-1.5 py-0.5 rounded">{deleteTarget}</span> to confirm
+              <p className="text-base font-semibold text-[#2D1E1A]">Confirm deletion</p>
+              <p className="text-sm text-[#8A7265] mt-1">
+                Type <span className="font-mono text-[#ba1a1a] bg-[#ffdad6] px-1.5 py-0.5 rounded">{deleteTarget}</span> to confirm
               </p>
             </div>
             <input
               autoFocus
-              className="w-full max-w-xs border border-stone-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+              className="w-full max-w-xs border border-[#E0CFC4] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdad6]"
               placeholder={deleteTarget}
               value={deleteTyped}
               onChange={e => setDeleteTyped(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleDelete()}
             />
             <div className="flex gap-3 w-full max-w-xs">
-              <button onClick={() => setDeleteStep('idle')} className="flex-1 py-2.5 rounded-lg text-sm text-stone-600 bg-stone-100 hover:bg-stone-200 transition-colors">Cancel</button>
+              <button onClick={() => setDeleteStep('idle')} className="flex-1 py-2.5 rounded-lg text-sm text-[#54433A] bg-[#F0E9E0] hover:bg-[#E0CFC4] transition-colors">Cancel</button>
               <button
                 onClick={handleDelete}
                 disabled={deleteTyped.trim().toLowerCase() !== deleteTarget.toLowerCase() || deleting}
-                className="flex-1 py-2.5 rounded-lg text-sm text-white bg-red-500 hover:bg-red-600 disabled:opacity-40 transition-colors font-medium"
+                className="flex-1 py-2.5 rounded-lg text-sm text-white bg-[#ba1a1a] hover:bg-[#93000a] disabled:opacity-40 transition-colors font-medium"
               >{deleting ? 'Deleting…' : 'Delete forever'}</button>
             </div>
           </div>
@@ -297,31 +297,31 @@ export default function EditProjectModal({
 
           {/* ── Project Details ───────────────────────────────── */}
           <section className="space-y-3">
-            <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">Project Details</p>
+            <p className="text-[10px] font-semibold text-[#8A7265] uppercase tracking-widest">Project Details</p>
             <div>
-              <label className="text-xs font-medium text-stone-500">Name *</label>
+              <label className="text-xs font-medium text-[#8A7265]">Name *</label>
               <input
                 autoFocus
-                className="w-full mt-1.5 border border-stone-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                className="w-full mt-1.5 border border-[#E0CFC4] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#adcec3]"
                 value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-stone-500">Description</label>
+              <label className="text-xs font-medium text-[#8A7265]">Description</label>
               <textarea
                 rows={2}
-                className="w-full mt-1.5 border border-stone-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
+                className="w-full mt-1.5 border border-[#E0CFC4] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#adcec3] resize-none"
                 placeholder="What will this project accomplish?"
                 value={form.description}
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-stone-500">Target date</label>
+              <label className="text-xs font-medium text-[#8A7265]">Target date</label>
               <input
                 type="date"
-                className="w-full mt-1.5 border border-stone-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                className="w-full mt-1.5 border border-[#E0CFC4] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#adcec3]"
                 value={form.targetEndDate}
                 onChange={e => setForm(f => ({ ...f, targetEndDate: e.target.value }))}
               />
@@ -329,12 +329,12 @@ export default function EditProjectModal({
           </section>
 
           {/* ── Divider ─────────────────────────────────────────── */}
-          <div className="border-t border-stone-100 pt-1">
+          <div className="border-t border-[#E0CFC4] pt-1">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">Phases & Objectives</p>
-              <span className="text-[10px] text-stone-400">Drag ⠿ to reorder</span>
+              <p className="text-[10px] font-semibold text-[#8A7265] uppercase tracking-widest">Phases & Objectives</p>
+              <span className="text-[10px] text-[#8A7265]">Drag ⠿ to reorder</span>
             </div>
-            <p className="text-xs text-stone-400">Each phase holds a set of objectives. Click phases that must complete <em>before</em> this one starts.</p>
+            <p className="text-xs text-[#8A7265]">Each phase holds a set of objectives. Click phases that must complete <em>before</em> this one starts.</p>
           </div>
 
           {/* ── Phase cards ─────────────────────────────────────── */}
@@ -358,24 +358,24 @@ export default function EditProjectModal({
                     setDragPhaseIdx(null); setDragOverPhaseIdx(null);
                   }}
                   className={`rounded-xl border transition-all ${
-                    isDragOver  ? 'bg-blue-50 border-blue-300 border-dashed'
-                    : isDragging ? 'opacity-40 bg-stone-100 border-stone-200'
-                    : 'bg-stone-50 border-stone-100'
+                    isDragOver  ? 'bg-[#E8FAF7] border-[#adcec3] border-dashed'
+                    : isDragging ? 'opacity-40 bg-[#F0E9E0] border-[#E0CFC4]'
+                    : 'bg-[#FFF5E9] border-[#E0CFC4]'
                   }`}
                 >
                   {/* Phase header row */}
-                  <div className="flex items-center gap-2.5 px-4 py-3 border-b border-stone-100">
+                  <div className="flex items-center gap-2.5 px-4 py-3 border-b border-[#E0CFC4]">
                     <span
                       draggable
                       onDragStart={e => { e.stopPropagation(); e.dataTransfer.effectAllowed = 'move'; setDragPhaseIdx(i); }}
                       onDragEnd={() => { setDragPhaseIdx(null); setDragOverPhaseIdx(null); }}
-                      className="text-stone-300 hover:text-stone-500 cursor-grab active:cursor-grabbing text-base select-none leading-none shrink-0"
+                      className="text-[#BBA79C] hover:text-[#8A7265] cursor-grab active:cursor-grabbing text-base select-none leading-none shrink-0"
                     >⠿</span>
-                    <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide shrink-0 w-14">
+                    <span className="text-[10px] font-semibold text-[#8A7265] uppercase tracking-wide shrink-0 w-14">
                       Phase {visOrder}
                     </span>
                     <input
-                      className="flex-1 bg-transparent border-none outline-none text-sm font-medium text-stone-800 placeholder:text-stone-300 focus:ring-0"
+                      className="flex-1 bg-transparent border-none outline-none text-sm font-medium text-[#2D1E1A] placeholder:text-[#BBA79C] focus:ring-0"
                       placeholder="Phase title"
                       value={ph.title}
                       onChange={e => setEditPhases(prev => prev.map((p, j) => j === i ? { ...p, title: e.target.value } : p))}
@@ -383,7 +383,7 @@ export default function EditProjectModal({
                     {activePhases.length > 1 && (
                       <button
                         onClick={() => setEditPhases(prev => prev.map((p, j) => j === i ? { ...p, _deleted: true } : p))}
-                        className="text-stone-300 hover:text-red-400 text-lg leading-none shrink-0 transition-colors"
+                        className="text-[#BBA79C] hover:text-[#ba1a1a] text-lg leading-none shrink-0 transition-colors"
                         title="Remove phase"
                       >×</button>
                     )}
@@ -394,7 +394,7 @@ export default function EditProjectModal({
 
                     {/* Description */}
                     <input
-                      className="w-full border border-stone-200 rounded-lg px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-200 placeholder:text-stone-300"
+                      className="w-full border border-[#E0CFC4] rounded-lg px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[#adcec3] placeholder:text-[#BBA79C]"
                       placeholder="Description — what happens in this phase?"
                       value={ph.description}
                       onChange={e => setEditPhases(prev => prev.map((p, j) => j === i ? { ...p, description: e.target.value } : p))}
@@ -403,7 +403,7 @@ export default function EditProjectModal({
                     {/* Dependencies */}
                     {activePhases.length > 1 && (
                       <div>
-                        <p className="text-[10px] text-stone-400 mb-1.5">
+                        <p className="text-[10px] text-[#8A7265] mb-1.5">
                           <span className="font-semibold uppercase tracking-wide">Starts after:</span>{' '}
                           which phases must complete before this one begins?
                         </p>
@@ -426,8 +426,8 @@ export default function EditProjectModal({
                                 }))}
                                 className={`text-xs px-2.5 py-1 rounded-full border transition-colors font-medium ${
                                   selected
-                                    ? 'bg-blue-500 text-white border-blue-500'
-                                    : 'bg-white text-stone-500 border-stone-200 hover:border-blue-300 hover:text-blue-500'
+                                    ? 'bg-[#C4601A] text-white border-[#C4601A]'
+                                    : 'bg-white text-[#8A7265] border-[#E0CFC4] hover:border-[#adcec3] hover:text-[#C4601A]'
                                 }`}
                               >
                                 {other.title.trim() || `Phase ${j + 1}`}
@@ -440,10 +440,10 @@ export default function EditProjectModal({
 
                     {/* Objectives */}
                     <div>
-                      <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wide mb-2">
+                      <p className="text-[10px] font-semibold text-[#8A7265] uppercase tracking-wide mb-2">
                         Objectives
                         {activeObjs.length > 0 && (
-                          <span className="ml-1.5 font-normal normal-case text-stone-300">({activeObjs.length})</span>
+                          <span className="ml-1.5 font-normal normal-case text-[#BBA79C]">({activeObjs.length})</span>
                         )}
                       </p>
 
@@ -466,9 +466,9 @@ export default function EditProjectModal({
                                 setDragObj(null); setDragObjOver(null);
                               }}
                               className={`rounded-lg border p-2.5 transition-all ${
-                                isDragObjOver ? 'bg-blue-50 border-blue-200 border-dashed'
-                                : isDragObjThis ? 'opacity-40 bg-stone-100 border-stone-200'
-                                : 'bg-white border-stone-200'
+                                isDragObjOver ? 'bg-[#E8FAF7] border-[#c8eadf] border-dashed'
+                                : isDragObjThis ? 'opacity-40 bg-[#F0E9E0] border-[#E0CFC4]'
+                                : 'bg-white border-[#E0CFC4]'
                               }`}
                             >
                               {/* Title row */}
@@ -477,10 +477,10 @@ export default function EditProjectModal({
                                   draggable
                                   onDragStart={e => { e.stopPropagation(); e.dataTransfer.effectAllowed = 'move'; setDragObj({ ph: i, obj: j }); }}
                                   onDragEnd={() => { setDragObj(null); setDragObjOver(null); }}
-                                  className="text-stone-300 hover:text-stone-500 cursor-grab text-sm select-none leading-none shrink-0"
+                                  className="text-[#BBA79C] hover:text-[#8A7265] cursor-grab text-sm select-none leading-none shrink-0"
                                 >⠿</span>
                                 <input
-                                  className="flex-1 bg-transparent border-none outline-none text-sm text-stone-800 placeholder:text-stone-300 focus:ring-0"
+                                  className="flex-1 bg-transparent border-none outline-none text-sm text-[#2D1E1A] placeholder:text-[#BBA79C] focus:ring-0"
                                   placeholder="Objective title"
                                   value={m.title}
                                   onChange={e => setEditMilestonesMap(prev => ({
@@ -493,7 +493,7 @@ export default function EditProjectModal({
                                     ...prev,
                                     [i]: prev[i].map((ms, k) => k === j ? { ...ms, _deleted: true } : ms),
                                   }))}
-                                  className="text-stone-300 hover:text-red-400 text-base leading-none shrink-0 transition-colors"
+                                  className="text-[#BBA79C] hover:text-[#ba1a1a] text-base leading-none shrink-0 transition-colors"
                                 >×</button>
                               </div>
 
@@ -501,7 +501,7 @@ export default function EditProjectModal({
                               <div className="flex items-center gap-2 mt-2 ml-5">
                                 <input
                                   type="date"
-                                  className="border border-stone-200 rounded-lg px-2 py-1.5 text-xs bg-stone-50 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:bg-white"
+                                  className="border border-[#E0CFC4] rounded-lg px-2 py-1.5 text-xs bg-[#FFF5E9] focus:outline-none focus:ring-2 focus:ring-[#adcec3] focus:bg-white"
                                   value={m.dueDate}
                                   onChange={e => setEditMilestonesMap(prev => ({
                                     ...prev,
@@ -531,7 +531,7 @@ export default function EditProjectModal({
                           ...prev,
                           [i]: [...(prev[i] ?? []), { title: '', dueDate: '', assigneeIds: [], _deleted: false }],
                         }))}
-                        className="mt-2 text-xs text-stone-400 hover:text-blue-500 transition-colors"
+                        className="mt-2 text-xs text-[#8A7265] hover:text-[#C4601A] transition-colors"
                       >+ Add objective</button>
                     </div>
 
@@ -543,23 +543,23 @@ export default function EditProjectModal({
 
           <button
             onClick={() => setEditPhases(prev => [...prev, { title: '', description: '', dependsOnIds: [], _deleted: false }])}
-            className="w-full py-2.5 rounded-xl border-2 border-dashed border-stone-200 text-sm text-stone-400 hover:border-blue-300 hover:text-blue-400 transition-colors"
+            className="w-full py-2.5 rounded-xl border-2 border-dashed border-[#E0CFC4] text-sm text-[#8A7265] hover:border-[#adcec3] hover:text-[#C4601A] transition-colors"
           >+ Add phase</button>
 
         </div>
 
         {/* ── Footer ─────────────────────────────────────────────── */}
-        <div className="px-6 pb-6 pt-4 border-t border-stone-100 shrink-0">
-          {saveError && <p className="text-xs text-red-500 mb-3 text-center">{saveError}</p>}
+        <div className="px-6 pb-6 pt-4 border-t border-[#E0CFC4] shrink-0">
+          {saveError && <p className="text-xs text-[#ba1a1a] mb-3 text-center">{saveError}</p>}
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="flex-1 py-2.5 rounded-lg text-sm text-stone-500 bg-stone-100 hover:bg-stone-200 transition-colors"
+              className="flex-1 py-2.5 rounded-lg text-sm text-[#8A7265] bg-[#F0E9E0] hover:bg-[#E0CFC4] transition-colors"
             >Cancel</button>
             <button
               disabled={saving || !form.title.trim()}
               onClick={handleSave}
-              className="flex-1 py-2.5 rounded-lg text-sm text-white bg-blue-500 hover:bg-blue-600 disabled:opacity-60 transition-colors font-medium"
+              className="flex-1 py-2.5 rounded-lg text-sm text-white bg-[#C4601A] hover:bg-[#C4601A] disabled:opacity-40 transition-colors font-medium"
             >{saving ? 'Saving…' : 'Save Changes'}</button>
           </div>
         </div>
@@ -607,10 +607,10 @@ function AssigneePickerDropdown({
       <button
         type="button"
         onClick={() => { setOpen(o => !o); setSearch(''); }}
-        className="w-full flex items-center gap-1.5 px-2 py-1.5 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-500 hover:border-blue-300 transition-colors min-h-[28px]"
+        className="w-full flex items-center gap-1.5 px-2 py-1.5 bg-[#FFF5E9] border border-[#E0CFC4] rounded-lg text-xs text-[#8A7265] hover:border-[#adcec3] transition-colors min-h-[28px]"
       >
         {selected.length === 0 ? (
-          <span className="text-stone-400">Assign…</span>
+          <span className="text-[#8A7265]">Assign…</span>
         ) : (
           <div className="flex items-center gap-1 flex-wrap">
             <div className="flex items-center -space-x-1">
@@ -622,7 +622,7 @@ function AssigneePickerDropdown({
                 </div>
               ))}
             </div>
-            <span className="text-[10px] text-stone-600 truncate">
+            <span className="text-[10px] text-[#54433A] truncate">
               {selected[0].user.name.split(' ')[0]}{selected.length > 1 ? ` +${selected.length - 1}` : ''}
             </span>
           </div>
@@ -633,10 +633,10 @@ function AssigneePickerDropdown({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-1 w-full min-w-[200px] bg-white border border-stone-200 rounded-xl shadow-lg z-30">
-          <div className="p-2 border-b border-stone-100">
+        <div className="absolute left-0 top-full mt-1 w-full min-w-[200px] bg-white border border-[#E0CFC4] rounded-xl shadow-lg z-30">
+          <div className="p-2 border-b border-[#E0CFC4]">
             <div className="relative">
-              <svg className="w-3.5 h-3.5 text-stone-400 absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-3.5 h-3.5 text-[#8A7265] absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
               </svg>
               <input
@@ -644,13 +644,13 @@ function AssigneePickerDropdown({
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search members…"
-                className="w-full pl-8 pr-2.5 py-1.5 text-xs border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
+                className="w-full pl-8 pr-2.5 py-1.5 text-xs border border-[#E0CFC4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#adcec3]"
               />
             </div>
           </div>
           <ul className="max-h-44 overflow-y-auto py-1">
             {filtered.length === 0 ? (
-              <li className="px-3 py-2 text-xs text-stone-400">No members found</li>
+              <li className="px-3 py-2 text-xs text-[#8A7265]">No members found</li>
             ) : filtered.map(mem => {
               const isSel = selectedIds.includes(mem.userId);
               return (
@@ -658,17 +658,17 @@ function AssigneePickerDropdown({
                   <button
                     type="button"
                     onClick={() => toggle(mem.userId)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-stone-50 ${isSel ? 'bg-blue-50' : ''}`}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-[#FFF5E9] ${isSel ? 'bg-[#E8FAF7]' : ''}`}
                   >
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0 ${memberColor(mem.user.name)}`}>
                       {mem.user.name[0]?.toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-stone-700 truncate">{mem.user.name}</p>
-                      <p className="text-[10px] text-stone-400 truncate">{mem.user.email}</p>
+                      <p className="text-xs font-medium text-[#54433A] truncate">{mem.user.name}</p>
+                      <p className="text-[10px] text-[#8A7265] truncate">{mem.user.email}</p>
                     </div>
                     {isSel && (
-                      <svg className="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <svg className="w-3.5 h-3.5 text-[#46645c] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                       </svg>
                     )}

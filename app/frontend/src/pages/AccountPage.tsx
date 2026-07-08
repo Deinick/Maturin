@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getYearlyStats, downloadExport } from '../api/client';
 import { useSettings } from '../hooks/useSettings';
@@ -13,7 +12,6 @@ interface YearlyStats {
 }
 
 export default function AccountPage({ onLogout }: { onLogout: () => void }) {
-    const navigate               = useNavigate();
     const { user }               = useAuth();
     const { settings, update }   = useSettings();
     const [stats, setStats]      = useState<YearlyStats | null>(null);
@@ -26,75 +24,74 @@ export default function AccountPage({ onLogout }: { onLogout: () => void }) {
         try { await downloadExport(); } finally { setExporting(false); }
     }
 
+    const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
     function handleLogout() {
         onLogout();
-        navigate('/login', { replace: true });
+        window.location.href = '/login';
     }
 
     return (
-        <div className="max-w-2xl mx-auto space-y-8">
+        <div className="max-w-5xl space-y-6">
 
             {/* Header */}
-            <div className="flex items-center gap-4">
-                <button
-                    onClick={() => navigate(-1)}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors text-lg"
-                >←</button>
+            <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-3 mb-7">
                 <div>
-                    <h1 className="text-3xl font-light text-stone-800">Account</h1>
-                    <p className="text-sm text-stone-400 mt-0.5">Your profile and preferences</p>
+                    <h1 className="text-2xl font-semibold text-[#2D1E1A] font-serif">Account</h1>
+                    <p className="text-sm text-[#8A7265] mt-0.5">{dateLabel}</p>
                 </div>
             </div>
 
             {/* Profile card */}
-            <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-6 flex items-center justify-between gap-5">
+            <div className="bg-white rounded-2xl border border-[#E0CFC4] shadow-sm p-6 flex items-center justify-between gap-5">
                 <div className="flex items-center gap-5">
-                    <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-2xl font-bold text-emerald-700 shrink-0">
+                    <div className="w-16 h-16 rounded-full bg-[#c8eadf] flex items-center justify-center text-2xl font-bold text-[#16342d] shrink-0">
                         {user?.name?.[0]?.toUpperCase() ?? '?'}
                     </div>
                     <div>
-                        <p className="text-lg font-semibold text-stone-800">{user?.name}</p>
-                        <p className="text-sm text-stone-400 mt-0.5">{user?.email}</p>
+                        <p className="text-lg font-semibold text-[#2D1E1A]">{user?.name}</p>
+                        <p className="text-sm text-[#8A7265] mt-0.5">{user?.email}</p>
                     </div>
                 </div>
                 <button
                     onClick={handleLogout}
-                    className="text-sm text-stone-400 hover:text-red-500 hover:bg-red-50 px-4 py-2 rounded-xl transition-colors font-medium shrink-0"
+                    className="text-sm text-[#8A7265] hover:text-[#ba1a1a] hover:bg-[#ffdad6] px-4 py-2 rounded-xl transition-colors font-medium shrink-0"
                 >Sign out</button>
             </div>
 
             {/* Year in review */}
-            <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-6">
+            <div className="bg-white rounded-2xl border border-[#E0CFC4] shadow-sm p-6">
                 <div className="flex items-center justify-between mb-5">
                     <div>
-                        <h2 className="text-base font-semibold text-stone-800">Year in Review</h2>
-                        <p className="text-xs text-stone-400 mt-0.5">
+                        <h2 className="text-base font-semibold text-[#2D1E1A]">Year in Review</h2>
+                        <p className="text-xs text-[#8A7265] mt-0.5">
                             {stats?.year ?? new Date().getFullYear()} — what you've accomplished
                         </p>
                     </div>
                     <span className="text-2xl">🏆</span>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
-                    <StatCard value={stats?.tasksCompleted    ?? '—'} label="Tasks completed"   color="text-emerald-600" bg="bg-emerald-50" />
+                    <StatCard value={stats?.tasksCompleted    ?? '—'} label="Tasks completed"   color="text-[#4C8077]" bg="bg-[#E8FAF7]" />
                     <StatCard value={stats?.habitsCompleted   ?? '—'} label="Habits logged"     color="text-amber-600"  bg="bg-amber-50"  />
-                    <StatCard value={stats?.projectsCompleted ?? '—'} label="Projects finished" color="text-blue-600"   bg="bg-blue-50"   />
+                    <StatCard value={stats?.projectsCompleted ?? '—'} label="Projects finished" color="text-[#4C8077]"   bg="bg-[#E8FAF7]"   />
                 </div>
             </div>
 
             {/* Settings */}
-            <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-stone-50">
-                    <h2 className="text-base font-semibold text-stone-800">Settings</h2>
+            <div className="bg-white rounded-2xl border border-[#E0CFC4] shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-[#E0CFC4]">
+                    <h2 className="text-base font-semibold text-[#2D1E1A]">Settings</h2>
                 </div>
-                <div className="divide-y divide-stone-50">
+                <div className="divide-y divide-[#e4e2e2]">
 
                     {/* Theme */}
                     <div className="flex items-center justify-between px-6 py-3.5">
-                        <span className="text-sm text-stone-700">Theme</span>
+                        <span className="text-sm text-[#54433A]">Theme</span>
                         <SegmentControl<Theme>
                             value={settings.theme}
                             options={[
                                 { value: 'light',  label: 'Light'  },
+                                { value: 'dark',   label: 'Dark'   },
                                 { value: 'system', label: 'System' },
                             ]}
                             onChange={v => update('theme', v)}
@@ -103,7 +100,7 @@ export default function AccountPage({ onLogout }: { onLogout: () => void }) {
 
                     {/* Start of week */}
                     <div className="flex items-center justify-between px-6 py-3.5">
-                        <span className="text-sm text-stone-700">Start of week</span>
+                        <span className="text-sm text-[#54433A]">Start of week</span>
                         <SegmentControl<WeekStart>
                             value={settings.weekStart}
                             options={[
@@ -117,22 +114,22 @@ export default function AccountPage({ onLogout }: { onLogout: () => void }) {
                     {/* Daily reminder */}
                     <div className="flex items-center justify-between px-6 py-3.5">
                         <div>
-                            <span className="text-sm text-stone-700">Daily reminder</span>
-                            <p className="text-xs text-stone-400 mt-0.5">Push notifications — coming soon</p>
+                            <span className="text-sm text-[#54433A]">Daily reminder</span>
+                            <p className="text-xs text-[#8A7265] mt-0.5">Push notifications — coming soon</p>
                         </div>
-                        <span className="text-xs text-stone-300 bg-stone-50 border border-stone-200 px-2 py-1 rounded-lg">Soon</span>
+                        <span className="text-xs text-[#BBA79C] bg-[#FFF5E9] border border-[#E0CFC4] px-2 py-1 rounded-lg">Soon</span>
                     </div>
 
                     {/* Data export */}
                     <div className="flex items-center justify-between px-6 py-3.5">
                         <div>
-                            <span className="text-sm text-stone-700">Data export</span>
-                            <p className="text-xs text-stone-400 mt-0.5">Download everything as JSON</p>
+                            <span className="text-sm text-[#54433A]">Data export</span>
+                            <p className="text-xs text-[#8A7265] mt-0.5">Download everything as JSON</p>
                         </div>
                         <button
                             onClick={handleExport}
                             disabled={exporting}
-                            className="text-sm text-stone-400 hover:text-emerald-600 transition-colors disabled:opacity-40"
+                            className="text-sm text-[#8A7265] hover:text-[#4C8077] transition-colors disabled:opacity-40"
                         >
                             {exporting ? 'Downloading…' : 'Download'}
                         </button>
@@ -141,11 +138,11 @@ export default function AccountPage({ onLogout }: { onLogout: () => void }) {
             </div>
 
             {/* Support */}
-            <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-stone-50">
-                    <h2 className="text-base font-semibold text-stone-800">Support</h2>
+            <div className="bg-white rounded-2xl border border-[#E0CFC4] shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-[#E0CFC4]">
+                    <h2 className="text-base font-semibold text-[#2D1E1A]">Support</h2>
                 </div>
-                <div className="divide-y divide-stone-50">
+                <div className="divide-y divide-[#e4e2e2]">
                     <SupportRow
                         label="Send feedback"
                         icon="✉"
@@ -157,11 +154,11 @@ export default function AccountPage({ onLogout }: { onLogout: () => void }) {
                         href="mailto:nikolaydeinego@gmail.com?subject=Steadily bug report"
                     />
                     <div className="flex items-center justify-between px-6 py-3.5">
-                        <span className="text-sm text-stone-700 flex items-center gap-3">
+                        <span className="text-sm text-[#54433A] flex items-center gap-3">
                             <span className="text-base w-5 text-center">ℹ</span>
                             About Steadily
                         </span>
-                        <span className="text-xs text-stone-400">v1.0</span>
+                        <span className="text-xs text-[#8A7265]">v1.0</span>
                     </div>
                 </div>
             </div>
@@ -175,7 +172,7 @@ function StatCard({ value, label, color, bg }: {
     return (
         <div className={`${bg} rounded-xl p-4 text-center`}>
             <p className={`text-3xl font-light ${color}`}>{value}</p>
-            <p className="text-xs text-stone-500 mt-1">{label}</p>
+            <p className="text-xs text-[#8A7265] mt-1">{label}</p>
         </div>
     );
 }
@@ -186,15 +183,15 @@ function SegmentControl<T extends string>({ value, options, onChange }: {
     onChange: (v: T) => void;
 }) {
     return (
-        <div className="flex items-center gap-0.5 bg-stone-100 rounded-lg p-0.5">
+        <div className="flex items-center gap-0.5 bg-[#F0E9E0] rounded-lg p-0.5">
             {options.map(opt => (
                 <button
                     key={opt.value}
                     onClick={() => onChange(opt.value)}
                     className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
                         value === opt.value
-                            ? 'bg-white text-stone-800 shadow-sm'
-                            : 'text-stone-500 hover:text-stone-700'
+                            ? 'bg-white text-[#2D1E1A] shadow-sm'
+                            : 'text-[#8A7265] hover:text-[#54433A]'
                     }`}
                 >
                     {opt.label}
@@ -208,13 +205,13 @@ function SupportRow({ label, icon, href }: { label: string; icon: string; href: 
     return (
         <a
             href={href}
-            className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-stone-50 transition-colors text-left"
+            className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-[#FFF5E9] transition-colors text-left"
         >
-            <span className="text-sm text-stone-700 flex items-center gap-3">
+            <span className="text-sm text-[#54433A] flex items-center gap-3">
                 <span className="text-base w-5 text-center">{icon}</span>
                 {label}
             </span>
-            <span className="text-stone-300 text-sm">›</span>
+            <span className="text-[#BBA79C] text-sm">›</span>
         </a>
     );
 }

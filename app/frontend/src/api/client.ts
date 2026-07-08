@@ -89,6 +89,9 @@ export const logHabit = (id: string, date: string, status: string) =>
 export const updateHabitLog = (logId: string, status: string) =>
     api.patch<HabitLog>(`/habits/log/${logId}`, { status }).then(r => r.data);
 
+export const updateHabit = (id: string, name: string, difficulty: string, activeDays: string) =>
+    api.patch<Habit>(`/habits/${id}`, { name, difficulty, activeDays }).then(r => r.data);
+
 export const deleteHabit = (id: string) =>
     api.delete(`/habits/${id}`).then(r => r.data);
 

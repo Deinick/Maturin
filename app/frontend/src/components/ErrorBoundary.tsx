@@ -19,19 +19,19 @@ export default class ErrorBoundary extends Component<Props, State> {
         if (!this.state.error) return this.props.children;
 
         return (
-            <div className="min-h-screen flex items-center justify-center bg-[#f7f9fb] px-4">
-                <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-8 max-w-md w-full text-center">
+            <div className="min-h-screen flex items-center justify-center bg-[#fbf9f8] px-4">
+                <div className="bg-white rounded-2xl border border-[#E0CFC4] shadow-sm p-8 max-w-md w-full text-center">
                     <p className="text-4xl mb-4">⚠️</p>
-                    <h2 className="text-lg font-semibold text-stone-800 mb-2">Something went wrong</h2>
-                    <p className="text-sm text-stone-500 mb-6 leading-relaxed">
+                    <h2 className="text-lg font-semibold text-[#2D1E1A] mb-2">Something went wrong</h2>
+                    <p className="text-sm text-[#8A7265] mb-6 leading-relaxed">
                         An unexpected error occurred. Your data is safe — try refreshing the page.
                     </p>
-                    <p className="text-xs text-stone-300 font-mono bg-stone-50 rounded-lg px-3 py-2 mb-6 text-left break-words">
+                    <p className="text-xs text-[#BBA79C] font-mono bg-[#FFF5E9] rounded-lg px-3 py-2 mb-6 text-left break-words">
                         {this.state.error.message}
                     </p>
                     <button
                         onClick={() => window.location.reload()}
-                        className="px-5 py-2.5 bg-[#0f172a] text-white text-sm font-medium rounded-xl hover:bg-[#1e293b] transition-colors"
+                        className="px-5 py-2.5 bg-[#C4601A] text-white text-sm font-medium rounded-xl hover:bg-[#C4601A] transition-colors"
                     >
                         Reload app
                     </button>

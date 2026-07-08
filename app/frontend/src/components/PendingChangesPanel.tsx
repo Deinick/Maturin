@@ -13,13 +13,13 @@ function DiffRow({ field, oldVal, newVal }: { field: string; oldVal: string | nu
     const label = FIELD_LABELS[field] ?? field;
     return (
         <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-                <p className="text-[10px] font-semibold text-red-400 uppercase tracking-wide mb-1">{label} — before</p>
-                <p className="text-stone-600 break-words">{oldVal ?? <span className="italic text-stone-300">empty</span>}</p>
+            <div className="bg-[#ffdad6] border border-[#ffdad6] rounded-lg px-3 py-2">
+                <p className="text-[10px] font-semibold text-[#ba1a1a] uppercase tracking-wide mb-1">{label} — before</p>
+                <p className="text-[#54433A] break-words">{oldVal ?? <span className="italic text-[#BBA79C]">empty</span>}</p>
             </div>
-            <div className="bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
-                <p className="text-[10px] font-semibold text-emerald-500 uppercase tracking-wide mb-1">{label} — after</p>
-                <p className="text-stone-700 font-medium break-words">{newVal ?? <span className="italic text-stone-300">empty</span>}</p>
+            <div className="bg-[#E8FAF7] border border-[#E0CFC4] rounded-lg px-3 py-2">
+                <p className="text-[10px] font-semibold text-[#46645c] uppercase tracking-wide mb-1">{label} — after</p>
+                <p className="text-[#54433A] font-medium break-words">{newVal ?? <span className="italic text-[#BBA79C]">empty</span>}</p>
             </div>
         </div>
     );
@@ -60,7 +60,7 @@ export default function PendingChangesPanel({ changes, onResolved }: Props) {
                 </div>
             </div>
 
-            <div className="divide-y divide-stone-50">
+            <div className="divide-y divide-[#e4e2e2]">
                 {changes.map(c => {
                     const isOpen = expanded === c.id;
                     const fields = Object.keys(c.newData);
@@ -68,17 +68,17 @@ export default function PendingChangesPanel({ changes, onResolved }: Props) {
                         <div key={c.id}>
                             <button
                                 onClick={() => setExpanded(isOpen ? null : c.id)}
-                                className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-stone-50 transition-colors"
+                                className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-[#FFF5E9] transition-colors"
                             >
                                 <div className="min-w-0">
-                                    <p className="text-sm font-medium text-stone-800 truncate">{c.entityLabel}</p>
-                                    <p className="text-xs text-stone-400 mt-0.5">
-                                        by <span className="font-medium text-stone-500">{c.author.name}</span>
+                                    <p className="text-sm font-medium text-[#2D1E1A] truncate">{c.entityLabel}</p>
+                                    <p className="text-xs text-[#8A7265] mt-0.5">
+                                        by <span className="font-medium text-[#8A7265]">{c.author.name}</span>
                                         {' · '}
                                         {fields.join(', ')} changed
                                     </p>
                                 </div>
-                                <span className="text-stone-300 text-sm ml-3 shrink-0">{isOpen ? '▲' : '▼'}</span>
+                                <span className="text-[#BBA79C] text-sm ml-3 shrink-0">{isOpen ? '▲' : '▼'}</span>
                             </button>
 
                             {isOpen && (
@@ -95,14 +95,14 @@ export default function PendingChangesPanel({ changes, onResolved }: Props) {
                                         <button
                                             onClick={() => handleApprove(c.id)}
                                             disabled={acting === c.id}
-                                            className="flex-1 py-2 rounded-xl text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                                            className="flex-1 py-2 rounded-xl text-xs font-semibold text-white bg-[#C4601A] hover:bg-[#C4601A] disabled:opacity-50 transition-colors"
                                         >
                                             {acting === c.id ? '…' : '✓ Approve'}
                                         </button>
                                         <button
                                             onClick={() => handleReject(c.id)}
                                             disabled={acting === c.id}
-                                            className="flex-1 py-2 rounded-xl text-xs font-semibold text-red-500 bg-red-50 hover:bg-red-100 disabled:opacity-50 transition-colors"
+                                            className="flex-1 py-2 rounded-xl text-xs font-semibold text-[#ba1a1a] bg-[#ffdad6] hover:bg-red-100 disabled:opacity-50 transition-colors"
                                         >
                                             {acting === c.id ? '…' : '✕ Reject'}
                                         </button>
