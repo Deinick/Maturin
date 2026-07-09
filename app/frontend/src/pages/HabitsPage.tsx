@@ -4,6 +4,12 @@ import type { Habit, HabitLog } from '../types';
 import { getHabits, createHabit, logHabit, updateHabitLog, updateHabit, deleteHabit } from '../api/client';
 import HabitRecordModal from '../components/HabitRecordModal';
 import { localDate } from '../utils/date';
+import { ChartNoAxesColumn } from '@/components/animate-ui/icons/chart-no-axes-column';
+import { Plus } from '@/components/animate-ui/icons/plus';
+import { Sun } from '@/components/animate-ui/icons/sun';
+import { Check } from '@/components/animate-ui/icons/check';
+import { LoaderCircle } from '@/components/animate-ui/icons/loader-circle';
+import { Trash2 } from '@/components/animate-ui/icons/trash-2';
 
 const TODAY = localDate();
 const TODAY_DATE = new Date();
@@ -242,16 +248,12 @@ export default function HabitsPage() {
         <div className="flex items-center gap-2">
           <button onClick={() => setShowRecord(true)}
             className="flex items-center gap-2 border border-[#E0CFC4] hover:border-[#E0CFC4] text-[#8A7265] hover:text-[#54433A] px-4 py-2 rounded-xl text-sm font-medium transition-colors">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-            </svg>
+            <ChartNoAxesColumn className="w-4 h-4" animateOnHover="default" />
             Full Record
           </button>
           <button onClick={() => setShowModal(true)}
             className="flex items-center gap-2 btn-primary text-white px-4 py-2 text-sm font-medium transition-colors">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
+            <Plus className="w-4 h-4" animateOnHover="default" />
             Add Habit
           </button>
         </div>
@@ -261,9 +263,7 @@ export default function HabitsPage() {
         /* ── Empty state ──────────────────────────────────── */
         <div className="flex flex-col items-center py-24 gap-4">
           <div className="w-16 h-16 rounded-full bg-[#F0E9E0] flex items-center justify-center">
-            <svg className="w-7 h-7 text-[#BBA79C]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
-            </svg>
+            <Sun className="w-7 h-7 text-[#BBA79C]" animateOnHover="default" />
           </div>
           <div className="text-center">
             <p className="text-xl font-semibold text-[#54433A]">No habits tracked yet</p>
@@ -314,15 +314,10 @@ export default function HabitsPage() {
                         : { borderColor: 'var(--c-border)', cursor: 'pointer' }}
                     >
                       {todayDone && (
-                        <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                        </svg>
+                        <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} animate="default" />
                       )}
                       {loading && !todayDone && (
-                        <svg className="w-3 h-3 text-[#8A7265] animate-spin" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
+                        <LoaderCircle className="w-3 h-3 text-[#8A7265]" animate="default" loop />
                       )}
                     </button>
 
@@ -412,9 +407,7 @@ export default function HabitsPage() {
               </div>
 
               <div className="bg-white border border-[#E0CFC4] rounded-2xl p-4 flex flex-col gap-2">
-                <svg className="w-5 h-5 text-[#46645c]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-                </svg>
+                <ChartNoAxesColumn className="w-5 h-5 text-[#46645c]" animateOnHover="default" />
                 <div>
                   <p className="text-[10px] font-semibold text-[#8A7265] uppercase tracking-wide">Completion Rate</p>
                   <p className="text-2xl font-semibold text-[#2D1E1A] font-serif mt-0.5">{completionRate}<span className="text-sm font-normal text-[#8A7265] ml-0.5">%</span></p>
@@ -610,9 +603,7 @@ export default function HabitsPage() {
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 text-center border border-[#E0CFC4]">
             <div className="w-10 h-10 rounded-full bg-[#ffdad6] flex items-center justify-center mx-auto mb-3">
-              <svg className="w-5 h-5 text-[#ba1a1a]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-              </svg>
+              <Trash2 className="w-5 h-5 text-[#ba1a1a]" animateOnHover="default" />
             </div>
             <h2 className="text-base font-semibold text-[#2D1E1A] mb-1">Delete this habit?</h2>
             <p className="text-sm text-[#8A7265] mb-5">All logs will be lost.</p>

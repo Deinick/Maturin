@@ -26,6 +26,11 @@ import {
   type EdgeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { Kanban } from '@/components/animate-ui/icons/kanban';
+import { Expand } from '@/components/animate-ui/icons/expand';
+import { Check } from '@/components/animate-ui/icons/check';
+import { Lock } from '@/components/animate-ui/icons/lock';
+import { ChevronRight } from '@/components/animate-ui/icons/chevron-right';
 
 type Tab = 'overview' | 'team';
 
@@ -543,9 +548,7 @@ export default function ProjectDetailPage() {
             {/* Milestone Kanban */}
             <div className="bg-white rounded-2xl border border-[#E0CFC4] shadow-sm p-6">
               <h3 className="text-xs font-semibold text-[#8A7265] uppercase tracking-widest mb-4 flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
-                </svg>
+                <Kanban className="w-4 h-4" animateOnHover="default" />
                 Objective Board
               </h3>
 
@@ -626,9 +629,7 @@ export default function ProjectDetailPage() {
                     Phase Structure
                   </h3>
                   <span className="text-[10px] text-[#8A7265] group-hover:text-[#C4601A] transition-colors flex items-center gap-1 font-medium">
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
-                    </svg>
+                    <Expand className="w-3 h-3" animateOnHover="default" />
                     Click to expand
                   </span>
                 </div>
@@ -722,9 +723,7 @@ export default function ProjectDetailPage() {
                             <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                           </svg>
                         ) : (
-                          <svg className="w-2.5 h-2.5 text-[#4C8077]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                          </svg>
+                          <Check className="w-2.5 h-2.5 text-[#4C8077]" animateOnHover="default" />
                         )}
                       </div>
                       <div className="min-w-0">
@@ -954,14 +953,10 @@ export default function ProjectDetailPage() {
                           <div className="flex items-start gap-3">
                             {ms.completed ? (
                               <div className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center shrink-0 mt-px">
-                                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                </svg>
+                                <Check className="w-3 h-3 text-white" animateOnHover="default" />
                               </div>
                             ) : phaseDetail.locked ? (
-                              <svg className="w-5 h-5 text-[#BBA79C] shrink-0 mt-px" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                              </svg>
+                              <Lock className="w-5 h-5 text-[#BBA79C] shrink-0 mt-px" animateOnHover="default" />
                             ) : (
                               <div className={`w-5 h-5 rounded-full border-2 shrink-0 mt-px ${isOverdueMs ? 'border-amber-400' : 'border-[#E0CFC4]'}`} />
                             )}
@@ -1068,7 +1063,7 @@ export default function ProjectDetailPage() {
                           {phComplete ? (
                             <>
                               <div className="w-3.5 h-3.5 rounded-full bg-emerald-400 flex items-center justify-center shrink-0">
-                                <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                <Check className="w-2 h-2 text-white" animateOnHover="default" />
                               </div>
                               <span className="text-[10px] text-[#4C8077] font-medium">Complete</span>
                             </>
@@ -1082,9 +1077,7 @@ export default function ProjectDetailPage() {
                       </button>
                       {i < tracePathChain.length - 1 && (
                         <div className="flex items-center px-2 shrink-0">
-                          <svg className="w-5 h-5 text-[#BBA79C]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                          </svg>
+                          <ChevronRight className="w-5 h-5 text-[#BBA79C]" animateOnHover="default" />
                         </div>
                       )}
                     </div>
@@ -1220,9 +1213,7 @@ export default function ProjectDetailPage() {
                               <span className="text-sm text-[#54433A] flex-1">{m.user.name}</span>
                               <span className="text-[10px] text-[#8A7265] capitalize shrink-0">{m.role}{m.canApprove ? ' · approver' : ''}</span>
                               {sel && (
-                                <svg className="w-4 h-4 text-[#46645c] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                </svg>
+                                <Check className="w-4 h-4 text-[#46645c] shrink-0" animateOnHover="default" />
                               )}
                             </button>
                           );
@@ -1275,9 +1266,7 @@ export default function ProjectDetailPage() {
                   {/* Phase locked banner */}
                   {selectedMilestone.phaseLocked && (
                     <div className="flex items-start gap-2.5 px-4 py-3 bg-[#FFF5E9] border border-[#E0CFC4] rounded-xl">
-                      <svg className="w-4 h-4 text-[#8A7265] shrink-0 mt-px" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                      </svg>
+                      <Lock className="w-4 h-4 text-[#8A7265] shrink-0 mt-px" animateOnHover="default" />
                       <div>
                         <p className="text-xs font-semibold text-[#54433A]">Phase locked</p>
                         <p className="text-xs text-[#8A7265] mt-0.5 leading-relaxed">
@@ -1290,9 +1279,7 @@ export default function ProjectDetailPage() {
                   {/* Saved / pending feedback */}
                   {editResult === 'saved' && (
                     <div className="flex items-center gap-2 px-4 py-2.5 bg-[#E8FAF7] border border-[#E0CFC4] rounded-xl">
-                      <svg className="w-4 h-4 text-[#46645c] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                      </svg>
+                      <Check className="w-4 h-4 text-[#46645c] shrink-0" animateOnHover="default" />
                       <p className="text-xs font-medium text-[#16342d]">Changes saved successfully.</p>
                     </div>
                   )}
@@ -1467,9 +1454,7 @@ const OverviewPhaseNode = memo(function OverviewPhaseNode({ data }: NodeProps<ON
       <div className={`px-4 py-2.5 border-b flex items-center justify-between ${locked ? 'bg-[#F0E9E0] border-[#E0CFC4]' : 'bg-[#FFF5E9] border-[#E0CFC4]'}`}>
         <div className="flex items-center gap-2">
           {locked && (
-            <svg className="w-3 h-3 text-[#8A7265] shrink-0" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-            </svg>
+            <Lock className="w-3 h-3 text-[#8A7265] shrink-0" animateOnHover="default" />
           )}
           <span className="text-[10px] font-bold text-[#8A7265] uppercase tracking-widest">
             Phase {String(phaseNum).padStart(2, '0')}
@@ -1504,14 +1489,10 @@ const OverviewPhaseNode = memo(function OverviewPhaseNode({ data }: NodeProps<ON
             <div key={ms.id} className="flex items-center gap-2">
               {ms.completed ? (
                 <div className="w-3.5 h-3.5 rounded-full bg-emerald-400 shrink-0 flex items-center justify-center">
-                  <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
+                  <Check className="w-2.5 h-2.5 text-white" animateOnHover="default" />
                 </div>
               ) : locked ? (
-                <svg className="w-3.5 h-3.5 text-[#BBA79C] shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                </svg>
+                <Lock className="w-3.5 h-3.5 text-[#BBA79C] shrink-0" animateOnHover="default" />
               ) : (
                 <div className="w-3.5 h-3.5 rounded-full border-2 border-[#E0CFC4] shrink-0" />
               )}
@@ -1661,9 +1642,7 @@ function KanbanCard({ m, today, onClick, highlight = false }: {
       <div className="flex items-start justify-between gap-1.5 mb-1.5">
         <p className={`text-xs leading-snug flex-1 ${m.phaseLocked ? 'text-[#8A7265]' : 'text-[#2D1E1A]'}`}>{m.title}</p>
         {m.phaseLocked && (
-          <svg className="w-3.5 h-3.5 text-[#8A7265] shrink-0 mt-px" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-          </svg>
+          <Lock className="w-3.5 h-3.5 text-[#8A7265] shrink-0 mt-px" animateOnHover="default" />
         )}
       </div>
       {m.phaseLocked ? (

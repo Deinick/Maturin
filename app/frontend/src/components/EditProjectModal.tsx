@@ -5,6 +5,9 @@ import {
   createMilestone, updateMilestone, deleteMilestone,
   getProjects, deleteProject, setDependencies,
 } from '../api/client';
+import { ChevronDown } from '@/components/animate-ui/icons/chevron-down';
+import { Search } from '@/components/animate-ui/icons/search';
+import { Check } from '@/components/animate-ui/icons/check';
 
 const MEMBER_COLORS = [
   'bg-blue-500', 'bg-violet-500', 'bg-emerald-500',
@@ -627,18 +630,14 @@ function AssigneePickerDropdown({
             </span>
           </div>
         )}
-        <svg className={`w-3 h-3 ml-auto shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="m19 9-7 7-7-7" />
-        </svg>
+        <ChevronDown className={`w-3 h-3 ml-auto shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} animateOnHover="default" />
       </button>
 
       {open && (
         <div className="absolute left-0 top-full mt-1 w-full min-w-[200px] bg-white border border-[#E0CFC4] rounded-xl shadow-lg z-30">
           <div className="p-2 border-b border-[#E0CFC4]">
             <div className="relative">
-              <svg className="w-3.5 h-3.5 text-[#8A7265] absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-              </svg>
+              <Search className="w-3.5 h-3.5 text-[#8A7265] absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 autoFocus
                 value={search}
@@ -668,9 +667,7 @@ function AssigneePickerDropdown({
                       <p className="text-[10px] text-[#8A7265] truncate">{mem.user.email}</p>
                     </div>
                     {isSel && (
-                      <svg className="w-3.5 h-3.5 text-[#46645c] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                      </svg>
+                      <Check className="w-3.5 h-3.5 text-[#46645c] shrink-0" />
                     )}
                   </button>
                 </li>

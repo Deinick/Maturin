@@ -9,6 +9,9 @@ import {
     getAllPendingChangeCounts, getProjects,
     updateTask, logHabit, updateHabitLog,
 } from '../api/client';
+import { ChevronRight } from '@/components/animate-ui/icons/chevron-right';
+import { Check } from '@/components/animate-ui/icons/check';
+import { LoaderCircle } from '@/components/animate-ui/icons/loader-circle';
 
 const TODAY      = new Date().toISOString().split('T')[0];
 const HOUR       = new Date().getHours();
@@ -192,9 +195,7 @@ export default function DashboardPage() {
                             <span className="text-xs text-[#8A7265] bg-[#F0E9E0] px-2.5 py-1 rounded-full">
                                 {loggedToday}/{habits.length} today
                             </span>
-                            <svg className="w-3.5 h-3.5 text-[#BBA79C] group-hover:text-[#8A7265] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                            </svg>
+                            <ChevronRight className="w-3.5 h-3.5 text-[#BBA79C] group-hover:text-[#8A7265] transition-colors" animateOnHover="default" />
                         </div>
                     </button>
 
@@ -230,14 +231,9 @@ export default function DashboardPage() {
                                                     : { border: '2px solid var(--c-border)', color: 'var(--c-text-muted)' }
                                                 }>
                                                 {done ? (
-                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                                    </svg>
+                                                    <Check className="w-3.5 h-3.5" animateOnHover="default" />
                                                 ) : loading ? (
-                                                    <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                                    </svg>
+                                                    <LoaderCircle className="w-3 h-3" animate="default" loop />
                                                 ) : (
                                                     <div className="w-2 h-2 rounded-full bg-[#c1c8c4]" />
                                                 )}
@@ -282,9 +278,7 @@ export default function DashboardPage() {
                             <span className="text-xs text-[#8A7265] bg-[#F0E9E0] px-2.5 py-1 rounded-full">
                                 {activeProjects.length} active
                             </span>
-                            <svg className="w-3.5 h-3.5 text-[#BBA79C] group-hover:text-[#8A7265] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                            </svg>
+                            <ChevronRight className="w-3.5 h-3.5 text-[#BBA79C] group-hover:text-[#8A7265] transition-colors" animateOnHover="default" />
                         </div>
                     </button>
 
@@ -441,9 +435,7 @@ export default function DashboardPage() {
                             <span className="text-xs text-[#8A7265] bg-[#F0E9E0] px-2.5 py-1 rounded-full">
                                 {activeTasks.length} remaining
                             </span>
-                            <svg className="w-3.5 h-3.5 text-[#BBA79C] group-hover:text-[#8A7265] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                            </svg>
+                            <ChevronRight className="w-3.5 h-3.5 text-[#BBA79C] group-hover:text-[#8A7265] transition-colors" animateOnHover="default" />
                         </div>
                     </button>
 

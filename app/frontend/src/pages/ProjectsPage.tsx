@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { Project, ProjectMember } from '../types';
 import { getProjects, getAllPendingChangeCounts } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { Plus } from '@/components/animate-ui/icons/plus';
 
 export default function ProjectsPage() {
   const { data: projects = [], isLoading } = useQuery({ queryKey: ['projects'], queryFn: getProjects });
@@ -48,9 +49,7 @@ export default function ProjectsPage() {
           onClick={() => navigate('/projects/new')}
           className="flex items-center gap-2 btn-primary text-white px-4 py-2 text-sm font-medium transition-colors"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
+          <Plus className="w-4 h-4" animateOnHover="default" />
           New Project
         </button>
       </div>

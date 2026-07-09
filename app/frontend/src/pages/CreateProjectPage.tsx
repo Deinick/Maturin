@@ -28,6 +28,13 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { createProject, createPhase, createMilestone, setDependencies } from '../api/client';
+import { ChevronRight } from '@/components/animate-ui/icons/chevron-right';
+import { Plus } from '@/components/animate-ui/icons/plus';
+import { CirclePlus } from '@/components/animate-ui/icons/circle-plus';
+import { Trash2 } from '@/components/animate-ui/icons/trash-2';
+import { ChevronDown } from '@/components/animate-ui/icons/chevron-down';
+import { Search } from '@/components/animate-ui/icons/search';
+import { X } from '@/components/animate-ui/icons/x';
 
 // ── Local types ────────────────────────────────────────────────────────────────
 
@@ -461,9 +468,7 @@ export default function CreateProjectPage() {
                 className="flex-1 h-12 bg-[#C4601A] text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2 hover:bg-[#C4601A] transition-all"
               >
                 Continue to Phases
-                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                </svg>
+                <ChevronRight className="w-4 h-4" animateOnHover="default" />
               </button>
             </div>
           </div>
@@ -620,9 +625,7 @@ export default function CreateProjectPage() {
                 className="mt-1 w-8 h-8 rounded-full bg-[#E8FAF7] text-[#46645c] hover:bg-[#FFE8D1] flex items-center justify-center transition-colors shrink-0"
                 title="Add phase"
               >
-                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                </svg>
+                <Plus className="w-4 h-4" animateOnHover="default" />
               </button>
             </div>
           </div>
@@ -631,9 +634,7 @@ export default function CreateProjectPage() {
             {nodes.length === 0 ? (
               <div className="flex flex-col items-center py-10 text-center">
                 <div className="w-12 h-12 bg-[#F0E9E0] rounded-2xl mx-auto flex items-center justify-center mb-3">
-                  <svg className="w-5 h-5 text-[#8A7265]" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                  </svg>
+                  <Plus className="w-5 h-5 text-[#8A7265]" animateOnHover="default" />
                 </div>
                 <p className="text-sm font-medium text-[#54433A]">No phases yet</p>
                 <p className="text-xs text-[#8A7265] mt-1 max-w-[200px]">Click the + button above or use the button below to add your first phase.</p>
@@ -660,9 +661,7 @@ export default function CreateProjectPage() {
               onClick={addPhase}
               className="w-full py-6 border-2 border-dashed border-[#E0CFC4] rounded-2xl flex flex-col items-center justify-center text-[#8A7265] hover:border-[#adcec3] hover:text-[#C4601A] transition-all group"
             >
-              <svg className="w-7 h-7 mb-1.5 group-hover:scale-110 transition-transform" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
-              </svg>
+              <CirclePlus className="w-7 h-7 mb-1.5 group-hover:scale-110 transition-transform" animateOnHover="default" />
               <span className="text-sm font-medium">Add New Phase Block</span>
             </button>
           </div>
@@ -752,9 +751,7 @@ function PhaseCard({ node, phaseNum, members, onUpdate, onRemove, onAddObjective
           onClick={() => onRemove(node.id)}
           className="w-6 h-6 flex items-center justify-center text-[#BBA79C] hover:text-[#ba1a1a] hover:bg-[#ffdad6] rounded-lg transition-colors"
         >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>
+          <Trash2 className="w-3.5 h-3.5" animateOnHover="default" />
         </button>
       </div>
 
@@ -799,9 +796,7 @@ function PhaseCard({ node, phaseNum, members, onUpdate, onRemove, onAddObjective
             onClick={() => onAddObjective(node.id)}
             className="text-[11px] text-[#46645c] hover:text-[#16342d] font-semibold flex items-center gap-1 transition-colors"
           >
-            <svg className="w-3 h-3" viewBox="0 0 12 12" fill="currentColor">
-              <path d="M6 2a1 1 0 011 1v2h2a1 1 0 110 2H7v2a1 1 0 11-2 0V7H3a1 1 0 110-2h2V3a1 1 0 011-1z" />
-            </svg>
+            <Plus className="w-3 h-3" animateOnHover="default" />
             Add Objective
           </button>
         </div>
@@ -900,9 +895,7 @@ function ObjectiveRow({ phaseId, obj, idx, members, onUpdate, onUpdateAssignee, 
                   <div className="w-4 h-4 rounded-full bg-[#F0E9E0] border-2 border-dashed border-[#E0CFC4] shrink-0" />
                 )}
                 <span className="flex-1 text-left truncate min-w-0">{obj.assigneeName || 'Anyone'}</span>
-                <svg className="w-3 h-3 text-[#BBA79C] shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
+                <ChevronDown className="w-3 h-3 text-[#BBA79C] shrink-0" animateOnHover="default" />
               </button>
 
               {assigneeOpen && createPortal(
@@ -914,9 +907,7 @@ function ObjectiveRow({ phaseId, obj, idx, members, onUpdate, onUpdateAssignee, 
                   >
                     <div className="px-2.5 pt-2.5 pb-2 border-b border-[#E0CFC4]">
                       <div className="relative">
-                        <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#8A7265] pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-                        </svg>
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#8A7265] pointer-events-none" animateOnHover="default" />
                         <input
                           autoFocus
                           value={assigneeSearch}
@@ -961,9 +952,7 @@ function ObjectiveRow({ phaseId, obj, idx, members, onUpdate, onUpdateAssignee, 
         onClick={() => onRemove(phaseId, obj.id)}
         className="mt-2 text-[#BBA79C] hover:text-[#ba1a1a] transition-colors opacity-0 group-hover:opacity-100 shrink-0"
       >
-        <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-        </svg>
+        <X className="w-3.5 h-3.5" animateOnHover="default" />
       </button>
     </div>
   );
