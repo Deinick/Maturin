@@ -1,8 +1,19 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { Resend } from 'resend';
 import prisma from '../lib/prisma';
 
 const SECRET = process.env.JWT_SECRET!;
+
+const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173';
+const FROM_EMAIL   = process.env.FROM_EMAIL   ?? 'invites@steadily.app';
+function getResend() { return new Resend(process.env.RESEND_API_KEY ?? 'missing'); }
+
+const RESET_TOKEN_TTL_MS  = 60 * 60 * 1000;      // 1 hour
+const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+const PUBLIC_USER_SELECT = { id: true, email: true, name: true, avatarUrl: true, emailVerified: true } as const;
 
 export async function register(email: string, name: string, password: string)
 {
@@ -10,9 +21,12 @@ export async function register(email: string, name: string, password: string)
     if (existing) throw new Error('EMAIL_TAKEN');
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const user = await prisma.user.create({ data: { email, name, passwordHash } });
+    const user = await prisma.user.create({ data: { email, name, passwordHash, emailVerified: false } });
     const token = jwt.sign({ userId: user.id }, SECRET, { expiresIn: '30d' });
-    return { token, user: { id: user.id, email: user.email, name: user.name } };
+
+    await sendVerificationEmail(user.id);
+
+    return { token, user: { id: user.id, email: user.email, name: user.name, avatarUrl: user.avatarUrl, emailVerified: user.emailVerified } };
 }
 
 export async function login(email: string, password: string)
@@ -24,15 +38,206 @@ export async function login(email: string, password: string)
     if (!valid) throw new Error('INVALID_CREDENTIALS');
 
     const token = jwt.sign({ userId: user.id }, SECRET, { expiresIn: '30d' });
-    return { token, user: { id: user.id, email: user.email, name: user.name } };
+    return { token, user: { id: user.id, email: user.email, name: user.name, avatarUrl: user.avatarUrl, emailVerified: user.emailVerified } };
 }
 
 export async function getMe(userId: string)
 {
     const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { id: true, email: true, name: true, createdAt: true },
+        select: { ...PUBLIC_USER_SELECT, createdAt: true },
     });
     if (!user) throw new Error('NOT_FOUND');
     return user;
+}
+
+export async function updateProfile(userId: string, data: { name?: string; email?: string; avatarUrl?: string | null })
+{
+    const { name, email, avatarUrl } = data;
+
+    let emailChanged = false;
+    if (email)
+    {
+        const existing = await prisma.user.findUnique({ where: { email } });
+        if (existing && existing.id !== userId) throw new Error('EMAIL_TAKEN');
+
+        const current = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+        emailChanged = current.email !== email;
+    }
+
+    const user = await prisma.user.update({
+        where: { id: userId },
+        data: {
+            ...(name      !== undefined ? { name }      : {}),
+            ...(email     !== undefined ? { email }     : {}),
+            ...(avatarUrl !== undefined ? { avatarUrl } : {}),
+            ...(emailChanged ? { emailVerified: false } : {}),
+        },
+        select: { ...PUBLIC_USER_SELECT, createdAt: true },
+    });
+
+    if (emailChanged) await sendVerificationEmail(userId);
+
+    return user;
+}
+
+export async function changePassword(userId: string, currentPassword: string, newPassword: string)
+{
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new Error('NOT_FOUND');
+
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) throw new Error('INVALID_CREDENTIALS');
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+}
+
+export async function deleteAccount(userId: string, password: string)
+{
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new Error('NOT_FOUND');
+
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) throw new Error('INVALID_CREDENTIALS');
+
+    // All owned records (tasks, habits, projects, memberships, invites, etc.)
+    // cascade via onDelete: Cascade on the User relations in schema.prisma.
+    await prisma.user.delete({ where: { id: userId } });
+}
+
+// ── Password reset ──────────────────────────────────────────────────────────
+
+export async function requestPasswordReset(email: string)
+{
+    const user = await prisma.user.findUnique({ where: { email } });
+    // Deliberately do nothing (but don't reveal it) if no account matches —
+    // prevents leaking which emails have accounts via response timing/content.
+    if (!user) return;
+
+    await prisma.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    await prisma.passwordResetToken.create({
+        data: { userId: user.id, token, expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS) },
+    });
+
+    const resetUrl = `${FRONTEND_URL}/reset-password/${token}`;
+    try
+    {
+        await getResend().emails.send({
+            from: FROM_EMAIL,
+            to: user.email,
+            subject: 'Reset your Steadily password',
+            html: resetPasswordEmailHtml({ name: user.name, resetUrl }),
+        });
+    }
+    catch (err)
+    {
+        console.warn('[auth] reset email send failed (no key configured locally):', (err as Error).message);
+    }
+}
+
+export async function resetPassword(token: string, newPassword: string)
+{
+    const record = await prisma.passwordResetToken.findUnique({ where: { token } });
+    if (!record || record.usedAt || record.expiresAt < new Date()) throw new Error('INVALID_TOKEN');
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await prisma.$transaction([
+        prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
+        prisma.passwordResetToken.update({ where: { token }, data: { usedAt: new Date() } }),
+    ]);
+}
+
+// ── Email verification ──────────────────────────────────────────────────────
+
+export async function sendVerificationEmail(userId: string)
+{
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (user.emailVerified) return;
+
+    await prisma.emailVerificationToken.deleteMany({ where: { userId, usedAt: null } });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    await prisma.emailVerificationToken.create({
+        data: { userId, token, expiresAt: new Date(Date.now() + VERIFY_TOKEN_TTL_MS) },
+    });
+
+    const verifyUrl = `${FRONTEND_URL}/verify-email/${token}`;
+    try
+    {
+        await getResend().emails.send({
+            from: FROM_EMAIL,
+            to: user.email,
+            subject: 'Verify your Steadily email',
+            html: verifyEmailHtml({ name: user.name, verifyUrl }),
+        });
+    }
+    catch (err)
+    {
+        console.warn('[auth] verification email send failed (no key configured locally):', (err as Error).message);
+    }
+}
+
+export async function verifyEmail(token: string)
+{
+    const record = await prisma.emailVerificationToken.findUnique({ where: { token } });
+    if (!record || record.usedAt || record.expiresAt < new Date()) throw new Error('INVALID_TOKEN');
+
+    await prisma.$transaction([
+        prisma.user.update({ where: { id: record.userId }, data: { emailVerified: true } }),
+        prisma.emailVerificationToken.update({ where: { token }, data: { usedAt: new Date() } }),
+    ]);
+}
+
+// ── Email templates ──────────────────────────────────────────────────────────
+
+function emailShell(bodyHtml: string)
+{
+    return `<!DOCTYPE html>
+<html>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#F4F2EA;padding:40px 20px;margin:0;">
+  <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #DDD8CC;overflow:hidden;">
+    <div style="padding:28px 32px 20px;border-bottom:1px solid #F0EDE4;">
+      <p style="font-size:20px;font-weight:700;color:#1c1917;margin:0 0 2px;">Steadily</p>
+      <p style="font-size:11px;color:#a8a29e;margin:0;letter-spacing:.05em;">SLOW &amp; CONSISTENT</p>
+    </div>
+    <div style="padding:32px;">
+      ${bodyHtml}
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+function resetPasswordEmailHtml({ name, resetUrl }: { name: string; resetUrl: string })
+{
+    return emailShell(`
+      <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 6px;">Hi ${name},</p>
+      <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 20px;">
+        We received a request to reset your Steadily password. This link expires in 1 hour.
+      </p>
+      <a href="${resetUrl}"
+        style="display:inline-block;background:#C4601A;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-size:14px;font-weight:600;">
+        Reset password →
+      </a>
+      <p style="color:#a8a29e;font-size:12px;margin:24px 0 0;">
+        If you didn't request this, you can safely ignore this email.
+      </p>
+    `);
+}
+
+function verifyEmailHtml({ name, verifyUrl }: { name: string; verifyUrl: string })
+{
+    return emailShell(`
+      <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 6px;">Hi ${name},</p>
+      <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 20px;">
+        Please confirm this is your email address. This link expires in 24 hours.
+      </p>
+      <a href="${verifyUrl}"
+        style="display:inline-block;background:#4C8077;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-size:14px;font-weight:600;">
+        Verify email →
+      </a>
+    `);
 }

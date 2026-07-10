@@ -35,7 +35,9 @@ app.use(cors({
     },
     credentials: true,
 }));
-app.use(express.json());
+// Raised from the 100kb default so a base64-encoded avatar upload (resized/compressed
+// client-side, but still ~30% larger once base64-encoded) fits comfortably.
+app.use(express.json({ limit: '3mb' }));
 
 // Tight rate limit on auth endpoints only — prevents brute-force
 const authLimiter = rateLimit({
