@@ -1,14 +1,10 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { Resend } from 'resend';
 import prisma from '../lib/prisma';
+import { FRONTEND_URL, FROM_EMAIL, getResend, emailShell } from '../lib/emailTemplate';
 
 const SECRET = process.env.JWT_SECRET!;
-
-const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173';
-const FROM_EMAIL   = process.env.FROM_EMAIL   ?? 'invites@steadily.app';
-function getResend() { return new Resend(process.env.RESEND_API_KEY ?? 'missing'); }
 
 const RESET_TOKEN_TTL_MS  = 60 * 60 * 1000;      // 1 hour
 const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -192,24 +188,6 @@ export async function verifyEmail(token: string)
 }
 
 // ── Email templates ──────────────────────────────────────────────────────────
-
-function emailShell(bodyHtml: string)
-{
-    return `<!DOCTYPE html>
-<html>
-<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#F4F2EA;padding:40px 20px;margin:0;">
-  <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #DDD8CC;overflow:hidden;">
-    <div style="padding:28px 32px 20px;border-bottom:1px solid #F0EDE4;">
-      <p style="font-size:20px;font-weight:700;color:#1c1917;margin:0 0 2px;">Steadily</p>
-      <p style="font-size:11px;color:#a8a29e;margin:0;letter-spacing:.05em;">SLOW &amp; CONSISTENT</p>
-    </div>
-    <div style="padding:32px;">
-      ${bodyHtml}
-    </div>
-  </div>
-</body>
-</html>`;
-}
 
 function resetPasswordEmailHtml({ name, resetUrl }: { name: string; resetUrl: string })
 {

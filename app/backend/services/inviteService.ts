@@ -1,11 +1,7 @@
-import {Resend} from "resend";
 import crypto from "crypto";
 import prisma from "../lib/prisma";
 import {PermissionError} from "./projectService";
-
-const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173';
-const FROM_EMAIL   = process.env.FROM_EMAIL   ?? 'invites@steadily.app';
-function getResend() { return new Resend(process.env.RESEND_API_KEY ?? 'missing'); }
+import { FRONTEND_URL, FROM_EMAIL, getResend, emailShell } from "../lib/emailTemplate";
 
 //handle error
 
@@ -117,15 +113,7 @@ function emailHtml({ inviterName, projectTitle, role, inviteUrl }:{
     inviterName: string; projectTitle: string; role: string; inviteUrl: string;
 })
 {
-return `<!DOCTYPE html>
-<html>
-<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#F4F2EA;padding:40px 20px;margin:0;">
-  <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #DDD8CC;overflow:hidden;">
-    <div style="padding:28px 32px 20px;border-bottom:1px solid #F0EDE4;">
-      <p style="font-size:20px;font-weight:700;color:#1c1917;margin:0 0 2px;">Steadily</p>
-      <p style="font-size:11px;color:#a8a29e;margin:0;letter-spacing:.05em;">SLOW &amp; CONSISTENT</p>
-    </div>
-    <div style="padding:32px;">
+    return emailShell(`
       <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 6px;">
         <strong>${inviterName}</strong> invited you to collaborate on
         <strong>"${projectTitle}"</strong> as a <strong>${role}</strong>.
@@ -135,13 +123,9 @@ return `<!DOCTYPE html>
         style="display:inline-block;background:#059669;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-size:14px;font-weight:600;">
         Accept invitation →
       </a>
-    </div>
-    <div style="padding:16px 32px;background:#FAFAF8;border-top:1px solid #F0EDE4;">
+    `, `
       <p style="color:#a8a29e;font-size:11px;margin:0;word-break:break-all;">
         Or copy this link: ${inviteUrl}
       </p>
-    </div>
-  </div>
-</body>
-</html>`;
+    `);
 }
