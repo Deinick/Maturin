@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import InviteModal         from '../components/InviteModal';
 import PendingChangesModal from '../components/PendingChangesModal';
+import Modal                from '../components/Modal';
 import {
   ReactFlow,
   Background,
@@ -173,7 +174,12 @@ export default function ProjectDetailPage() {
   const [project,          setProject]         = useState<Project | null>(null);
   const [insights,         setInsights]        = useState<Insights | null>(null);
   const [selectedMilestone, setSelectedMilestone] = useState<MilestoneWithPhase | null>(null);
+  const [milestoneCache,   setMilestoneCache]   = useState<MilestoneWithPhase | null>(null);
   const [effortPending,    setEffortPending]   = useState<string | null>(null);
+
+  // Keep rendering the last-selected milestone's data while the modal fades out,
+  // so the close animation doesn't try to read fields off a null value mid-transition.
+  useEffect(() => { if (selectedMilestone) setMilestoneCache(selectedMilestone); }, [selectedMilestone]);
 
   const [editMode,        setEditMode]        = useState(false);
   const [editFields,      setEditFields]      = useState({ title: '', description: '', dueDate: '' });
@@ -188,7 +194,12 @@ export default function ProjectDetailPage() {
   const [pendingChanges,   setPendingChanges]  = useState<PendingChange[]>([]);
   const [performance,      setPerformance]     = useState<MemberPerformance[] | null>(null);
   const [phaseDetail,      setPhaseDetail]     = useState<ONodeData | null>(null);
+  const [phaseDetailCache, setPhaseDetailCache]= useState<ONodeData | null>(null);
   const [tracePathChain,   setTracePathChain]  = useState<Phase[] | null>(null);
+
+  // Same rationale as milestoneCache: keep the last-selected phase's data around
+  // while the modal fades out, so the exit animation isn't reading fields off null.
+  useEffect(() => { if (phaseDetail) setPhaseDetailCache(phaseDetail); }, [phaseDetail]);
 
 
   const myMemberData = project?.members?.find(m => m.user.id === user?.id);
@@ -861,49 +872,52 @@ export default function ProjectDetailPage() {
       )}
 
       {/* ── Phase detail modal ─────────────────────────────────── */}
-      {phaseDetail && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setPhaseDetail(null)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col z-10 overflow-hidden">
-
+      <Modal
+        open={!!phaseDetail}
+        backdropClassName="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+        onBackdropClick={() => setPhaseDetail(null)}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden"
+      >
+          {phaseDetailCache && (
+          <>
             {/* Header */}
             <div className={`px-6 py-4 border-b shrink-0 ${
-              phaseDetail.locked ? 'bg-[#FFF5E9] border-[#E0CFC4]'
-              : phaseDetail.complete ? 'bg-[#E8FAF7] border-[#E0CFC4]'
-              : phaseDetail.overdue ? 'bg-amber-50 border-amber-100'
+              phaseDetailCache.locked ? 'bg-[#FFF5E9] border-[#E0CFC4]'
+              : phaseDetailCache.complete ? 'bg-[#E8FAF7] border-[#E0CFC4]'
+              : phaseDetailCache.overdue ? 'bg-amber-50 border-amber-100'
               : 'bg-white border-[#E0CFC4]'
             }`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-bold text-[#8A7265] uppercase tracking-widest mb-1">
-                    Phase {String(phaseDetail.phaseNum).padStart(2, '0')}
+                    Phase {String(phaseDetailCache.phaseNum).padStart(2, '0')}
                   </p>
-                  <h2 className="text-xl font-bold text-[#2D1E1A] leading-snug break-words">{phaseDetail.phase.title || 'Unnamed Phase'}</h2>
+                  <h2 className="text-xl font-bold text-[#2D1E1A] leading-snug break-words">{phaseDetailCache.phase.title || 'Unnamed Phase'}</h2>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 mt-1">
                   <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                    phaseDetail.locked ? 'bg-[#F0E9E0] text-[#8A7265]'
-                    : phaseDetail.complete ? 'bg-[#c8eadf] text-[#16342d]'
-                    : phaseDetail.overdue ? 'bg-amber-100 text-amber-700'
-                    : phaseDetail.active ? 'bg-blue-100 text-blue-700'
+                    phaseDetailCache.locked ? 'bg-[#F0E9E0] text-[#8A7265]'
+                    : phaseDetailCache.complete ? 'bg-[#c8eadf] text-[#16342d]'
+                    : phaseDetailCache.overdue ? 'bg-amber-100 text-amber-700'
+                    : phaseDetailCache.active ? 'bg-blue-100 text-blue-700'
                     : 'bg-[#F0E9E0] text-[#8A7265]'
                   }`}>
-                    {phaseDetail.locked ? 'Locked' : phaseDetail.complete ? 'Complete' : phaseDetail.overdue ? 'Overdue' : phaseDetail.active ? 'In Progress' : 'Pending'}
+                    {phaseDetailCache.locked ? 'Locked' : phaseDetailCache.complete ? 'Complete' : phaseDetailCache.overdue ? 'Overdue' : phaseDetailCache.active ? 'In Progress' : 'Pending'}
                   </span>
                   <button onClick={() => setPhaseDetail(null)} className="w-8 h-8 flex items-center justify-center text-[#8A7265] hover:text-[#54433A] hover:bg-[#F0E9E0] rounded-lg transition-colors text-xl leading-none">×</button>
                 </div>
               </div>
-              {phaseDetail.total > 0 && (
+              {phaseDetailCache.total > 0 && (
                 <div className="mt-3">
                   <div className="flex justify-between text-xs text-[#8A7265] mb-1.5">
-                    <span>{phaseDetail.done}/{phaseDetail.total} objectives</span>
-                    <span>{Math.round(phaseDetail.done / phaseDetail.total * 100)}%</span>
+                    <span>{phaseDetailCache.done}/{phaseDetailCache.total} objectives</span>
+                    <span>{Math.round(phaseDetailCache.done / phaseDetailCache.total * 100)}%</span>
                   </div>
                   <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--c-surface-mid)' }}>
                     <div className="h-full rounded-full transition-all"
                       style={{
-                        width: `${Math.round(phaseDetail.done / phaseDetail.total * 100)}%`,
-                        background: phaseDetail.complete ? '#4ade80' : phaseDetail.overdue ? '#fbbf24' : '#C4601A',
+                        width: `${Math.round(phaseDetailCache.done / phaseDetailCache.total * 100)}%`,
+                        background: phaseDetailCache.complete ? '#4ade80' : phaseDetailCache.overdue ? '#fbbf24' : '#C4601A',
                       }} />
                   </div>
                 </div>
@@ -913,25 +927,25 @@ export default function ProjectDetailPage() {
             {/* Scrollable body */}
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
               <div className="grid grid-cols-2 gap-4">
-                {phaseDetail.phase.description && (
+                {phaseDetailCache.phase.description && (
                   <div className="col-span-2">
                     <p className="text-[10px] font-semibold text-[#8A7265] uppercase tracking-wider mb-1.5">Description</p>
-                    <p className="text-sm text-[#54433A] leading-relaxed break-words whitespace-pre-wrap">{phaseDetail.phase.description}</p>
+                    <p className="text-sm text-[#54433A] leading-relaxed break-words whitespace-pre-wrap">{phaseDetailCache.phase.description}</p>
                   </div>
                 )}
-                {phaseDetail.phase.dueDate && (
+                {phaseDetailCache.phase.dueDate && (
                   <div>
                     <p className="text-[10px] font-semibold text-[#8A7265] uppercase tracking-wider mb-1.5">Due Date</p>
-                    <p className={`text-sm font-medium ${!phaseDetail.complete && phaseDetail.phase.dueDate < TODAY ? 'text-amber-600' : 'text-[#54433A]'}`}>
-                      {phaseDetail.phase.dueDate}{!phaseDetail.complete && phaseDetail.phase.dueDate < TODAY && ' (overdue)'}
+                    <p className={`text-sm font-medium ${!phaseDetailCache.complete && phaseDetailCache.phase.dueDate < TODAY ? 'text-amber-600' : 'text-[#54433A]'}`}>
+                      {phaseDetailCache.phase.dueDate}{!phaseDetailCache.complete && phaseDetailCache.phase.dueDate < TODAY && ' (overdue)'}
                     </p>
                   </div>
                 )}
-                {phaseDetail.locked && phaseDetail.blockingNames.length > 0 && (
+                {phaseDetailCache.locked && phaseDetailCache.blockingNames.length > 0 && (
                   <div className="col-span-2">
                     <p className="text-[10px] font-semibold text-[#8A7265] uppercase tracking-wider mb-1.5">Waiting For</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {phaseDetail.blockingNames.map(name => (
+                      {phaseDetailCache.blockingNames.map(name => (
                         <span key={name} className="text-xs px-2.5 py-1 bg-[#F0E9E0] text-[#54433A] rounded-full font-medium">{name}</span>
                       ))}
                     </div>
@@ -940,13 +954,13 @@ export default function ProjectDetailPage() {
               </div>
 
               {/* Objectives */}
-              {phaseDetail.phase.milestones.length > 0 ? (
+              {phaseDetailCache.phase.milestones.length > 0 ? (
                 <div>
                   <h3 className="text-[10px] font-bold text-[#8A7265] uppercase tracking-widest mb-3">
-                    Objectives ({phaseDetail.phase.milestones.length})
+                    Objectives ({phaseDetailCache.phase.milestones.length})
                   </h3>
                   <div className="space-y-2.5">
-                    {[...phaseDetail.phase.milestones].sort((a, b) => a.order - b.order).map(ms => {
+                    {[...phaseDetailCache.phase.milestones].sort((a, b) => a.order - b.order).map(ms => {
                       const isOverdueMs = !ms.completed && ms.dueDate && ms.dueDate < TODAY;
                       return (
                         <div key={ms.id} className={`p-4 rounded-xl border ${ms.completed ? 'bg-[#E8FAF7] border-[#E0CFC4]' : isOverdueMs ? 'bg-amber-50 border-amber-100' : 'bg-white border-[#E0CFC4]'}`}>
@@ -955,7 +969,7 @@ export default function ProjectDetailPage() {
                               <div className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center shrink-0 mt-px">
                                 <Check className="w-3 h-3 text-white" animateOnHover="default" />
                               </div>
-                            ) : phaseDetail.locked ? (
+                            ) : phaseDetailCache.locked ? (
                               <Lock className="w-5 h-5 text-[#BBA79C] shrink-0 mt-px" animateOnHover="default" />
                             ) : (
                               <div className={`w-5 h-5 rounded-full border-2 shrink-0 mt-px ${isOverdueMs ? 'border-amber-400' : 'border-[#E0CFC4]'}`} />
@@ -1005,9 +1019,9 @@ export default function ProjectDetailPage() {
                 <p className="text-sm text-[#8A7265] italic text-center py-4">No objectives in this phase.</p>
               )}
             </div>
-          </div>
-        </div>
-      )}
+          </>
+          )}
+      </Modal>
 
       {/* ── Trace path modal ───────────────────────────────────── */}
       {tracePathChain && tracePathChain.length > 0 && (
@@ -1118,11 +1132,9 @@ export default function ProjectDetailPage() {
       )}
 
       {/* Milestone detail popup */}
-      {selectedMilestone && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
-
-            {effortPending === selectedMilestone.id ? (
+      <Modal open={!!selectedMilestone} className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+          {milestoneCache && (
+            effortPending === milestoneCache.id ? (
               /* ── Effort rating ── */
               <div className="text-center p-8">
                 <p className="text-2xl mb-2">✓</p>
@@ -1131,7 +1143,7 @@ export default function ProjectDetailPage() {
                 <div className="flex gap-2 mb-4">
                   {EFFORT_OPTIONS.map(opt => (
                     <button key={opt.value}
-                      onClick={() => handleEffortRating(selectedMilestone.id, opt.value)}
+                      onClick={() => handleEffortRating(milestoneCache.id, opt.value)}
                       className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-colors ${opt.color}`}>
                       {opt.label}
                     </button>
@@ -1243,7 +1255,7 @@ export default function ProjectDetailPage() {
               <>
                 {/* Header */}
                 <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-[#E0CFC4] shrink-0">
-                  <h2 className="text-lg font-bold text-[#2D1E1A] pr-4 leading-snug">{selectedMilestone.title}</h2>
+                  <h2 className="text-lg font-bold text-[#2D1E1A] pr-4 leading-snug">{milestoneCache.title}</h2>
                   <div className="flex items-center gap-2 shrink-0">
                     {canEdit && (
                       <button
@@ -1264,13 +1276,13 @@ export default function ProjectDetailPage() {
                 <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
 
                   {/* Phase locked banner */}
-                  {selectedMilestone.phaseLocked && (
+                  {milestoneCache.phaseLocked && (
                     <div className="flex items-start gap-2.5 px-4 py-3 bg-[#FFF5E9] border border-[#E0CFC4] rounded-xl">
                       <Lock className="w-4 h-4 text-[#8A7265] shrink-0 mt-px" animateOnHover="default" />
                       <div>
                         <p className="text-xs font-semibold text-[#54433A]">Phase locked</p>
                         <p className="text-xs text-[#8A7265] mt-0.5 leading-relaxed">
-                          Complete first: <span className="text-[#54433A] font-medium">{selectedMilestone.blockingPhaseNames.join(', ')}</span>
+                          Complete first: <span className="text-[#54433A] font-medium">{milestoneCache.blockingPhaseNames.join(', ')}</span>
                         </p>
                       </div>
                     </div>
@@ -1295,15 +1307,15 @@ export default function ProjectDetailPage() {
                   {/* Phase */}
                   <div className="flex items-start gap-3">
                     <span className="text-xs font-semibold text-[#8A7265] w-24 shrink-0 pt-0.5">Phase</span>
-                    <span className="text-sm text-[#54433A] font-medium">{selectedMilestone.phaseName}</span>
+                    <span className="text-sm text-[#54433A] font-medium">{milestoneCache.phaseName}</span>
                   </div>
 
                   {/* Description */}
                   <div className="flex items-start gap-3">
                     <span className="text-xs font-semibold text-[#8A7265] w-24 shrink-0 pt-0.5">Description</span>
-                    {selectedMilestone.description ? (
+                    {milestoneCache.description ? (
                       <p className="text-sm text-[#54433A] leading-relaxed break-words whitespace-pre-wrap min-w-0">
-                        {selectedMilestone.description}
+                        {milestoneCache.description}
                       </p>
                     ) : (
                       <p className="text-sm text-[#BBA79C] italic">No description</p>
@@ -1313,10 +1325,10 @@ export default function ProjectDetailPage() {
                   {/* Due date */}
                   <div className="flex items-start gap-3">
                     <span className="text-xs font-semibold text-[#8A7265] w-24 shrink-0 pt-0.5">Due date</span>
-                    {selectedMilestone.dueDate ? (
-                      <span className={`text-sm font-medium ${!selectedMilestone.completed && selectedMilestone.dueDate < TODAY ? 'text-amber-600' : 'text-[#54433A]'}`}>
-                        {selectedMilestone.dueDate}
-                        {!selectedMilestone.completed && selectedMilestone.dueDate < TODAY && <span className="ml-1.5 text-xs font-normal text-amber-500">(overdue)</span>}
+                    {milestoneCache.dueDate ? (
+                      <span className={`text-sm font-medium ${!milestoneCache.completed && milestoneCache.dueDate < TODAY ? 'text-amber-600' : 'text-[#54433A]'}`}>
+                        {milestoneCache.dueDate}
+                        {!milestoneCache.completed && milestoneCache.dueDate < TODAY && <span className="ml-1.5 text-xs font-normal text-amber-500">(overdue)</span>}
                       </span>
                     ) : (
                       <p className="text-sm text-[#BBA79C] italic">No due date</p>
@@ -1326,9 +1338,9 @@ export default function ProjectDetailPage() {
                   {/* Assigned to */}
                   <div className="flex items-start gap-3">
                     <span className="text-xs font-semibold text-[#8A7265] w-24 shrink-0 pt-0.5">Assigned to</span>
-                    {selectedMilestone.assignees && selectedMilestone.assignees.length > 0 ? (
+                    {milestoneCache.assignees && milestoneCache.assignees.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
-                        {selectedMilestone.assignees.map(a => (
+                        {milestoneCache.assignees.map(a => (
                           <div key={a.id} className="flex items-center gap-1.5">
                             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-semibold ${memberColor(a.name)}`}>
                               {a.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
@@ -1345,34 +1357,34 @@ export default function ProjectDetailPage() {
                   {/* Status + effort */}
                   <div className="flex items-center gap-2 flex-wrap">
                     <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium
-                      ${selectedMilestone.completed ? 'bg-[#E8FAF7] text-[#4C8077]' : 'bg-[#F0E9E0] text-[#8A7265]'}`}>
-                      {selectedMilestone.completed ? '✓ Completed' : '○ Not completed'}
+                      ${milestoneCache.completed ? 'bg-[#E8FAF7] text-[#4C8077]' : 'bg-[#F0E9E0] text-[#8A7265]'}`}>
+                      {milestoneCache.completed ? '✓ Completed' : '○ Not completed'}
                     </div>
-                    {selectedMilestone.effortRating && (
+                    {milestoneCache.effortRating && (
                       <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium
-                        ${selectedMilestone.effortRating === 'easier' ? 'bg-[#E8FAF7] text-[#4C8077]'
-                          : selectedMilestone.effortRating === 'harder' ? 'bg-rose-50 text-rose-600'
+                        ${milestoneCache.effortRating === 'easier' ? 'bg-[#E8FAF7] text-[#4C8077]'
+                          : milestoneCache.effortRating === 'harder' ? 'bg-rose-50 text-rose-600'
                           : 'bg-[#E8FAF7] text-[#4C8077]'}`}>
-                        {selectedMilestone.effortRating === 'easier' ? 'Easier than expected'
-                          : selectedMilestone.effortRating === 'harder' ? 'Harder than expected'
+                        {milestoneCache.effortRating === 'easier' ? 'Easier than expected'
+                          : milestoneCache.effortRating === 'harder' ? 'Harder than expected'
                           : 'About right'}
                       </div>
                     )}
                   </div>
 
                   {/* Block reason */}
-                  {!selectedMilestone.completed && selectedMilestone.dueDate && selectedMilestone.dueDate < TODAY && (
+                  {!milestoneCache.completed && milestoneCache.dueDate && milestoneCache.dueDate < TODAY && (
                     <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
-                      {selectedMilestone.blockReason ? (
+                      {milestoneCache.blockReason ? (
                         <div>
                           <p className="text-xs font-semibold text-[#8A7265] mb-2">Blocked by:</p>
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium text-amber-800">
-                              {BLOCK_LABELS[selectedMilestone.blockReason] ?? selectedMilestone.blockReason}
+                              {BLOCK_LABELS[milestoneCache.blockReason] ?? milestoneCache.blockReason}
                             </span>
                             {canEdit && (
                               <button
-                                onClick={() => handleBlockReason(selectedMilestone.id, selectedMilestone.blockReason!)}
+                                onClick={() => handleBlockReason(milestoneCache.id, milestoneCache.blockReason!)}
                                 className="text-xs text-amber-500 hover:text-amber-700 transition-colors"
                               >Change</button>
                             )}
@@ -1384,7 +1396,7 @@ export default function ProjectDetailPage() {
                           <div className="grid grid-cols-2 gap-1.5">
                             {BLOCK_OPTIONS.map(opt => (
                               <button key={opt.value}
-                                onClick={() => handleBlockReason(selectedMilestone.id, opt.value)}
+                                onClick={() => handleBlockReason(milestoneCache.id, opt.value)}
                                 className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-white border border-amber-200 text-xs text-[#54433A] hover:border-amber-400 hover:bg-amber-50 transition-colors text-left font-medium">
                                 <span>{opt.icon}</span> {opt.label}
                               </button>
@@ -1399,24 +1411,23 @@ export default function ProjectDetailPage() {
                 </div>
 
                 {/* Footer: toggle button (hidden for locked phases) */}
-                {canEdit && !selectedMilestone.phaseLocked && (
+                {canEdit && !milestoneCache.phaseLocked && (
                   <div className="px-6 pb-6 shrink-0">
                     <button
-                      onClick={() => handleToggleMilestone(selectedMilestone)}
+                      onClick={() => handleToggleMilestone(milestoneCache)}
                       className={`w-full py-2.5 rounded-xl text-sm font-medium transition-colors
-                        ${selectedMilestone.completed
+                        ${milestoneCache.completed
                           ? 'bg-[#F0E9E0] text-[#8A7265] hover:bg-[#E0CFC4]'
                           : 'bg-[#C4601A] text-white hover:bg-[#C4601A]'}`}
                     >
-                      {selectedMilestone.completed ? 'Mark as incomplete' : 'Mark as complete'}
+                      {milestoneCache.completed ? 'Mark as incomplete' : 'Mark as complete'}
                     </button>
                   </div>
                 )}
               </>
-            )}
-          </div>
-        </div>
-      )}
+            )
+          )}
+      </Modal>
     </div>
   );
 }

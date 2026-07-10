@@ -32,7 +32,7 @@ export default function LoginPage()
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="min-h-screen flex items-center justify-center px-4 page-fade">
             <div className="w-full max-w-sm">
 
                 <div className="text-center mb-8">
@@ -58,7 +58,12 @@ export default function LoginPage()
                         </div>
 
                         <div>
-                            <label className="text-xs font-medium text-[#8A7265] uppercase tracking-wide">Password</label>
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-medium text-[#8A7265] uppercase tracking-wide">Password</label>
+                                <Link to="/forgot-password" className="text-xs font-medium text-[#4C8077] hover:text-[#16342d] transition-colors">
+                                    Forgot password?
+                                </Link>
+                            </div>
                             <input
                                 type="password"
                                 required
@@ -78,7 +83,7 @@ export default function LoginPage()
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-2.5 rounded-xl text-sm font-medium text-white bg-[#C4601A] hover:bg-[#C4601A] disabled:opacity-40 transition-colors mt-2"
+                            className="w-full py-2.5 rounded-xl text-sm font-medium text-white bg-[#C4601A] hover:bg-[#A84E14] disabled:opacity-40 transition-colors mt-2"
                         >
                             {loading ? 'Signing in…' : 'Sign in'}
                         </button>

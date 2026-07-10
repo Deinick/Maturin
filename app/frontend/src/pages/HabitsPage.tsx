@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Habit, HabitLog } from '../types';
 import { getHabits, createHabit, logHabit, updateHabitLog, updateHabit, deleteHabit } from '../api/client';
 import HabitRecordModal from '../components/HabitRecordModal';
+import Modal from '../components/Modal';
 import { localDate } from '../utils/date';
 import { ChartNoAxesColumn } from '@/components/animate-ui/icons/chart-no-axes-column';
 import { Plus } from '@/components/animate-ui/icons/plus';
@@ -470,9 +471,7 @@ export default function HabitsPage() {
       )}
 
       {/* ── Add Habit Modal ─────────────────────────────────────────── */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 border border-[#E0CFC4]">
+      <Modal open={showModal} className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 border border-[#E0CFC4]">
             <h2 className="text-lg font-semibold text-[#2D1E1A] mb-5">New Habit</h2>
 
             <input autoFocus
@@ -528,14 +527,10 @@ export default function HabitsPage() {
                 Add
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* ── Edit Habit Modal ────────────────────────────────────────── */}
-      {editHabit && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 border border-[#E0CFC4]">
+      <Modal open={!!editHabit} className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 border border-[#E0CFC4]">
             <h2 className="text-lg font-semibold text-[#2D1E1A] mb-5">Edit Habit</h2>
 
             <input autoFocus
@@ -591,17 +586,13 @@ export default function HabitsPage() {
                 Save
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* ── Full Record Modal ──────────────────────────────────────── */}
-      {showRecord && <HabitRecordModal habits={habits} onClose={() => setShowRecord(false)} />}
+      <HabitRecordModal open={showRecord} habits={habits} onClose={() => setShowRecord(false)} />
 
       {/* ── Delete Confirm Modal ───────────────────────────────────── */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 text-center border border-[#E0CFC4]">
+      <Modal open={!!deleteConfirm} className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 text-center border border-[#E0CFC4]">
             <div className="w-10 h-10 rounded-full bg-[#ffdad6] flex items-center justify-center mx-auto mb-3">
               <Trash2 className="w-5 h-5 text-[#ba1a1a]" animateOnHover="default" />
             </div>
@@ -612,14 +603,12 @@ export default function HabitsPage() {
                 className="flex-1 py-2.5 rounded-xl text-sm text-[#8A7265] bg-[#F0E9E0] hover:bg-[#E0CFC4] transition-colors">
                 Cancel
               </button>
-              <button onClick={() => handleDelete(deleteConfirm)}
+              <button onClick={() => deleteConfirm && handleDelete(deleteConfirm)}
                 className="flex-1 py-2.5 rounded-xl text-sm text-white bg-red-400 hover:bg-[#ba1a1a] transition-colors font-medium">
                 Delete
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }

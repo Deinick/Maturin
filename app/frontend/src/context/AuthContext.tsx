@@ -3,19 +3,22 @@ import axios from 'axios';
 
 interface AuthUser
 {
-    id:    string;
-    email: string;
-    name:  string;
+    id:            string;
+    email:         string;
+    name:          string;
+    avatarUrl?:    string | null;
+    emailVerified?: boolean;
 }
 
 interface AuthContextValue
 {
-    user:     AuthUser | null;
-    token:    string | null;
-    loading:  boolean;
-    login:    (email: string, password: string) => Promise<void>;
-    register: (email: string, name: string, password: string) => Promise<void>;
-    logout:   () => void;
+    user:       AuthUser | null;
+    token:      string | null;
+    loading:    boolean;
+    login:      (email: string, password: string) => Promise<void>;
+    register:   (email: string, name: string, password: string) => Promise<void>;
+    logout:     () => void;
+    updateUser: (patch: Partial<AuthUser>) => void;
 }
 
 const AuthContext = createContext<AuthContextValue>(null!);
@@ -71,8 +74,19 @@ export function AuthProvider({ children }: { children: ReactNode })
         setUser(null);
     }
 
+    function updateUser(patch: Partial<AuthUser>)
+    {
+        setUser(prev =>
+        {
+            if (!prev || !token) return prev;
+            const next = { ...prev, ...patch };
+            localStorage.setItem('auth', JSON.stringify({ token, user: next }));
+            return next;
+        });
+    }
+
     return (
-        <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+        <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateUser }}>
             {children}
         </AuthContext.Provider>
     );
