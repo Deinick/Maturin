@@ -39,7 +39,7 @@ export default function ProjectsPage() {
   const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
-    <div className="max-w-5xl">
+    <div className="max-w-5xl mx-auto">
       <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-3 mb-7">
         <div>
           <h1 className="text-2xl font-semibold text-[#2D1E1A] font-serif">Projects</h1>

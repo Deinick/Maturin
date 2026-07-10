@@ -238,7 +238,7 @@ export default function HabitsPage() {
   const monthLabel = new Date().toLocaleDateString('en-US', { month: 'long' });
 
   return (
-    <div className="max-w-5xl">
+    <div className="max-w-5xl mx-auto">
 
       {/* ── Page header ────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-3 mb-7">

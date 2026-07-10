@@ -47,7 +47,7 @@ export default function AccountPage({ onLogout }: { onLogout: () => void }) {
     }
 
     return (
-        <div className="max-w-5xl space-y-6">
+        <div className="max-w-5xl mx-auto space-y-6">
 
             {/* Header */}
             <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-3 mb-7">

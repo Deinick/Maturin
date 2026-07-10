@@ -128,7 +128,7 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="max-w-6xl space-y-5">
+        <div className="max-w-6xl mx-auto space-y-5">
 
             {/* ── Hero ─────────────────────────────────────────── */}
             <div className="flex items-end justify-between mb-2">

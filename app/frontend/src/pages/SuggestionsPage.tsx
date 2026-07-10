@@ -43,7 +43,7 @@ export default function SuggestionsPage()
     const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
     return (
-        <div className="max-w-5xl space-y-6">
+        <div className="max-w-5xl mx-auto space-y-6">
 
             {/* ── Page header ── */}
             <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-3 mb-7">
