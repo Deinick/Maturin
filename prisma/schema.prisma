@@ -13,6 +13,8 @@ model User {
   passwordHash       String
   email              String          @unique
   name               String
+  avatarUrl          String?
+  emailVerified      Boolean         @default(true)
   createdAt          DateTime        @default(now())
   tasks              ShortTask[]
   habits             Habit[]
@@ -22,6 +24,28 @@ model User {
   changesAuthored       PendingChange[]      @relation("ChangeAuthor")
   changesReviewed       PendingChange[]      @relation("ChangeReviewer")
   milestoneAssignments  MilestoneAssignee[]
+  passwordResetTokens     PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model ShortTask {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { Habit, HabitLog } from '../types';
 import { localDate } from '../utils/date';
+import Modal from './Modal';
 
 function datePad(d: Date): string {
   return (
@@ -124,19 +125,19 @@ interface TooltipState {
   closing: boolean;
 }
 
-interface Props { habits: Habit[]; onClose: () => void; }
+interface Props { open: boolean; habits: Habit[]; onClose: () => void; }
 
-export default function HabitRecordModal({ habits, onClose }: Props) {
+export default function HabitRecordModal({ open, habits, onClose }: Props) {
   const [selected, setSelected] = useState<Habit | null>(null);
+
+  useEffect(() => { if (open) setSelected(null); }, [open]);
+
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full flex flex-col"
-        style={{ maxWidth: '820px', maxHeight: '92vh' }}>
+    <Modal open={open} className="bg-white rounded-2xl shadow-xl w-full flex flex-col" style={{ maxWidth: '820px', maxHeight: '92vh' }}>
         {selected
           ? <HabitDetail habit={selected} onBack={() => setSelected(null)} onClose={onClose} />
           : <HabitList   habits={habits}  onSelect={setSelected}           onClose={onClose} />}
-      </div>
-    </div>
+    </Modal>
   );
 }
 

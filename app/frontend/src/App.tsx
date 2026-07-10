@@ -16,6 +16,9 @@ import SuggestionsPage  from './pages/SuggestionsPage';
 import LoginPage        from './pages/LoginPage';
 import RegisterPage     from './pages/RegisterPage';
 import InvitePage       from './pages/InvitePage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage  from './pages/ResetPasswordPage';
+import VerifyEmailPage    from './pages/VerifyEmailPage';
 
 function IconGrid({ className = '' }: { className?: string }) {
     return (
@@ -221,6 +224,9 @@ export default function App() {
                         <Route path="/login"         element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
                         <Route path="/register"      element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
                         <Route path="/invite/:token" element={<InvitePage />} />
+                        <Route path="/forgot-password"      element={<ForgotPasswordPage />} />
+                        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+                        <Route path="/verify-email/:token"   element={<VerifyEmailPage />} />
                         <Route path="/*"             element={<ProtectedRoute><AppShell /></ProtectedRoute>} />
                     </Routes>
                 </AuthProvider>

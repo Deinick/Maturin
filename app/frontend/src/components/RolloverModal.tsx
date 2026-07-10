@@ -1,23 +1,29 @@
 import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'motion/react';
 import type { Task } from '../types';
-import { getTasks, updateTask, rolloverTask } from '../api/client';
+import { getOverdueTasks, updateTask, rolloverTask } from '../api/client';
 import { localDate } from '../utils/date';
+import Modal from './Modal';
+import { AlarmClock } from '@/components/animate-ui/icons/alarm-clock';
 
-const YESTERDAY = localDate(-1);
+const TODAY = localDate();
 
-const YESTERDAY_LABEL = new Date(YESTERDAY + 'T12:00:00').toLocaleDateString('en-US', {
-  weekday: 'long', month: 'long', day: 'numeric',
-});
+function taskDateLabel(dateAssigned: string) {
+  return new Date(dateAssigned + 'T12:00:00').toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric',
+  });
+}
 
 export default function RolloverModal() {
+  const queryClient = useQueryClient();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [open, setOpen] = useState(false);
-  const [closedForSession, setClosedForSession] = useState(false);
+  const [minimized, setMinimized] = useState(false);
   const [loading, setLoading] = useState<string | null>(null);
 
   useEffect(() => {
-    getTasks(YESTERDAY).then(all => {
-      const pending = all.filter(t => !t.completed && t.status !== 'dismissed');
+    getOverdueTasks().then(pending => {
       if (pending.length > 0) {
         setTasks(pending);
         setOpen(true);
@@ -26,8 +32,18 @@ export default function RolloverModal() {
   }, []);
 
   useEffect(() => {
-    if (tasks.length === 0 && open) setOpen(false);
-  }, [tasks, open]);
+    if (tasks.length === 0) { setOpen(false); setMinimized(false); }
+  }, [tasks]);
+
+  function handlePostpone() {
+    setOpen(false);
+    setMinimized(true);
+  }
+
+  function handleReopen() {
+    setMinimized(false);
+    setOpen(true);
+  }
 
   async function handleComplete(task: Task) {
     setLoading(task.id + '-complete');
@@ -38,8 +54,12 @@ export default function RolloverModal() {
 
   async function handleRollover(task: Task) {
     setLoading(task.id + '-rollover');
-    await rolloverTask(task.id);
+    const updated = await rolloverTask(task.id);
     setTasks(prev => prev.filter(t => t.id !== task.id));
+    // The Tasks page keeps its own query-cache copy of today's tasks — patch it directly
+    // so the rolled-over task shows up there immediately instead of needing a reload.
+    queryClient.setQueryData<Task[]>(['tasks', TODAY], prev =>
+      prev ? [...prev, updated] : prev);
     setLoading(null);
   }
 
@@ -50,21 +70,19 @@ export default function RolloverModal() {
     setLoading(null);
   }
 
-  if (!open || closedForSession) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-[#E0CFC4]">
+    <>
+      <Modal open={open} className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-[#E0CFC4]">
         {/* Header */}
         <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-[#E0CFC4]">
           <div>
             <h2 className="text-lg font-semibold text-[#2D1E1A]">Unfinished Tasks</h2>
             <p className="text-sm text-[#8A7265] mt-0.5">
-              From {YESTERDAY_LABEL} · {tasks.length} task{tasks.length !== 1 ? 's' : ''} remaining
+              {tasks.length} task{tasks.length !== 1 ? 's' : ''} from before today
             </p>
           </div>
           <button
-            onClick={() => setClosedForSession(true)}
+            onClick={handlePostpone}
             className="text-[#BBA79C] hover:text-[#8A7265] text-2xl leading-none ml-4 mt-0.5 transition-colors"
           >
             ×
@@ -79,6 +97,7 @@ export default function RolloverModal() {
                 <span className="text-[#BBA79C] mt-0.5">○</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-[#2D1E1A] leading-snug">{task.text}</p>
+                  <p className="text-xs text-[#BBA79C] mt-0.5">{taskDateLabel(task.dateAssigned)}</p>
                   {task.description && (
                     <p className="text-xs text-[#8A7265] mt-0.5 truncate">{task.description}</p>
                   )}
@@ -117,13 +136,32 @@ export default function RolloverModal() {
         {/* Footer */}
         <div className="px-6 pb-5 pt-2">
           <button
-            onClick={() => setClosedForSession(true)}
+            onClick={handlePostpone}
             className="w-full py-2 text-xs text-[#8A7265] hover:text-[#54433A] transition-colors"
           >
             Remind me later
           </button>
         </div>
-      </div>
-    </div>
+      </Modal>
+
+      {/* Floating badge — reopens the modal so postponed tasks don't require a page reload to resolve */}
+      <AnimatePresence>
+        {minimized && tasks.length > 0 && (
+          <motion.button
+            onClick={handleReopen}
+            initial={{ opacity: 0, y: 16, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.9 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed bottom-5 right-5 z-40 flex items-center gap-2 bg-[#2D1E1A] text-white pl-3 pr-4 py-2.5 rounded-full shadow-lg hover:bg-[#3A2A22] transition-colors"
+          >
+            <AlarmClock className="w-4 h-4 text-amber-400" animate="default" loop />
+            <span className="text-sm font-medium">
+              {tasks.length} unresolved task{tasks.length !== 1 ? 's' : ''}
+            </span>
+          </motion.button>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

@@ -59,9 +59,34 @@ api.interceptors.response.use(
     }
 );
 
+// Auth
+export const updateProfile = (data: { name?: string; email?: string; avatarUrl?: string | null }) =>
+    api.patch('/auth/me', data).then(r => r.data);
+
+export const changePassword = (currentPassword: string, newPassword: string) =>
+    api.patch('/auth/password', { currentPassword, newPassword });
+
+export const deleteAccount = (password: string) =>
+    api.delete('/auth/account', { data: { password } });
+
+export const forgotPassword = (email: string) =>
+    api.post('/auth/forgot-password', { email }).then(r => r.data);
+
+export const resetPassword = (token: string, newPassword: string) =>
+    api.post('/auth/reset-password', { token, newPassword });
+
+export const verifyEmail = (token: string) =>
+    api.post('/auth/verify-email', { token });
+
+export const resendVerification = () =>
+    api.post('/auth/resend-verification');
+
 // Tasks
 export const getTasks = (date: string) =>
     api.get<Task[]>(`/tasks?date=${date}`).then(r => r.data);
+
+export const getOverdueTasks = () =>
+    api.get<Task[]>(`/tasks/overdue?today=${localDate()}`).then(r => r.data);
 
 export const createTask = (text: string, dateAssigned: string, priority: number, timeEstimate?: string) =>
     api.post<Task>('/tasks', { text, dateAssigned, priority, timeEstimate }).then(r => r.data);

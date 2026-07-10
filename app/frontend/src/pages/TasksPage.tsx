@@ -7,6 +7,7 @@ import {
   getMyObjectives, updateMilestone,
 } from '../api/client';
 import { localDate } from '../utils/date';
+import Modal from '../components/Modal';
 import { ArrowUp } from '@/components/animate-ui/icons/arrow-up';
 import { ArrowDown } from '@/components/animate-ui/icons/arrow-down';
 import { Plus } from '@/components/animate-ui/icons/plus';
@@ -514,9 +515,7 @@ export default function TasksPage() {
       </div>
 
       {/* ── Add Task Modal ────────────────────────────────────────── */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 border border-[#E0CFC4]">
+      <Modal open={showModal} className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 border border-[#E0CFC4]">
             <h2 className="text-lg font-semibold text-[#2D1E1A] mb-5">New Task</h2>
             <div className="space-y-4">
               <div>
@@ -585,14 +584,10 @@ export default function TasksPage() {
                 Add Task
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* ── Edit Task Modal ───────────────────────────────────────── */}
-      {editTask && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 border border-[#E0CFC4]">
+      <Modal open={!!editTask} className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 border border-[#E0CFC4]">
             <h2 className="text-lg font-semibold text-[#2D1E1A] mb-5">Edit Task</h2>
             <div className="space-y-4">
               <div>
@@ -661,14 +656,10 @@ export default function TasksPage() {
                 Save Changes
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* ── Delete Confirm Modal ──────────────────────────────────── */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 text-center border border-[#E0CFC4]">
+      <Modal open={!!deleteConfirm} className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 text-center border border-[#E0CFC4]">
             <div className="w-10 h-10 rounded-full bg-[#ffdad6] flex items-center justify-center mx-auto mb-3">
               <Trash2 className="w-5 h-5 text-[#ba1a1a]" animateOnHover="default" />
             </div>
@@ -679,14 +670,12 @@ export default function TasksPage() {
                 className="flex-1 py-2.5 rounded-xl text-sm text-[#8A7265] bg-[#F0E9E0] hover:bg-[#E0CFC4] transition-colors">
                 Cancel
               </button>
-              <button onClick={() => handleDelete(deleteConfirm)}
+              <button onClick={() => deleteConfirm && handleDelete(deleteConfirm)}
                 className="flex-1 py-2.5 rounded-xl text-sm text-white bg-[#ba1a1a] hover:bg-[#93000a] transition-colors font-medium">
                 Delete
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }
