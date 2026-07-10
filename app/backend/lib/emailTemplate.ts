@@ -10,11 +10,22 @@ export function getResend()
 
 // Fire-and-forget send used by every notification email — never lets a send
 // failure (or missing RESEND_API_KEY in local dev) break the calling flow.
+//
+// Resend's SDK does NOT throw for API-level errors (invalid from-address,
+// unverified domain, restricted/invalid API key, etc.) — it resolves with
+// `{ data, error }`. That `error` field must be checked explicitly, or a
+// rejected send looks identical to a successful one.
 export async function sendEmail(label: string, params: { to: string; subject: string; html: string })
 {
     try
     {
-        await getResend().emails.send({ from: FROM_EMAIL, to: params.to, subject: params.subject, html: params.html });
+        const result = await getResend().emails.send({ from: FROM_EMAIL, to: params.to, subject: params.subject, html: params.html });
+        if (result.error)
+        {
+            console.warn(`[email] ${label} rejected by Resend:`, result.error.name, '-', result.error.message);
+            return;
+        }
+        console.log(`[email] ${label} sent to ${params.to} (id: ${result.data.id})`);
     }
     catch (err)
     {
