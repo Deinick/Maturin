@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import cron from 'node-cron';
 import { rateLimit } from 'express-rate-limit';
 import authRoutes      from './routes/authRoutes';
 import taskRoutes      from './routes/taskRoutes';
@@ -15,6 +16,7 @@ import pendingChangeRoutes from './routes/pendingChangeRoutes';
 import { requireAuth } from './middleware/auth';
 import { PermissionError } from './services/projectService';
 import { InviteError } from './services/inviteService';
+import { sendOverdueTaskReminders } from './services/reminderService';
 import * as inviteController from './controllers/inviteController';
 
 const app  = express();
@@ -63,6 +65,18 @@ app.get('/', (_req, res) => { res.send('Server is running'); });
 app.use('/api/auth', authLimiter, authRoutes);
 app.get('/api/invites/:token', inviteController.getInvite);
 
+// System-triggered only (shared secret, not a user JWT) — lets an external
+// scheduler or a manual test call kick off the same digest the cron job below runs.
+app.post('/api/internal/send-reminders', async (req, res) => {
+    if (!process.env.INTERNAL_CRON_SECRET || req.header('x-internal-secret') !== process.env.INTERNAL_CRON_SECRET)
+    {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+    }
+    const result = await sendOverdueTaskReminders();
+    res.json(result);
+});
+
 // All routes below this line require a valid JWT
 app.use(apiLimiter);
 app.use(requireAuth);
@@ -87,6 +101,12 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
     }
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
+});
+
+// Daily overdue-task reminder digest — 8am UTC. Render's free-tier web service
+// stays running (unlike serverless), so an in-process schedule is enough here.
+cron.schedule('0 8 * * *', () => {
+    sendOverdueTaskReminders().catch(err => console.error('[cron] overdue reminders failed:', err));
 });
 
 app.listen(PORT, () => { console.log(`Server started on port ${PORT}`); });

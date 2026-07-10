@@ -1,5 +1,6 @@
 import prisma from '../lib/prisma';
 import { PermissionError } from './projectService';
+import { FRONTEND_URL, sendEmail, emailShell } from '../lib/emailTemplate';
 
 async function requireCanReview(projectId: string, userId: string): Promise<void> {
     const member = await prisma.projectMember.findUnique({
@@ -27,6 +28,29 @@ async function entityLabel(entityType: string, entityId: string): Promise<string
         }
     } catch { /* entity may be deleted */ }
     return entityId;
+}
+
+async function notifyReviewOutcome(
+    change: { projectId: string; authorId: string; entityType: string; entityId: string },
+    status: 'approved' | 'rejected',
+): Promise<void> {
+    const [author, project, label] = await Promise.all([
+        prisma.user.findUnique({ where: { id: change.authorId }, select: { email: true, name: true } }),
+        prisma.project.findUnique({ where: { id: change.projectId }, select: { title: true } }),
+        entityLabel(change.entityType, change.entityId),
+    ]);
+    if (!author) return;
+
+    const projectTitle = project?.title ?? 'your project';
+    const projectUrl = `${FRONTEND_URL}/projects/${change.projectId}`;
+
+    await sendEmail(`change-${status}`, {
+        to: author.email,
+        subject: status === 'approved'
+            ? `Your change to "${projectTitle}" was approved`
+            : `Your change to "${projectTitle}" was rejected`,
+        html: changeReviewedEmailHtml({ name: author.name, projectTitle, entityLabel: label, status, projectUrl }),
+    });
 }
 
 export async function getAllPendingChangeCounts(userId: string) {
@@ -90,18 +114,47 @@ export async function approvePendingChange(changeId: string, reviewerId: string)
         await prisma.milestone.update({ where: { id: change.entityId }, data: newData });
     }
 
-    return prisma.pendingChange.update({
+    const updated = await prisma.pendingChange.update({
         where: { id: changeId },
         data: { status: 'approved', reviewedBy: reviewerId, reviewedAt: new Date() },
     });
+
+    await notifyReviewOutcome(change, 'approved');
+
+    return updated;
 }
 
 export async function rejectPendingChange(changeId: string, reviewerId: string) {
     const change = await prisma.pendingChange.findUniqueOrThrow({ where: { id: changeId } });
     await requireCanReview(change.projectId, reviewerId);
     if (change.status !== 'pending') throw new Error('Change is not pending');
-    return prisma.pendingChange.update({
+
+    const updated = await prisma.pendingChange.update({
         where: { id: changeId },
         data: { status: 'rejected', reviewedBy: reviewerId, reviewedAt: new Date() },
     });
+
+    await notifyReviewOutcome(change, 'rejected');
+
+    return updated;
+}
+
+// ── Email template ───────────────────────────────────────────────────────────
+
+function changeReviewedEmailHtml({ name, projectTitle, entityLabel, status, projectUrl }: {
+    name: string; projectTitle: string; entityLabel: string; status: 'approved' | 'rejected'; projectUrl: string;
+})
+{
+    const color = status === 'approved' ? '#4C8077' : '#C0392B';
+    return emailShell(`
+      <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 6px;">Hi ${name},</p>
+      <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 6px;">
+        Your proposed change to <strong>${entityLabel}</strong> in <strong>"${projectTitle}"</strong> was
+        <strong style="color:${color};">${status}</strong>.
+      </p>
+      <a href="${projectUrl}"
+        style="display:inline-block;background:${color};color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-size:14px;font-weight:600;margin-top:14px;">
+        View project →
+      </a>
+    `);
 }
