@@ -1,7 +1,11 @@
 import { Resend } from 'resend';
 
 export const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173';
-export const FROM_EMAIL   = process.env.FROM_EMAIL   ?? 'invites@steadily.app';
+// Resend's built-in sandbox sender — works without any domain verification,
+// but only delivers to the email address your Resend account itself is signed
+// up with. Swap FROM_EMAIL to a verified address on your own domain once
+// steadily.app (or another domain you control) is verified in Resend.
+export const FROM_EMAIL = process.env.FROM_EMAIL ?? 'onboarding@resend.dev';
 
 export function getResend()
 {
