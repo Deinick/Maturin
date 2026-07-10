@@ -26,6 +26,19 @@ export async function getTasks(userId: string, date: string)
   });
 }
 
+export async function getOverdueTasks(userId: string, today: string)
+{
+  return prisma.shortTask.findMany({
+    where: {
+      userId,
+      dateAssigned: { lt: today },
+      completed: false,
+      status: { not: 'dismissed' },
+    },
+    orderBy: { dateAssigned: 'asc' },
+  });
+}
+
 export async function createTask(userId: string, data:
 {
   text: string;

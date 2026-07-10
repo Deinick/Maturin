@@ -5,3 +5,5 @@ prisma/dev.db
 app/generated/
 app/frontend/.env
 .vercel
+app/frontend/src/background/*.gif
+app/frontend/src/background/0707.png

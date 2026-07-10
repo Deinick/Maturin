@@ -38,8 +38,8 @@ export async function logHabit(req: Request, res: Response): Promise<void>
 export async function updateHabit(req: Request, res: Response): Promise<void>
 {
     const id     = req.params['id'] as string;
-    const { name } = req.body;
-    const habit  = await habitService.updateHabit(id, name);
+    const { name, difficulty, activeDays } = req.body;
+    const habit  = await habitService.updateHabit(id, name, difficulty, activeDays);
     res.json(habit);
 }
 

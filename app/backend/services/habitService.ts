@@ -27,11 +27,15 @@ export async function logHabit(habitId: string, date: string, status: string)
     });
 }
 
-export async function updateHabit(id: string, name: string)
+export async function updateHabit(id: string, name?: string, difficulty?: string, activeDays?: string)
 {
     return prisma.habit.update({
         where: {id},
-        data: {name},
+        data: {
+            ...(name       !== undefined ? {name}       : {}),
+            ...(difficulty !== undefined ? {difficulty} : {}),
+            ...(activeDays !== undefined ? {activeDays} : {}),
+        },
     });
 }
 

@@ -15,6 +15,19 @@ export async function getTasks(req: Request, res: Response): Promise<void>
     res.json(tasks);
 }
 
+export async function getOverdueTasks(req: Request, res: Response): Promise<void>
+{
+    const userId = (req as AuthRequest).userId;
+    const today  = req.query['today'] as string;
+    if (!today)
+    {
+        res.status(400).json({ error: 'today is required' });
+        return;
+    }
+    const tasks = await taskService.getOverdueTasks(userId, today);
+    res.json(tasks);
+}
+
 export async function createTask(req: Request, res: Response): Promise<void>
 {
     const userId = (req as AuthRequest).userId;

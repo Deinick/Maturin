@@ -35,8 +35,22 @@ export interface ProjectMember {
   projectId: string;
   userId: string;
   role: 'owner' | 'contributor' | 'viewer';
+  canApprove: boolean;
   joinedAt: string;
   user: { id: string; name: string; email: string };
+}
+
+export interface PendingChange {
+  id: string;
+  projectId: string;
+  entityType: 'project' | 'phase' | 'milestone';
+  entityId: string;
+  entityLabel: string;
+  oldData: Record<string, string | null>;
+  newData: Record<string, string | null>;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+  author: { id: string; name: string };
 }
 
 export interface Project {
@@ -55,14 +69,17 @@ export interface Phase {
   projectId: string;
   title: string;
   description: string | null;
+  dueDate: string | null;
   order: number;
   completed: boolean;
   milestones: Milestone[];
+  dependencies: { dependsOnId: string }[];
 }
 
 export interface Milestone {
   id: string;
   phaseId: string;
+  assignees: { id: string; name: string; email: string }[];
   title: string;
   description: string | null;
   order: number;
@@ -71,6 +88,39 @@ export interface Milestone {
   dueDate: string | null;
   effortRating: 'easier' | 'as_expected' | 'harder' | null;
   blockReason: 'no_time' | 'unclear' | 'external' | 'motivation' | null;
+}
+
+export interface MemberPerformance {
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+  canApprove: boolean;
+  assigned: number;
+  completed: number;
+  completedOnTime: number;
+  completedLate: number;
+  overdue: number;
+  pending: number;
+  avgDaysLate: number;
+  score: number;
+}
+
+export interface MyObjective {
+  id: string;
+  title: string;
+  description: string | null;
+  dueDate: string | null;
+  completed: boolean;
+  completedAt: string | null;
+  effortRating: string | null;
+  blockReason: string | null;
+  order: number;
+  assignees: { id: string; name: string; email: string }[];
+  phaseId: string;
+  phaseName: string;
+  projectId: string;
+  projectTitle: string;
 }
 
 export interface Suggestion {

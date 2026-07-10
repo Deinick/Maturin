@@ -111,10 +111,10 @@ function buildYearGrid(year: number): string[][] {
 const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DAY_LABELS   = ['M','T','W','T','F','S','S'];
 
-const DIFF_COLOR: Record<string, string> = {
-  easy:   'bg-green-100 text-green-700',
-  medium: 'bg-amber-100 text-amber-700',
-  hard:   'bg-rose-100 text-rose-700',
+const DIFF_COLOR: Record<string, { background: string; color: string }> = {
+  easy:   { background: '#E8FAF7', color: '#4C8077' },
+  medium: { background: '#FFF5E9', color: '#C4601A' },
+  hard:   { background: '#FDECEA', color: '#C0392B' },
 };
 
 interface TooltipState {
@@ -145,37 +145,38 @@ function HabitList({ habits, onSelect, onClose }: {
 }) {
   return (
     <>
-      <div className="flex items-start justify-between px-7 pt-7 pb-5 border-b border-stone-100 shrink-0">
+      <div className="flex items-start justify-between px-7 pt-7 pb-5 border-b border-[#E0CFC4] shrink-0">
         <div>
-          <h2 className="text-xl font-semibold text-stone-800">Full Habit Record</h2>
-          <p className="text-sm text-stone-400 mt-0.5">Complete history of every habit you track</p>
+          <h2 className="text-xl font-semibold text-[#2D1E1A]">Full Habit Record</h2>
+          <p className="text-sm text-[#8A7265] mt-0.5">Complete history of every habit you track</p>
         </div>
-        <button onClick={onClose} className="text-stone-300 hover:text-stone-500 text-2xl leading-none ml-4">×</button>
+        <button onClick={onClose} className="text-[#BBA79C] hover:text-[#8A7265] text-2xl leading-none ml-4">×</button>
       </div>
       <div className="px-7 py-5 space-y-2.5 overflow-y-auto">
         {habits.length === 0
-          ? <p className="text-sm text-stone-400 text-center py-12">No habits tracked yet.</p>
+          ? <p className="text-sm text-[#8A7265] text-center py-12">No habits tracked yet.</p>
           : habits.map(habit => {
               const streak  = computeCurrentStreak(habit);
               const total   = habit.logs.filter(l => l.status === 'completed').length;
               const longest = computeLongestStreak(habit);
               return (
                 <button key={habit.id} onClick={() => onSelect(habit)}
-                  className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-stone-50 hover:bg-stone-100 border border-stone-100 hover:border-stone-200 transition-all text-left group">
+                  className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-[#FFF5E9] hover:bg-[#F0E9E0] border border-[#E0CFC4] hover:border-[#E0CFC4] transition-all text-left group">
                   <div>
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-stone-800">{habit.name}</p>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium capitalize ${DIFF_COLOR[habit.difficulty] ?? 'bg-stone-100 text-stone-500'}`}>
+                      <p className="text-sm font-semibold text-[#2D1E1A]">{habit.name}</p>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded font-medium capitalize"
+                        style={DIFF_COLOR[habit.difficulty] ?? { background: '#efeded', color: '#717976' }}>
                         {habit.difficulty}
                       </span>
                     </div>
-                    <p className="text-xs text-stone-400 mt-0.5">
+                    <p className="text-xs text-[#8A7265] mt-0.5">
                       {total} completed · best streak {longest}d · {formatActiveDays(habit.activeDays)}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
                     {streak > 0 && <span className="text-xs text-amber-500 font-medium">🔥 {streak}d</span>}
-                    <span className="text-stone-300 group-hover:text-stone-500 transition-colors">→</span>
+                    <span className="text-[#BBA79C] group-hover:text-[#8A7265] transition-colors">→</span>
                   </div>
                 </button>
               );
@@ -235,16 +236,16 @@ function HabitDetail({ habit, onBack, onClose }: {
     month: 'long', day: 'numeric', year: 'numeric',
   });
 
-  function squareColor(date: string): string {
+  function squareBg(date: string): string {
     const isBefore = date < createdDateStr;
     const isFuture = date > today;
-    if (isBefore || isFuture) return 'bg-stone-200';
+    if (isBefore || isFuture) return 'var(--c-border)';
     const d = new Date(date + 'T00:00:00');
-    if (!activeDayNums.has(getISODayNum(d))) return 'bg-stone-100';
+    if (!activeDayNums.has(getISODayNum(d))) return 'var(--c-surface-high)';
     const status = logMap[date];
-    if (status === 'completed') return 'bg-emerald-500 hover:bg-emerald-600';
-    if (status === 'skipped')   return 'bg-red-400 hover:bg-red-500';
-    return 'bg-stone-200 hover:bg-stone-300';
+    if (status === 'completed') return 'var(--c-teal)';
+    if (status === 'skipped')   return 'var(--c-primary-dim)';
+    return 'var(--c-border)';
   }
 
   function handleSquareClick(e: React.MouseEvent<HTMLButtonElement>, date: string) {
@@ -263,20 +264,21 @@ function HabitDetail({ habit, onBack, onClose }: {
 
   return (
     <>
-      <div className="flex items-center justify-between px-7 pt-7 pb-5 border-b border-stone-100 shrink-0">
+      <div className="flex items-center justify-between px-7 pt-7 pb-5 border-b border-[#E0CFC4] shrink-0">
         <div className="flex items-center gap-3 min-w-0">
-          <button onClick={onBack} className="text-sm text-stone-400 hover:text-stone-600 transition-colors shrink-0">←</button>
+          <button onClick={onBack} className="text-sm text-[#8A7265] hover:text-[#54433A] transition-colors shrink-0">←</button>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-semibold text-stone-800 truncate">{habit.name}</h2>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium capitalize shrink-0 ${DIFF_COLOR[habit.difficulty] ?? 'bg-stone-100 text-stone-500'}`}>
+              <h2 className="text-xl font-semibold text-[#2D1E1A] truncate">{habit.name}</h2>
+              <span className="text-[10px] px-1.5 py-0.5 rounded font-medium capitalize shrink-0"
+                style={DIFF_COLOR[habit.difficulty] ?? { background: '#efeded', color: '#717976' }}>
                 {habit.difficulty}
               </span>
             </div>
-            <p className="text-xs text-stone-400 mt-0.5">Started {createdLabel} · {formatActiveDays(habit.activeDays)}</p>
+            <p className="text-xs text-[#8A7265] mt-0.5">Started {createdLabel} · {formatActiveDays(habit.activeDays)}</p>
           </div>
         </div>
-        <button onClick={onClose} className="text-stone-300 hover:text-stone-500 text-2xl leading-none ml-4 shrink-0">×</button>
+        <button onClick={onClose} className="text-[#BBA79C] hover:text-[#8A7265] text-2xl leading-none ml-4 shrink-0">×</button>
       </div>
 
       <div className="px-7 pt-6 pb-7 flex flex-col gap-6">
@@ -288,16 +290,16 @@ function HabitDetail({ habit, onBack, onClose }: {
 
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-sm font-semibold text-stone-700">{year}</span>
-            <span className="text-xs text-stone-400 ml-2">{yearCompleted} completed days</span>
+            <span className="text-sm font-semibold text-[#54433A]">{year}</span>
+            <span className="text-xs text-[#8A7265] ml-2">{yearCompleted} completed days</span>
           </div>
           <div className="flex items-center gap-1">
             <button onClick={() => { setTooltip(null); setYear(y => y - 1); }}
               disabled={year <= minYear}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 disabled:opacity-25 disabled:cursor-not-allowed transition-colors">←</button>
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-[#8A7265] hover:text-[#54433A] hover:bg-[#F0E9E0] disabled:opacity-25 disabled:cursor-not-allowed transition-colors">←</button>
             <button onClick={() => { setTooltip(null); setYear(y => y + 1); }}
               disabled={year >= currentYear}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-stone-400 hover:text-stone-600 hover:bg-stone-100 disabled:opacity-25 disabled:cursor-not-allowed transition-colors">→</button>
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-[#8A7265] hover:text-[#54433A] hover:bg-[#F0E9E0] disabled:opacity-25 disabled:cursor-not-allowed transition-colors">→</button>
           </div>
         </div>
 
@@ -305,14 +307,14 @@ function HabitDetail({ habit, onBack, onClose }: {
           <div className="min-w-max">
             <div className="flex gap-[3px] mb-1.5 ml-5">
               {weeks.map((_, i) => (
-                <div key={i} className="w-3.5 text-[9px] text-stone-400 leading-none">{monthLabels[i] ?? ''}</div>
+                <div key={i} className="w-3.5 text-[9px] text-[#8A7265] leading-none">{monthLabels[i] ?? ''}</div>
               ))}
             </div>
 
             <div className="flex gap-[3px]">
               <div className="flex flex-col gap-[3px] mr-1">
                 {DAY_LABELS.map((d, i) => (
-                  <div key={i} className="w-3.5 h-3.5 flex items-center justify-center text-[9px] text-stone-300 leading-none">
+                  <div key={i} className="w-3.5 h-3.5 flex items-center justify-center text-[9px] text-[#BBA79C] leading-none">
                     {i % 2 === 0 ? d : ''}
                   </div>
                 ))}
@@ -328,9 +330,8 @@ function HabitDetail({ habit, onBack, onClose }: {
                         key={di}
                         data-square="true"
                         onClick={e => handleSquareClick(e, date)}
-                        className={`w-3.5 h-3.5 rounded-[2px] transition-colors cursor-pointer
-                          ${squareColor(date)}
-                          ${isActive ? 'ring-2 ring-stone-500 ring-offset-0' : ''}`}
+                        className={`w-3.5 h-3.5 rounded-[2px] transition-colors cursor-pointer ${isActive ? 'ring-2 ring-stone-500 ring-offset-0' : ''}`}
+                        style={{ background: squareBg(date) }}
                       />
                     );
                   })}
@@ -339,17 +340,17 @@ function HabitDetail({ habit, onBack, onClose }: {
             </div>
 
             <div className="flex items-center gap-2 mt-3 ml-5 flex-wrap">
-              <div className="w-3 h-3 rounded-[2px] bg-stone-100" />
-              <span className="text-[10px] text-stone-400">Off day</span>
-              <div className="w-px h-3 bg-stone-200 mx-0.5" />
-              <div className="w-3 h-3 rounded-[2px] bg-stone-200" />
-              <span className="text-[10px] text-stone-400">No entry</span>
-              <div className="w-px h-3 bg-stone-200 mx-0.5" />
-              <div className="w-3 h-3 rounded-[2px] bg-emerald-500" />
-              <span className="text-[10px] text-stone-400">Completed</span>
-              <div className="w-px h-3 bg-stone-200 mx-0.5" />
-              <div className="w-3 h-3 rounded-[2px] bg-red-400" />
-              <span className="text-[10px] text-stone-400">Skipped</span>
+              <div className="w-3 h-3 rounded-[2px]" style={{ background: 'var(--c-surface-high)' }} />
+              <span className="text-[10px] text-[#8A7265]">Off day</span>
+              <div className="w-px h-3 mx-0.5" style={{ background: 'var(--c-border)' }} />
+              <div className="w-3 h-3 rounded-[2px]" style={{ background: 'var(--c-border)' }} />
+              <span className="text-[10px] text-[#8A7265]">No entry</span>
+              <div className="w-px h-3 mx-0.5" style={{ background: 'var(--c-border)' }} />
+              <div className="w-3 h-3 rounded-[2px]" style={{ background: 'var(--c-teal)' }} />
+              <span className="text-[10px] text-[#8A7265]">Completed</span>
+              <div className="w-px h-3 mx-0.5" style={{ background: 'var(--c-border)' }} />
+              <div className="w-3 h-3 rounded-[2px]" style={{ background: 'var(--c-primary-dim)' }} />
+              <span className="text-[10px] text-[#8A7265]">Skipped</span>
             </div>
           </div>
         </div>
@@ -360,15 +361,15 @@ function HabitDetail({ habit, onBack, onClose }: {
           className={`fixed z-[200] pointer-events-none select-none ${tooltip.closing ? 'bubble-out' : 'bubble-in'}`}
           style={{ left: tooltip.x, top: tooltip.y }}
         >
-          <div className="bg-stone-800 text-white rounded-xl px-3 py-2 shadow-xl text-center"
+          <div className="bg-[#1b1c1c] text-white rounded-xl px-3 py-2 shadow-xl text-center"
             style={{ transform: 'translateX(-50%) translateY(-100%)', whiteSpace: 'nowrap' }}>
             <p className="text-xs font-medium leading-snug">{friendlyDate(tooltip.date)}</p>
             {(() => {
               const d = new Date(tooltip.date + 'T00:00:00');
               const isOffDay = !activeDayNums.has(getISODayNum(d));
-              if (isOffDay) return <p className="text-[10px] mt-0.5 text-stone-400 font-semibold">off day</p>;
+              if (isOffDay) return <p className="text-[10px] mt-0.5 text-[#8A7265] font-semibold">off day</p>;
               if (logMap[tooltip.date]) return (
-                <p className={`text-[10px] mt-0.5 font-semibold ${logMap[tooltip.date] === 'completed' ? 'text-emerald-400' : 'text-red-400'}`}>
+                <p className={`text-[10px] mt-0.5 font-semibold ${logMap[tooltip.date] === 'completed' ? 'text-[#46645c]' : 'text-[#ba1a1a]'}`}>
                   {logMap[tooltip.date] === 'completed' ? '✓ completed' : '× skipped'}
                 </p>
               );
@@ -391,9 +392,9 @@ function HabitDetail({ habit, onBack, onClose }: {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-stone-50 rounded-xl p-4 border border-stone-100">
-      <p className="text-xs text-stone-400 mb-1.5 leading-tight">{label}</p>
-      <p className="text-sm font-semibold text-stone-800">{value}</p>
+    <div className="bg-[#FFF5E9] rounded-xl p-4 border border-[#E0CFC4]">
+      <p className="text-xs text-[#8A7265] mb-1.5 leading-tight">{label}</p>
+      <p className="text-sm font-semibold text-[#2D1E1A]">{value}</p>
     </div>
   );
 }

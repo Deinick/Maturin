@@ -1,17 +1,24 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import type { Suggestion } from '../types';
 import { getSuggestions } from '../api/client';
-import thinkingTurtle from '../assets/Turtles/0609 (1)(1).png';
+import { Lightbulb } from '@/components/animate-ui/icons/lightbulb';
+import { Scissors } from '@/components/animate-ui/icons/scissors';
+import { ChartNoAxesColumnDecreasing } from '@/components/animate-ui/icons/chart-no-axes-column-decreasing';
+import { RefreshCw } from '@/components/animate-ui/icons/refresh-cw';
+import { AlarmClock } from '@/components/animate-ui/icons/alarm-clock';
+import { Lock } from '@/components/animate-ui/icons/lock';
+import { SlidersHorizontal } from '@/components/animate-ui/icons/sliders-horizontal';
+import { LoaderCircle } from '@/components/animate-ui/icons/loader-circle';
+import type { ElementType } from 'react';
 
-const TYPE_META: Record<string, { label: string; icon: string; accent: string }> = {
-    split_task:       { label: 'Split task',        icon: '✂️',  accent: 'border-rose-300'   },
-    reduce_tasks:     { label: 'Reduce load',        icon: '📉',  accent: 'border-rose-300'   },
-    avoidance_pattern:{ label: 'Avoidance pattern',  icon: '👁',  accent: 'border-amber-300'  },
-    habit_recovery:   { label: 'Habit recovery',     icon: '🔄',  accent: 'border-emerald-300'},
-    overdue_milestone:{ label: 'Overdue milestone',  icon: '⏰',  accent: 'border-amber-300'  },
-    block_pattern:    { label: 'Blocked',            icon: '🚧',  accent: 'border-amber-300'  },
-    calibration:      { label: 'Calibration',        icon: '📐',  accent: 'border-sky-300'    },
+const TYPE_META: Record<string, { label: string; Icon: ElementType; accent: string }> = {
+    split_task:       { label: 'Split task',        Icon: Scissors,                     accent: 'border-rose-300'   },
+    reduce_tasks:     { label: 'Reduce load',        Icon: ChartNoAxesColumnDecreasing,  accent: 'border-rose-300'   },
+    avoidance_pattern:{ label: 'Avoidance pattern',  Icon: Lock,                         accent: 'border-amber-300'  },
+    habit_recovery:   { label: 'Habit recovery',     Icon: RefreshCw,                    accent: 'border-emerald-300'},
+    overdue_milestone:{ label: 'Overdue milestone',  Icon: AlarmClock,                   accent: 'border-amber-300'  },
+    block_pattern:    { label: 'Blocked',            Icon: Lock,                         accent: 'border-amber-300'  },
+    calibration:      { label: 'Calibration',        Icon: SlidersHorizontal,            accent: 'border-sky-300'    },
 };
 
 const GROUPS: { key: string; label: string; types: string[] }[] = [
@@ -22,13 +29,7 @@ const GROUPS: { key: string; label: string; types: string[] }[] = [
 
 export default function SuggestionsPage()
 {
-    const navigate = useNavigate();
-    const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-    const [loading, setLoading]         = useState(true);
-
-    useEffect(() => {
-        getSuggestions().then(s => { setSuggestions(s); setLoading(false); });
-    }, []);
+    const { data: suggestions = [], isLoading: loading } = useQuery({ queryKey: ['suggestions'], queryFn: getSuggestions });
 
     const grouped = GROUPS.map(g => ({
         ...g,
@@ -39,27 +40,33 @@ export default function SuggestionsPage()
         s => !GROUPS.flatMap(g => g.types).includes(s.type)
     );
 
+    const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
     return (
-        <div className="max-w-2xl mx-auto space-y-8">
-            <div className="flex items-center gap-4">
-                <button
-                    onClick={() => navigate(-1)}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors text-lg"
-                >
-                    ←
-                </button>
+        <div className="max-w-5xl space-y-6">
+
+            {/* ── Page header ── */}
+            <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-3 mb-7">
                 <div>
-                    <h1 className="text-3xl font-light text-stone-800">Insights</h1>
-                    <p className="text-sm text-stone-400 mt-0.5">Patterns and suggestions based on your data</p>
+                    <h1 className="text-2xl font-semibold text-[#2D1E1A] font-serif">Insights</h1>
+                    <p className="text-sm text-[#8A7265] mt-0.5">{dateLabel}</p>
                 </div>
             </div>
 
+            {loading && (
+                <div className="flex items-center justify-center py-20">
+                    <LoaderCircle className="w-6 h-6 text-[#8A7265]" animate="default" loop />
+                </div>
+            )}
+
             {!loading && suggestions.length === 0 && (
                 <div className="flex flex-col items-center py-20 gap-4">
-                    <img src={thinkingTurtle} alt="Thinking turtle" className="turtle-img w-40 h-40 object-contain opacity-80" />
+                    <div className="w-16 h-16 rounded-full bg-[#F0E9E0] flex items-center justify-center">
+                        <Lightbulb className="w-7 h-7 text-[#BBA79C]" animateOnHover="default" />
+                    </div>
                     <div className="text-center">
-                        <p className="serif text-xl font-semibold text-stone-700">All looking good</p>
-                        <p className="text-stone-400 text-sm mt-1">No suggestions right now — keep up the steady pace.</p>
+                        <p className="text-xl font-semibold text-[#54433A]">All looking good</p>
+                        <p className="text-[#8A7265] text-sm mt-1">No suggestions right now — keep up the steady pace.</p>
                     </div>
                 </div>
             )}
@@ -67,7 +74,7 @@ export default function SuggestionsPage()
             {grouped.map(group => (
                 <div key={group.key}>
                     <div className="mb-3">
-                        <span className="label-tape label-tape-red">{group.label}</span>
+                        <span className="text-xs font-bold text-[#8A7265] uppercase tracking-widest">{group.label}</span>
                     </div>
                     <div className="space-y-2">
                         {group.items.map((s, i) => (
@@ -88,15 +95,16 @@ export default function SuggestionsPage()
 
 function SuggestionCard({ suggestion }: { suggestion: Suggestion })
 {
-    const meta = TYPE_META[suggestion.type] ?? { label: suggestion.type, icon: '💡', accent: 'border-stone-200' };
+    const meta = TYPE_META[suggestion.type] ?? { label: suggestion.type, Icon: Lightbulb, accent: 'border-[#E0CFC4]' };
+    const Icon = meta.Icon;
 
     return (
-        <div className={`bg-white rounded-2xl border-l-4 border border-stone-100 shadow-sm px-5 py-4 ${meta.accent}`}>
+        <div className={`bg-white rounded-2xl border-l-4 border border-[#E0CFC4] shadow-sm px-5 py-4 ${meta.accent}`}>
             <div className="flex items-center gap-2 mb-1.5">
-                <span className="text-base leading-none">{meta.icon}</span>
-                <span className="text-xs font-semibold text-stone-400 uppercase tracking-wide">{meta.label}</span>
+                <Icon className="w-4 h-4 text-[#8A7265]" animateOnHover="default" />
+                <span className="text-xs font-semibold text-[#8A7265] uppercase tracking-wide">{meta.label}</span>
             </div>
-            <p className="text-sm text-stone-700 leading-relaxed">{suggestion.message}</p>
+            <p className="text-sm text-[#54433A] leading-relaxed">{suggestion.message}</p>
         </div>
     );
 }

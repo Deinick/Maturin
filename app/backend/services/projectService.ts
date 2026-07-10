@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma';
 
-export class PermissionError extends Error {
+export class PermissionError extends Error
+{
     readonly status = 403;
     constructor() {
         super('Insufficient permissions');
@@ -17,6 +18,14 @@ async function requireRole(projectId: string, userId: string, min: 'viewer' | 'c
     if (!member || ROLE_RANK[member.role] < ROLE_RANK[min]) throw new PermissionError();
 }
 
+async function canApproveFor(projectId: string, userId: string): Promise<boolean> {
+    const member = await prisma.projectMember.findUnique({
+        where: { projectId_userId: { projectId, userId } },
+    });
+    if (!member) return false;
+    return member.role === 'owner' || (member.role === 'contributor' && member.canApprove);
+}
+
 async function projectIdForPhase(phaseId: string): Promise<string> {
     const ph = await prisma.phase.findUniqueOrThrow({ where: { id: phaseId }, select: { projectId: true } });
     return ph.projectId;
@@ -31,23 +40,124 @@ async function projectIdForMilestone(milestoneId: string): Promise<string> {
     return m.phase.projectId;
 }
 
+async function requireCanAssign(projectId: string, userId: string) {
+    const member = await prisma.projectMember.findUnique({
+        where: { projectId_userId: { projectId, userId } },
+    });
+    if (!member) throw new PermissionError();
+    if (member.role === 'owner') return;
+    if (member.role === 'contributor' && member.canApprove) return;
+    throw new PermissionError();
+}
 
-export async function getProjects(userId: string)
-{
-    return prisma.project.findMany({
+async function requireAssigneesNotViewers(projectId: string, assigneeIds: string[]) {
+    if (assigneeIds.length === 0) return;
+    const memberRoles = await prisma.projectMember.findMany({
+        where: { projectId, userId: { in: assigneeIds } },
+        select: { userId: true, role: true },
+    });
+    const viewers = memberRoles.filter(m => m.role === 'viewer');
+    if (viewers.length > 0) throw new PermissionError();
+}
+
+async function createPendingChanges(
+    projectId: string,
+    authorId: string,
+    entityType: string,
+    entityId: string,
+    oldData: Record<string, unknown>,
+    newData: Record<string, unknown>,
+) {
+    return prisma.$transaction(
+        Object.keys(newData).map(field =>
+            prisma.pendingChange.create({
+                data: {
+                    projectId, authorId, entityType, entityId, status: 'pending',
+                    oldData: { [field]: oldData[field] } as object,
+                    newData: { [field]: newData[field] } as object,
+                },
+            })
+        )
+    );
+}
+
+export type ApplyResult<T> =
+    | { applied: true; data: T }
+    | { applied: false; pendingChangeId: string };
+
+function norm(v: unknown): string {
+    return (v === null || v === undefined || v === '') ? '' : String(v);
+}
+
+function filterChanged(
+    planData: Record<string, unknown>,
+    current: Record<string, unknown>,
+): { changed: Record<string, unknown>; old: Record<string, unknown> } {
+    const changed: Record<string, unknown> = {};
+    const old:     Record<string, unknown> = {};
+    for (const [key, newVal] of Object.entries(planData)) {
+        const oldVal = current[key] ?? null;
+        if (norm(oldVal) !== norm(newVal)) {
+            changed[key] = newVal;
+            old[key]     = oldVal;
+        }
+    }
+    return { changed, old };
+}
+
+const PLAN_FIELDS_PROJECT   = new Set(['title', 'description', 'targetEndDate']);
+const PLAN_FIELDS_PHASE     = new Set(['title', 'description', 'dueDate']);
+const PLAN_FIELDS_MILESTONE = new Set(['title', 'description', 'dueDate']);
+
+
+const MILESTONE_INCLUDE = {
+    assignees: { include: { user: { select: { id: true, name: true, email: true } } } },
+} as const;
+
+// Flatten MilestoneAssignee join records so `assignees` is a plain User array,
+// matching the frontend Milestone type.
+function flattenMilestone(m: Record<string, unknown>) {
+    const assignees = m['assignees'] as { user: unknown }[] | undefined;
+    return { ...m, assignees: assignees ? assignees.map(ma => ma.user) : [] };
+}
+
+const PHASE_INCLUDE = {
+    milestones:   { include: MILESTONE_INCLUDE },
+    dependencies: { select: { dependsOnId: true } },
+} as const;
+
+export async function getProjects(userId: string) {
+    const projects = await prisma.project.findMany({
         where: { members: { some: { userId } } },
         include: {
-            phases: { include: { milestones: true } },
+            phases: { include: PHASE_INCLUDE },
             members: {
                 include: { user: { select: { id: true, name: true, email: true } } },
                 orderBy: { joinedAt: 'asc' },
             },
         },
     });
+    return projects.map((proj: Record<string, unknown>) => ({
+        ...proj,
+        phases: (proj['phases'] as Record<string, unknown>[]).map(ph => ({
+            ...ph,
+            milestones: (ph['milestones'] as Record<string, unknown>[]).map(flattenMilestone),
+        })),
+    }));
 }
 
-export async function getProjectMembers(projectId: string, userId: string)
-{
+export async function setDependencies(phaseId: string, dependsOnIds: string[], userId: string) {
+    const phase = await prisma.phase.findUniqueOrThrow({ where: { id: phaseId } });
+    await requireRole(phase.projectId, userId, 'contributor');
+    await prisma.$transaction([
+        prisma.phaseDependency.deleteMany({ where: { phaseId } }),
+        ...dependsOnIds.map(dependsOnId =>
+            prisma.phaseDependency.create({ data: { phaseId, dependsOnId } })
+        ),
+    ]);
+}
+
+export async function getProjectMembers(projectId: string, userId: string) {
     await requireRole(projectId, userId, 'viewer');
     return prisma.projectMember.findMany({
         where: { projectId },
@@ -60,8 +170,7 @@ export async function createProject(userId: string, data: {
     title: string;
     description?: string;
     targetEndDate?: string;
-})
-{
+}) {
     return prisma.$transaction(async tx => {
         const project = await tx.project.create({ data: { userId, ...data } });
         await tx.projectMember.create({ data: { projectId: project.id, userId, role: 'owner' } });
@@ -69,82 +178,267 @@ export async function createProject(userId: string, data: {
     });
 }
 
-export async function createPhase(projectId: string, userId: string, title: string, description: string | undefined, order: number)
-{
+export async function createPhase(projectId: string, userId: string, title: string, description: string | undefined, order: number, dueDate?: string) {
     await requireRole(projectId, userId, 'contributor');
-    return prisma.phase.create({ data: { projectId, title, description, order } });
+    return prisma.phase.create({ data: { projectId, title, description, dueDate, order } });
 }
 
-export async function createMilestone(phaseId: string, userId: string, title: string, description: string | undefined, order: number, dueDate?: string)
-{
+export async function createMilestone(phaseId: string, userId: string, title: string, description: string | undefined, order: number, dueDate?: string, assigneeIds?: string[]) {
     const projectId = await projectIdForPhase(phaseId);
     await requireRole(projectId, userId, 'contributor');
-    return prisma.milestone.create({ data: { phaseId, title, description, order, dueDate } });
+    if (assigneeIds && assigneeIds.length > 0) {
+        await requireCanAssign(projectId, userId);
+        await requireAssigneesNotViewers(projectId, assigneeIds);
+    }
+    const created = await prisma.milestone.create({
+        data: {
+            phaseId, title, description, order, dueDate,
+            ...(assigneeIds && assigneeIds.length > 0 && {
+                assignees: { create: assigneeIds.map(uid => ({ userId: uid })) },
+            }),
+        },
+        include: MILESTONE_INCLUDE,
+    });
+    return flattenMilestone(created as Record<string, unknown>);
 }
 
-export async function updateProject(id: string, userId: string, data: {
-    title?: string;
-    description?: string;
-    targetEndDate?: string;
-    completed?: boolean;
-})
-{
+export async function updateProject(
+    id: string,
+    userId: string,
+    data: { title?: string; description?: string; targetEndDate?: string; completed?: boolean },
+): Promise<ApplyResult<object>> {
     await requireRole(id, userId, 'contributor');
-    return prisma.project.update({ where: { id }, data });
+
+    const planData: Record<string, unknown>      = {};
+    const immediateData: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(data)) {
+        if (val === undefined) continue;
+        if (PLAN_FIELDS_PROJECT.has(key)) planData[key] = val;
+        else immediateData[key] = val;
+    }
+
+    if (Object.keys(immediateData).length > 0) {
+        await prisma.project.update({ where: { id }, data: immediateData });
+    }
+
+    const currentProject = await prisma.project.findUniqueOrThrow({ where: { id } });
+    if (Object.keys(planData).length > 0) {
+        const { changed, old } = filterChanged(planData, currentProject as Record<string, unknown>);
+        if (Object.keys(changed).length > 0) {
+            if (await canApproveFor(id, userId)) {
+                const updated = await prisma.project.update({ where: { id }, data: changed });
+                return { applied: true, data: updated };
+            }
+            const changes = await createPendingChanges(id, userId, 'project', id, old, changed);
+            return { applied: false, pendingChangeId: changes[0].id };
+        }
+    }
+    return { applied: true, data: currentProject };
 }
 
-export async function updatePhase(id: string, userId: string, data: {
-    title?: string;
-    description?: string;
-    order?: number;
-    completed?: boolean;
-})
-{
+export async function updatePhase(
+    id: string,
+    userId: string,
+    data: { title?: string; description?: string; dueDate?: string; order?: number; completed?: boolean },
+): Promise<ApplyResult<object>> {
     const projectId = await projectIdForPhase(id);
     await requireRole(projectId, userId, 'contributor');
-    return prisma.phase.update({ where: { id }, data });
+
+    const planData: Record<string, unknown>      = {};
+    const immediateData: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(data)) {
+        if (val === undefined) continue;
+        if (PLAN_FIELDS_PHASE.has(key)) planData[key] = val;
+        else immediateData[key] = val;
+    }
+
+    if (Object.keys(immediateData).length > 0) {
+        await prisma.phase.update({ where: { id }, data: immediateData });
+    }
+
+    const currentPhase = await prisma.phase.findUniqueOrThrow({ where: { id } });
+    if (Object.keys(planData).length > 0) {
+        const { changed, old } = filterChanged(planData, currentPhase as Record<string, unknown>);
+        if (Object.keys(changed).length > 0) {
+            if (await canApproveFor(projectId, userId)) {
+                const updated = await prisma.phase.update({ where: { id }, data: changed });
+                return { applied: true, data: updated };
+            }
+            const changes = await createPendingChanges(projectId, userId, 'phase', id, old, changed);
+            return { applied: false, pendingChangeId: changes[0].id };
+        }
+    }
+    return { applied: true, data: currentPhase };
 }
 
-export async function updateMilestone(id: string, userId: string, data: {
-    title?: string;
-    description?: string;
-    order?: number;
-    dueDate?: string;
-    completed?: boolean;
-    effortRating?: string;
-    blockReason?: string;
-})
-{
+export async function updateMilestone(
+    id: string,
+    userId: string,
+    data: {
+        title?: string; description?: string; order?: number; dueDate?: string;
+        completed?: boolean; effortRating?: string; blockReason?: string;
+        assigneeIds?: string[];
+    },
+): Promise<ApplyResult<object>> {
     const projectId = await projectIdForMilestone(id);
     await requireRole(projectId, userId, 'contributor');
-    const updateData: Record<string, unknown> = { ...data };
-    if (data.completed === true)  updateData.completedAt = new Date();
-    if (data.completed === false) updateData.completedAt = null;
-    return prisma.milestone.update({ where: { id }, data: updateData });
+
+    if (data.assigneeIds !== undefined) {
+        await requireCanAssign(projectId, userId);
+        if (data.assigneeIds.length > 0) await requireAssigneesNotViewers(projectId, data.assigneeIds);
+    }
+
+    const { assigneeIds, ...rest } = data;
+
+    const planData: Record<string, unknown>      = {};
+    const immediateData: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(rest)) {
+        if (val === undefined) continue;
+        if (PLAN_FIELDS_MILESTONE.has(key)) planData[key] = val;
+        else immediateData[key] = val;
+    }
+
+    if (Object.keys(immediateData).length > 0) {
+        const update: Record<string, unknown> = { ...immediateData };
+        if (immediateData['completed'] === true)  update['completedAt'] = new Date();
+        if (immediateData['completed'] === false) update['completedAt'] = null;
+        await prisma.milestone.update({ where: { id }, data: update });
+    }
+
+    if (assigneeIds !== undefined) {
+        await prisma.$transaction([
+            prisma.milestoneAssignee.deleteMany({ where: { milestoneId: id } }),
+            ...assigneeIds.map(uid => prisma.milestoneAssignee.create({ data: { milestoneId: id, userId: uid } })),
+        ]);
+    }
+
+    const currentMilestone = await prisma.milestone.findUniqueOrThrow({
+        where: { id },
+        include: MILESTONE_INCLUDE,
+    });
+    if (Object.keys(planData).length > 0) {
+        const { changed, old } = filterChanged(planData, currentMilestone as Record<string, unknown>);
+        if (Object.keys(changed).length > 0) {
+            if (await canApproveFor(projectId, userId)) {
+                const updated = await prisma.milestone.update({ where: { id }, data: changed, include: MILESTONE_INCLUDE });
+                return { applied: true, data: flattenMilestone(updated as Record<string, unknown>) };
+            }
+            const changes = await createPendingChanges(projectId, userId, 'milestone', id, old, changed);
+            return { applied: false, pendingChangeId: changes[0].id };
+        }
+    }
+    return { applied: true, data: flattenMilestone(currentMilestone as Record<string, unknown>) };
 }
 
-export async function deleteProject(id: string, userId: string)
-{
+export async function deleteProject(id: string, userId: string) {
     await requireRole(id, userId, 'owner');
     return prisma.project.delete({ where: { id } });
 }
 
-export async function deletePhase(id: string, userId: string)
-{
+export async function deletePhase(id: string, userId: string) {
     const projectId = await projectIdForPhase(id);
     await requireRole(projectId, userId, 'contributor');
     return prisma.phase.delete({ where: { id } });
 }
 
-export async function deleteMilestone(id: string, userId: string)
-{
+export async function deleteMilestone(id: string, userId: string) {
     const projectId = await projectIdForMilestone(id);
     await requireRole(projectId, userId, 'contributor');
     return prisma.milestone.delete({ where: { id } });
 }
 
-export async function getProjectInsights(projectId: string, userId: string)
-{
+export async function setMemberPermission(
+    projectId: string,
+    targetUserId: string,
+    canApprove: boolean,
+    requesterId: string,
+) {
+    await requireRole(projectId, requesterId, 'owner');
+    const member = await prisma.projectMember.findUnique({
+        where: { projectId_userId: { projectId, userId: targetUserId } },
+    });
+    if (!member) throw new Error('Member not found');
+    if (member.role !== 'contributor') throw new Error('canApprove can only be set for contributors');
+    return prisma.projectMember.update({
+        where: { projectId_userId: { projectId, userId: targetUserId } },
+        data: { canApprove },
+        include: { user: { select: { id: true, name: true, email: true } } },
+    });
+}
+
+export async function getMemberPerformance(projectId: string, userId: string) {
+    await requireCanAssign(projectId, userId);
+
+    const members = await prisma.projectMember.findMany({
+        where: { projectId },
+        include: { user: { select: { id: true, name: true, email: true } } },
+        orderBy: { joinedAt: 'asc' },
+    });
+
+    const assignments = await prisma.milestoneAssignee.findMany({
+        where: { milestone: { phase: { projectId } } },
+        select: {
+            userId: true,
+            milestone: { select: { completed: true, completedAt: true, dueDate: true } },
+        },
+    });
+
+    const today = new Date().toISOString().split('T')[0];
+
+    return members.map(m => {
+        const mine = assignments.filter(a => a.userId === m.userId).map(a => a.milestone);
+        const assigned = mine.length;
+        let completed = 0, completedOnTime = 0, completedLate = 0, overdue = 0;
+        let totalDaysLate = 0, lateCount = 0;
+
+        for (const ms of mine) {
+            if (ms.completed) {
+                completed++;
+                if (ms.dueDate && ms.completedAt) {
+                    const due  = new Date(ms.dueDate + 'T23:59:59').getTime();
+                    const done = ms.completedAt.getTime();
+                    const diff = Math.ceil((done - due) / 86400000);
+                    if (diff <= 0) {
+                        completedOnTime++;
+                    } else {
+                        completedLate++;
+                        totalDaysLate += diff;
+                        lateCount++;
+                    }
+                } else {
+                    completedOnTime++;
+                }
+            } else if (ms.dueDate && ms.dueDate < today) {
+                overdue++;
+            }
+        }
+
+        const pending      = assigned - completed - overdue;
+        const avgDaysLate  = lateCount > 0 ? Math.round(totalDaysLate / lateCount * 10) / 10 : 0;
+
+        // Score: 0–100
+        // Completion weight 40, timeliness weight 40, overdue penalty 20
+        const completionScore  = assigned > 0 ? (completed / assigned) * 40 : 20;
+        const withDue          = completedOnTime + completedLate;
+        const timelinessScore  = withDue > 0 ? (completedOnTime / withDue) * 40 : 20;
+        const overduePenalty   = assigned > 0 ? (overdue / assigned) * 20 : 0;
+        const score            = Math.min(100, Math.max(0, Math.round(completionScore + timelinessScore - overduePenalty)));
+
+        return {
+            userId:     m.userId,
+            name:       m.user.name,
+            email:      m.user.email,
+            role:       m.role,
+            canApprove: m.canApprove,
+            assigned, completed, completedOnTime, completedLate, overdue,
+            pending:    Math.max(0, pending),
+            avgDaysLate,
+            score,
+        };
+    });
+}
+
+export async function getProjectInsights(projectId: string, userId: string) {
     await requireRole(projectId, userId, 'viewer');
 
     const project = await prisma.project.findUnique({
@@ -157,9 +451,9 @@ export async function getProjectInsights(projectId: string, userId: string)
     const total = allMilestones.length;
     const today = new Date().toISOString().split('T')[0];
 
-    const completedCount     = allMilestones.filter(m => m.completed).length;
-    const dueableMilestones  = allMilestones.filter(m => m.dueDate);
-    const overdue            = dueableMilestones.filter(m => !m.completed && m.dueDate! < today).length;
+    const completedCount    = allMilestones.filter(m => m.completed).length;
+    const dueableMilestones = allMilestones.filter(m => m.dueDate);
+    const overdue           = dueableMilestones.filter(m => !m.completed && m.dueDate! < today).length;
 
     const completionRate = total === 0 ? 0.5 : completedCount / total;
     const overdueScore   = dueableMilestones.length === 0 ? 0.8 : 1 - (overdue / dueableMilestones.length);
@@ -189,7 +483,7 @@ export async function getProjectInsights(projectId: string, userId: string)
 
         let plannedPerWeek: number | null = null;
         if (project.targetEndDate) {
-            const targetMs        = new Date(project.targetEndDate + 'T00:00:00').getTime();
+            const targetMs          = new Date(project.targetEndDate + 'T00:00:00').getTime();
             const totalWeeksPlanned = (targetMs - projectStartMs) / (7 * 86400000);
             if (totalWeeksPlanned > 0) plannedPerWeek = total / totalWeeksPlanned;
         }
@@ -205,17 +499,49 @@ export async function getProjectInsights(projectId: string, userId: string)
         return {
             healthScore,
             velocity: {
-                available:          true,
-                weeksElapsed:       Math.round(weeksElapsed * 10) / 10,
-                completedCount:     completedWithTimestamp.length,
-                actualPerWeek:      Math.round(actualPerWeek * 10) / 10,
-                plannedPerWeek:     plannedPerWeek !== null ? Math.round(plannedPerWeek * 10) / 10 : null,
-                remainingCount:     remaining,
+                available:        true,
+                weeksElapsed:     Math.round(weeksElapsed * 10) / 10,
+                completedCount:   completedWithTimestamp.length,
+                actualPerWeek:    Math.round(actualPerWeek * 10) / 10,
+                plannedPerWeek:   plannedPerWeek !== null ? Math.round(plannedPerWeek * 10) / 10 : null,
+                remainingCount:   remaining,
                 revisedFinishDate,
-                targetFinishDate:   project.targetEndDate ?? null,
+                targetFinishDate: project.targetEndDate ?? null,
             },
         };
     }
 
     return { healthScore, velocity: { available: false } };
+}
+
+export async function getMyObjectives(userId: string) {
+    const assignments = await prisma.milestoneAssignee.findMany({
+        where: { userId },
+        include: {
+            milestone: {
+                include: {
+                    assignees: { include: { user: { select: { id: true, name: true, email: true } } } },
+                    phase: { include: { project: { select: { id: true, title: true } } } },
+                },
+            },
+        },
+    });
+    return assignments
+        .filter(a => a.milestone.phase)
+        .map(a => ({
+            id:           a.milestone.id,
+            title:        a.milestone.title,
+            description:  a.milestone.description,
+            dueDate:      a.milestone.dueDate,
+            completed:    a.milestone.completed,
+            completedAt:  a.milestone.completedAt,
+            effortRating: a.milestone.effortRating,
+            blockReason:  a.milestone.blockReason,
+            order:        a.milestone.order,
+            assignees:    a.milestone.assignees.map(ma => ma.user),
+            phaseId:      a.milestone.phase!.id,
+            phaseName:    a.milestone.phase!.title,
+            projectId:    a.milestone.phase!.project.id,
+            projectTitle: a.milestone.phase!.project.title,
+        }));
 }

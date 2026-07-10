@@ -1,25 +1,51 @@
-import { useState } from 'react';
-import type { Project } from '../types';
+import { useState, useRef, useEffect } from 'react';
+import type { Project, ProjectMember } from '../types';
 import {
   updateProject, createPhase, updatePhase, deletePhase,
   createMilestone, updateMilestone, deleteMilestone,
-  getProjects, deleteProject,
+  getProjects, deleteProject, setDependencies,
 } from '../api/client';
+import { ChevronDown } from '@/components/animate-ui/icons/chevron-down';
+import { Search } from '@/components/animate-ui/icons/search';
+import { Check } from '@/components/animate-ui/icons/check';
 
-type Step = 'project' | 'phases' | 'milestones';
-interface EditPhase { id?: string; title: string; _deleted: boolean; }
-interface EditMilestone { id?: string; title: string; dueDate: string; _deleted: boolean; }
+const MEMBER_COLORS = [
+  'bg-blue-500', 'bg-violet-500', 'bg-emerald-500',
+  'bg-rose-500', 'bg-amber-500', 'bg-cyan-500', 'bg-indigo-500',
+];
+function memberColor(name: string): string {
+  let hash = 0;
+  for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) & 0xffff;
+  return MEMBER_COLORS[hash % MEMBER_COLORS.length];
+}
+
+interface EditPhase {
+  id?: string;
+  title: string;
+  description: string;
+  dependsOnIds: string[];
+  _deleted: boolean;
+}
+interface EditMilestone {
+  id?: string;
+  title: string;
+  dueDate: string;
+  assigneeIds: string[];
+  _deleted: boolean;
+}
 
 interface Props {
   project: Project;
   isOwner?: boolean;
+  canAssign?: boolean;
   onClose: () => void;
-  onSaved: (updated: Project[]) => void;
+  onSaved: (updated: Project[], pendingCount: number) => void;
   onDeleted: (id: string) => void;
 }
 
-export default function EditProjectModal({ project, isOwner = true, onClose, onSaved, onDeleted }: Props) {
-  const [step, setStep] = useState<Step>('project');
+export default function EditProjectModal({
+  project, isOwner = true, canAssign = false, onClose, onSaved, onDeleted,
+}: Props) {
   const [form, setForm] = useState({
     title: project.title,
     description: project.description ?? '',
@@ -28,21 +54,33 @@ export default function EditProjectModal({ project, isOwner = true, onClose, onS
 
   const sorted = [...project.phases].sort((a, b) => a.order - b.order);
   const [editPhases, setEditPhases] = useState<EditPhase[]>(
-    sorted.map(ph => ({ id: ph.id, title: ph.title, _deleted: false }))
+    sorted.map(ph => ({
+      id: ph.id,
+      title: ph.title,
+      description: ph.description ?? '',
+      dependsOnIds: ph.dependencies?.map(d => d.dependsOnId) ?? [],
+      _deleted: false,
+    }))
   );
   const [editMilestonesMap, setEditMilestonesMap] = useState<Record<number, EditMilestone[]>>(() => {
     const mm: Record<number, EditMilestone[]> = {};
     sorted.forEach((ph, i) => {
       mm[i] = [...ph.milestones].sort((a, b) => a.order - b.order)
-        .map(m => ({ id: m.id, title: m.title, dueDate: m.dueDate ?? '', _deleted: false }));
+        .map(m => ({
+          id: m.id,
+          title: m.title,
+          dueDate: m.dueDate ?? '',
+          assigneeIds: m.assignees?.map(a => a.id) ?? [],
+          _deleted: false,
+        }));
     });
     return mm;
   });
 
-  const [activePhaseIdx, setActivePhaseIdx] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  // ── Delete flow ───────────────────────────────────────────
+  // ── Delete flow ────────────────────────────────────────────────────
   const [deleteStep, setDeleteStep] = useState<'idle' | 'confirm' | 'type'>('idle');
   const [deleteTyped, setDeleteTyped] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -59,29 +97,20 @@ export default function EditProjectModal({ project, isOwner = true, onClose, onS
     }
   }
 
-  // Drag state — phases
-  const [dragPhaseIdx, setDragPhaseIdx] = useState<number | null>(null);
+  // ── Drag — phases ──────────────────────────────────────────────────
+  const [dragPhaseIdx,     setDragPhaseIdx]     = useState<number | null>(null);
   const [dragOverPhaseIdx, setDragOverPhaseIdx] = useState<number | null>(null);
-  // Drag state — milestones
-  const [dragMilestoneIdx, setDragMilestoneIdx] = useState<number | null>(null);
-  const [dragOverMilestoneIdx, setDragOverMilestoneIdx] = useState<number | null>(null);
+
+  // ── Drag — objectives (tracked per phase) ─────────────────────────
+  const [dragObj,     setDragObj]     = useState<{ ph: number; obj: number } | null>(null);
+  const [dragObjOver, setDragObjOver] = useState<{ ph: number; obj: number } | null>(null);
 
   const activePhases = editPhases.filter(p => !p._deleted);
-  const canGoToMilestones = activePhases.some(p => p.title.trim());
 
-  function goToStep(s: Step) {
-    if (s === 'milestones' && !canGoToMilestones) return;
-    if (s === 'milestones') {
-      setEditMilestonesMap(prev => {
-        const next = { ...prev };
-        editPhases.forEach((_, i) => { if (!next[i]) next[i] = []; });
-        return next;
-      });
-      const first = editPhases.findIndex(p => !p._deleted);
-      setActivePhaseIdx(first >= 0 ? first : 0);
-    }
-    setStep(s);
-  }
+  // Compute visible 1-based order for each raw phase index
+  const visibleOrders = new Map<number, number>();
+  let _vo = 0;
+  editPhases.forEach((ph, i) => { if (!ph._deleted) visibleOrders.set(i, ++_vo); });
 
   function reorderPhases(fromIdx: number, toIdx: number) {
     const indices = editPhases.map((_, i) => i);
@@ -96,10 +125,9 @@ export default function EditProjectModal({ project, isOwner = true, onClose, onS
       return next;
     });
     setEditMilestonesMap(newMap);
-    if (activePhaseIdx === fromIdx) setActivePhaseIdx(toIdx);
   }
 
-  function reorderMilestones(phaseIdx: number, fromIdx: number, toIdx: number) {
+  function reorderObjectives(phaseIdx: number, fromIdx: number, toIdx: number) {
     setEditMilestonesMap(prev => {
       const arr = [...(prev[phaseIdx] ?? [])];
       const [item] = arr.splice(fromIdx, 1);
@@ -110,357 +138,544 @@ export default function EditProjectModal({ project, isOwner = true, onClose, onS
 
   async function handleSave() {
     setSaving(true);
+    setSaveError(null);
+    let pendingCount = 0;
     try {
-      await updateProject(project.id, {
+      const projResult = await updateProject(project.id, {
         title: form.title.trim() || project.title,
         description: form.description || undefined,
         targetEndDate: form.targetEndDate || undefined,
       });
+      if (!projResult.applied) pendingCount++;
+
       for (const ph of editPhases) {
         if (ph._deleted && ph.id) await deletePhase(ph.id);
       }
+
       const phaseIdMap: Record<number, string> = {};
       for (let i = 0; i < editPhases.length; i++) {
         const ph = editPhases[i];
         if (ph._deleted) continue;
         if (ph.id) {
-          await updatePhase(ph.id, { title: ph.title, order: i + 1 });
+          const r = await updatePhase(ph.id, {
+            title: ph.title,
+            description: ph.description || undefined,
+            order: i + 1,
+          });
+          if (!r.applied) pendingCount++;
           phaseIdMap[i] = ph.id;
         } else if (ph.title.trim()) {
-          const created = await createPhase(project.id, ph.title.trim(), i + 1);
+          const created = await createPhase(project.id, ph.title.trim(), i + 1, ph.description || undefined);
           phaseIdMap[i] = created.id;
         }
       }
+
+      for (let i = 0; i < editPhases.length; i++) {
+        const ph = editPhases[i];
+        if (ph._deleted) continue;
+        const phaseId = phaseIdMap[i];
+        if (!phaseId) continue;
+        const resolvedDeps = ph.dependsOnIds
+          .map(depId => {
+            if (!depId.startsWith('__new_')) return depId;
+            const j = parseInt(depId.replace('__new_', ''), 10);
+            return phaseIdMap[j] ?? null;
+          })
+          .filter((id): id is string => id !== null);
+        await setDependencies(phaseId, resolvedDeps);
+      }
+
       for (let i = 0; i < editPhases.length; i++) {
         if (editPhases[i]._deleted) continue;
         const phaseId = phaseIdMap[i];
         if (!phaseId) continue;
         const milestones = editMilestonesMap[i] ?? [];
 
-        // Delete removed milestones first
         for (const m of milestones) {
           if (m._deleted && m.id) await deleteMilestone(m.id);
         }
 
-        // Sort active milestones: closest due date first, no due date last
         const active = milestones.filter(m => !m._deleted);
-        const withDate = [...active.filter(m => m.dueDate)].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+        const withDate    = [...active.filter(m => m.dueDate)].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
         const withoutDate = active.filter(m => !m.dueDate);
-        const sorted = [...withDate, ...withoutDate];
+        const ordered     = [...withDate, ...withoutDate];
 
         let order = 1;
-        for (const m of sorted) {
+        for (const m of ordered) {
           if (m.id) {
-            await updateMilestone(m.id, { title: m.title, dueDate: m.dueDate || undefined, order: order++ });
+            const r = await updateMilestone(m.id, {
+              title: m.title,
+              dueDate: m.dueDate || undefined,
+              order: order++,
+              ...(canAssign && { assigneeIds: m.assigneeIds }),
+            });
+            if (!r.applied) pendingCount++;
           } else if (m.title.trim()) {
-            await createMilestone(phaseId, m.title.trim(), order++, m.dueDate || undefined);
+            await createMilestone(
+              phaseId, m.title.trim(), order++,
+              m.dueDate || undefined,
+              canAssign ? m.assigneeIds : undefined,
+            );
           }
         }
       }
+
       const updated = await getProjects();
-      onSaved(updated);
+      onSaved(updated, pendingCount);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     } finally {
       setSaving(false);
     }
   }
 
-  const STEPS: Step[] = ['project', 'phases', 'milestones'];
-  const LABELS = ['Details', 'Phases', 'Milestones'];
-  const curIdx = STEPS.indexOf(step);
-
   return (
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-xl flex flex-col max-h-[90vh]">
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-stone-100">
-          <h2 className="text-lg font-semibold text-stone-800">Edit Project</h2>
+        {/* ── Header ─────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-[#E0CFC4] shrink-0">
+          <h2 className="text-lg font-semibold text-[#2D1E1A]">Edit Project</h2>
           <div className="flex items-center gap-2">
             {isOwner && (
               <button
                 onClick={() => setDeleteStep('confirm')}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-stone-300 hover:text-red-400 hover:bg-red-50 transition-colors text-base"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-[#BBA79C] hover:text-[#ba1a1a] hover:bg-[#ffdad6] transition-colors text-base"
                 title="Delete project"
-              >
-                🗑
-              </button>
+              >🗑</button>
             )}
-            <button onClick={onClose} className="text-stone-300 hover:text-stone-500 text-xl leading-none w-8 h-8 flex items-center justify-center">×</button>
+            <button
+              onClick={onClose}
+              className="text-[#BBA79C] hover:text-[#8A7265] text-xl leading-none w-8 h-8 flex items-center justify-center"
+            >×</button>
           </div>
         </div>
 
-        {/* ── Delete confirmation step 1 ── */}
+        {/* ── Delete overlay — step 1 ───────────────────────────── */}
         {deleteStep === 'confirm' && (
           <div className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center px-8 gap-5 z-10">
             <div className="text-4xl">⚠️</div>
             <div className="text-center">
-              <p className="text-base font-semibold text-stone-800">Delete this project?</p>
-              <p className="text-sm text-stone-500 mt-1">This action is permanent and cannot be undone. All phases and milestones will be lost.</p>
+              <p className="text-base font-semibold text-[#2D1E1A]">Delete this project?</p>
+              <p className="text-sm text-[#8A7265] mt-1">Permanent and cannot be undone. All phases and objectives will be lost.</p>
             </div>
             <div className="flex gap-3 w-full max-w-xs">
-              <button onClick={() => setDeleteStep('idle')} className="flex-1 py-2.5 rounded-lg text-sm text-stone-600 bg-stone-100 hover:bg-stone-200 transition-colors">No, keep it</button>
-              <button onClick={() => { setDeleteTyped(''); setDeleteStep('type'); }} className="flex-1 py-2.5 rounded-lg text-sm text-white bg-red-500 hover:bg-red-600 transition-colors font-medium">Yes, delete</button>
+              <button onClick={() => setDeleteStep('idle')} className="flex-1 py-2.5 rounded-lg text-sm text-[#54433A] bg-[#F0E9E0] hover:bg-[#E0CFC4] transition-colors">No, keep it</button>
+              <button onClick={() => { setDeleteTyped(''); setDeleteStep('type'); }} className="flex-1 py-2.5 rounded-lg text-sm text-white bg-[#ba1a1a] hover:bg-[#93000a] transition-colors font-medium">Yes, delete</button>
             </div>
           </div>
         )}
 
-        {/* ── Delete confirmation step 2 ── */}
+        {/* ── Delete overlay — step 2 ───────────────────────────── */}
         {deleteStep === 'type' && (
           <div className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center px-8 gap-5 z-10">
             <div className="text-4xl">🗑</div>
             <div className="text-center">
-              <p className="text-base font-semibold text-stone-800">Confirm deletion</p>
-              <p className="text-sm text-stone-500 mt-1">
-                Type <span className="font-mono text-red-500 bg-red-50 px-1.5 py-0.5 rounded">{deleteTarget}</span> to confirm
+              <p className="text-base font-semibold text-[#2D1E1A]">Confirm deletion</p>
+              <p className="text-sm text-[#8A7265] mt-1">
+                Type <span className="font-mono text-[#ba1a1a] bg-[#ffdad6] px-1.5 py-0.5 rounded">{deleteTarget}</span> to confirm
               </p>
             </div>
             <input
               autoFocus
-              className="w-full max-w-xs border border-stone-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+              className="w-full max-w-xs border border-[#E0CFC4] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ffdad6]"
               placeholder={deleteTarget}
               value={deleteTyped}
               onChange={e => setDeleteTyped(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleDelete()}
             />
             <div className="flex gap-3 w-full max-w-xs">
-              <button onClick={() => setDeleteStep('idle')} className="flex-1 py-2.5 rounded-lg text-sm text-stone-600 bg-stone-100 hover:bg-stone-200 transition-colors">Cancel</button>
+              <button onClick={() => setDeleteStep('idle')} className="flex-1 py-2.5 rounded-lg text-sm text-[#54433A] bg-[#F0E9E0] hover:bg-[#E0CFC4] transition-colors">Cancel</button>
               <button
                 onClick={handleDelete}
                 disabled={deleteTyped.trim().toLowerCase() !== deleteTarget.toLowerCase() || deleting}
-                className="flex-1 py-2.5 rounded-lg text-sm text-white bg-red-500 hover:bg-red-600 disabled:opacity-40 transition-colors font-medium"
-              >
-                {deleting ? 'Deleting…' : 'Delete forever'}
-              </button>
+                className="flex-1 py-2.5 rounded-lg text-sm text-white bg-[#ba1a1a] hover:bg-[#93000a] disabled:opacity-40 transition-colors font-medium"
+              >{deleting ? 'Deleting…' : 'Delete forever'}</button>
             </div>
           </div>
         )}
 
-        {/* Clickable step indicator */}
-        <div className="flex items-center gap-2 px-6 pt-5 pb-4 border-b border-stone-100">
-          {STEPS.map((s, i) => {
-            const disabled = s === 'milestones' && !canGoToMilestones;
-            return (
-              <div key={s} className="flex items-center gap-2">
-                <button
-                  onClick={() => !disabled && goToStep(s)}
-                  disabled={disabled}
-                  title={disabled ? 'Add at least one phase first' : undefined}
-                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium transition-colors
-                    ${disabled
-                      ? 'bg-stone-100 text-stone-300 cursor-not-allowed'
-                      : curIdx === i
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-stone-100 text-stone-500 hover:bg-blue-100 hover:text-blue-600 cursor-pointer'}`}
-                >
-                  {i + 1}
-                </button>
-                <span className={`text-xs ${curIdx === i ? 'text-stone-700 font-medium' : 'text-stone-400'}`}>
-                  {LABELS[i]}
-                </span>
-                {i < 2 && <div className="w-6 h-px bg-stone-200 mx-1" />}
-              </div>
-            );
-          })}
-        </div>
+        {/* ── Scrollable body ────────────────────────────────────── */}
+        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
 
-        {/* Step content */}
-        <div className="px-6 py-5">
-
-          {/* ── Step 1: Project details ── */}
-          {step === 'project' && (
-            <div className="space-y-4">
-              <h3 className="text-base font-semibold text-stone-800">Project details</h3>
-              <div>
-                <label className="text-xs font-medium text-stone-500 uppercase tracking-wide">Title *</label>
-                <input autoFocus
-                  className="w-full mt-1.5 border border-stone-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-                  value={form.title}
-                  onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-stone-500 uppercase tracking-wide">Description</label>
-                <textarea
-                  className="w-full mt-1.5 border border-stone-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
-                  rows={3}
-                  value={form.description}
-                  onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-stone-500 uppercase tracking-wide">Target end date</label>
-                <input type="date"
-                  className="w-full mt-1.5 border border-stone-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-                  value={form.targetEndDate}
-                  onChange={e => setForm(f => ({ ...f, targetEndDate: e.target.value }))}
-                />
-              </div>
+          {/* ── Project Details ───────────────────────────────── */}
+          <section className="space-y-3">
+            <p className="text-[10px] font-semibold text-[#8A7265] uppercase tracking-widest">Project Details</p>
+            <div>
+              <label className="text-xs font-medium text-[#8A7265]">Name *</label>
+              <input
+                autoFocus
+                className="w-full mt-1.5 border border-[#E0CFC4] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#adcec3]"
+                value={form.title}
+                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+              />
             </div>
-          )}
+            <div>
+              <label className="text-xs font-medium text-[#8A7265]">Description</label>
+              <textarea
+                rows={2}
+                className="w-full mt-1.5 border border-[#E0CFC4] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#adcec3] resize-none"
+                placeholder="What will this project accomplish?"
+                value={form.description}
+                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-[#8A7265]">Target date</label>
+              <input
+                type="date"
+                className="w-full mt-1.5 border border-[#E0CFC4] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#adcec3]"
+                value={form.targetEndDate}
+                onChange={e => setForm(f => ({ ...f, targetEndDate: e.target.value }))}
+              />
+            </div>
+          </section>
 
-          {/* ── Step 2: Phases with drag-to-reorder ── */}
-          {step === 'phases' && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-base font-semibold text-stone-800">Phases</h3>
-                <p className="text-xs text-stone-400 mt-0.5">Grab ⠿ to reorder</p>
-              </div>
-              <div className="space-y-2">
-                {editPhases.map((ph, i) => ph._deleted ? null : (
-                  <div key={i}
-                    onDragOver={e => { e.preventDefault(); setDragOverPhaseIdx(i); }}
-                    onDragEnter={e => { e.preventDefault(); setDragOverPhaseIdx(i); }}
-                    onDrop={e => {
-                      e.preventDefault();
-                      if (dragPhaseIdx !== null && dragPhaseIdx !== i) reorderPhases(dragPhaseIdx, i);
-                      setDragPhaseIdx(null); setDragOverPhaseIdx(null);
-                    }}
-                    className={`flex items-center gap-2 rounded-xl px-3 py-2.5 border transition-all
-                      ${dragOverPhaseIdx === i && dragPhaseIdx !== i
-                        ? 'bg-blue-50 border-blue-300 border-dashed'
-                        : dragPhaseIdx === i
-                        ? 'bg-stone-100 border-stone-200 opacity-40'
-                        : 'bg-stone-50 border-transparent'}`}
-                  >
-                    {/* Drag handle — only this part is draggable */}
+          {/* ── Divider ─────────────────────────────────────────── */}
+          <div className="border-t border-[#E0CFC4] pt-1">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[10px] font-semibold text-[#8A7265] uppercase tracking-widest">Phases & Objectives</p>
+              <span className="text-[10px] text-[#8A7265]">Drag ⠿ to reorder</span>
+            </div>
+            <p className="text-xs text-[#8A7265]">Each phase holds a set of objectives. Click phases that must complete <em>before</em> this one starts.</p>
+          </div>
+
+          {/* ── Phase cards ─────────────────────────────────────── */}
+          <div className="space-y-4">
+            {editPhases.map((ph, i) => {
+              if (ph._deleted) return null;
+              const visOrder    = visibleOrders.get(i) ?? i + 1;
+              const isDragOver  = dragOverPhaseIdx === i && dragPhaseIdx !== i;
+              const isDragging  = dragPhaseIdx === i;
+              const objectives  = editMilestonesMap[i] ?? [];
+              const activeObjs  = objectives.filter(m => !m._deleted);
+
+              return (
+                <div
+                  key={i}
+                  onDragOver={e => { e.preventDefault(); setDragOverPhaseIdx(i); }}
+                  onDragEnter={e => { e.preventDefault(); setDragOverPhaseIdx(i); }}
+                  onDrop={e => {
+                    e.preventDefault();
+                    if (dragPhaseIdx !== null && dragPhaseIdx !== i) reorderPhases(dragPhaseIdx, i);
+                    setDragPhaseIdx(null); setDragOverPhaseIdx(null);
+                  }}
+                  className={`rounded-xl border transition-all ${
+                    isDragOver  ? 'bg-[#E8FAF7] border-[#adcec3] border-dashed'
+                    : isDragging ? 'opacity-40 bg-[#F0E9E0] border-[#E0CFC4]'
+                    : 'bg-[#FFF5E9] border-[#E0CFC4]'
+                  }`}
+                >
+                  {/* Phase header row */}
+                  <div className="flex items-center gap-2.5 px-4 py-3 border-b border-[#E0CFC4]">
                     <span
                       draggable
                       onDragStart={e => { e.stopPropagation(); e.dataTransfer.effectAllowed = 'move'; setDragPhaseIdx(i); }}
                       onDragEnd={() => { setDragPhaseIdx(null); setDragOverPhaseIdx(null); }}
-                      className="text-stone-300 hover:text-stone-500 cursor-grab active:cursor-grabbing text-base select-none leading-none shrink-0 px-0.5"
-                    >
-                      ⠿
+                      className="text-[#BBA79C] hover:text-[#8A7265] cursor-grab active:cursor-grabbing text-base select-none leading-none shrink-0"
+                    >⠿</span>
+                    <span className="text-[10px] font-semibold text-[#8A7265] uppercase tracking-wide shrink-0 w-14">
+                      Phase {visOrder}
                     </span>
-                    <span className="text-xs text-stone-400 w-16 shrink-0">Phase {i + 1}</span>
                     <input
-                      className="flex-1 bg-transparent border-none outline-none text-sm text-stone-800 focus:ring-0"
-                      value={ph.title}
+                      className="flex-1 bg-transparent border-none outline-none text-sm font-medium text-[#2D1E1A] placeholder:text-[#BBA79C] focus:ring-0"
                       placeholder="Phase title"
+                      value={ph.title}
                       onChange={e => setEditPhases(prev => prev.map((p, j) => j === i ? { ...p, title: e.target.value } : p))}
                     />
                     {activePhases.length > 1 && (
                       <button
                         onClick={() => setEditPhases(prev => prev.map((p, j) => j === i ? { ...p, _deleted: true } : p))}
-                        className="text-stone-400 hover:text-red-400 text-base leading-none shrink-0 transition-colors">
-                        ×
-                      </button>
+                        className="text-[#BBA79C] hover:text-[#ba1a1a] text-lg leading-none shrink-0 transition-colors"
+                        title="Remove phase"
+                      >×</button>
                     )}
                   </div>
-                ))}
-              </div>
-              <button
-                onClick={() => setEditPhases(prev => [...prev, { title: '', _deleted: false }])}
-                className="w-full py-2.5 rounded-xl border-2 border-dashed border-stone-200 text-sm text-stone-400 hover:border-blue-300 hover:text-blue-400 transition-colors">
-                + Add phase
-              </button>
-            </div>
-          )}
 
-          {/* ── Step 3: Milestones with drag-to-reorder ── */}
-          {step === 'milestones' && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-base font-semibold text-stone-800">
-                  Milestones for {editPhases[activePhaseIdx]?.title?.trim() || `Phase ${activePhaseIdx + 1}`}:
-                </h3>
-                <p className="text-xs text-stone-400 mt-0.5">Grab ⠿ to reorder within a phase</p>
-              </div>
-              {/* Phase tabs */}
-              <div className="flex gap-2 flex-wrap">
-                {editPhases.map((ph, i) => ph._deleted ? null : (
-                  <button key={i}
-                    onClick={() => { setActivePhaseIdx(i); setDragMilestoneIdx(null); setDragOverMilestoneIdx(null); }}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors
-                      ${activePhaseIdx === i ? 'bg-blue-500 text-white' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}>
-                    {ph.title || `Phase ${i + 1}`}
-                  </button>
-                ))}
-              </div>
-              {/* Milestones for active phase */}
-              <div className="space-y-2">
-                {(editMilestonesMap[activePhaseIdx] ?? []).map((m, i) => m._deleted ? null : (
-                  <div key={i}
-                    onDragOver={e => { e.preventDefault(); setDragOverMilestoneIdx(i); }}
-                    onDragEnter={e => { e.preventDefault(); setDragOverMilestoneIdx(i); }}
-                    onDrop={e => {
-                      e.preventDefault();
-                      if (dragMilestoneIdx !== null && dragMilestoneIdx !== i) reorderMilestones(activePhaseIdx, dragMilestoneIdx, i);
-                      setDragMilestoneIdx(null); setDragOverMilestoneIdx(null);
-                    }}
-                    className={`rounded-xl p-3 border transition-all
-                      ${dragOverMilestoneIdx === i && dragMilestoneIdx !== i
-                        ? 'bg-blue-50 border-blue-300 border-dashed'
-                        : dragMilestoneIdx === i
-                        ? 'bg-stone-100 border-stone-200 opacity-40'
-                        : 'bg-stone-50 border-transparent'}`}
-                  >
-                    <div className="flex items-center gap-2 mb-1.5">
-                      {/* Drag handle */}
-                      <span
-                        draggable
-                        onDragStart={e => { e.stopPropagation(); e.dataTransfer.effectAllowed = 'move'; setDragMilestoneIdx(i); }}
-                        onDragEnd={() => { setDragMilestoneIdx(null); setDragOverMilestoneIdx(null); }}
-                        className="text-stone-300 hover:text-stone-500 cursor-grab active:cursor-grabbing text-base select-none leading-none shrink-0 px-0.5"
-                      >
-                        ⠿
-                      </span>
-                      <input
-                        className="flex-1 bg-transparent border-none outline-none text-sm text-stone-800 focus:ring-0"
-                        placeholder="Milestone title"
-                        value={m.title}
-                        onChange={e => setEditMilestonesMap(prev => ({
-                          ...prev,
-                          [activePhaseIdx]: prev[activePhaseIdx].map((ms, j) => j === i ? { ...ms, title: e.target.value } : ms),
-                        }))}
-                      />
+                  {/* Phase body */}
+                  <div className="px-4 py-3 space-y-3">
+
+                    {/* Description */}
+                    <input
+                      className="w-full border border-[#E0CFC4] rounded-lg px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[#adcec3] placeholder:text-[#BBA79C]"
+                      placeholder="Description — what happens in this phase?"
+                      value={ph.description}
+                      onChange={e => setEditPhases(prev => prev.map((p, j) => j === i ? { ...p, description: e.target.value } : p))}
+                    />
+
+                    {/* Dependencies */}
+                    {activePhases.length > 1 && (
+                      <div>
+                        <p className="text-[10px] text-[#8A7265] mb-1.5">
+                          <span className="font-semibold uppercase tracking-wide">Starts after:</span>{' '}
+                          which phases must complete before this one begins?
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {editPhases.map((other, j) => {
+                            if (other._deleted || j === i) return null;
+                            const otherId  = other.id ?? `__new_${j}`;
+                            const selected = ph.dependsOnIds.includes(otherId);
+                            return (
+                              <button
+                                key={j}
+                                onClick={() => setEditPhases(prev => prev.map((p, k) => {
+                                  if (k !== i) return p;
+                                  return {
+                                    ...p,
+                                    dependsOnIds: selected
+                                      ? p.dependsOnIds.filter(id => id !== otherId)
+                                      : [...p.dependsOnIds, otherId],
+                                  };
+                                }))}
+                                className={`text-xs px-2.5 py-1 rounded-full border transition-colors font-medium ${
+                                  selected
+                                    ? 'bg-[#C4601A] text-white border-[#C4601A]'
+                                    : 'bg-white text-[#8A7265] border-[#E0CFC4] hover:border-[#adcec3] hover:text-[#C4601A]'
+                                }`}
+                              >
+                                {other.title.trim() || `Phase ${j + 1}`}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Objectives */}
+                    <div>
+                      <p className="text-[10px] font-semibold text-[#8A7265] uppercase tracking-wide mb-2">
+                        Objectives
+                        {activeObjs.length > 0 && (
+                          <span className="ml-1.5 font-normal normal-case text-[#BBA79C]">({activeObjs.length})</span>
+                        )}
+                      </p>
+
+                      <div className="space-y-1.5">
+                        {objectives.map((m, j) => {
+                          if (m._deleted) return null;
+                          const isDragObjOver  = dragObjOver?.ph === i && dragObjOver?.obj === j && dragObj?.obj !== j;
+                          const isDragObjThis  = dragObj?.ph === i && dragObj?.obj === j;
+
+                          return (
+                            <div
+                              key={j}
+                              onDragOver={e => { e.preventDefault(); setDragObjOver({ ph: i, obj: j }); }}
+                              onDragEnter={e => { e.preventDefault(); setDragObjOver({ ph: i, obj: j }); }}
+                              onDrop={e => {
+                                e.preventDefault();
+                                if (dragObj && dragObj.ph === i && dragObj.obj !== j) {
+                                  reorderObjectives(i, dragObj.obj, j);
+                                }
+                                setDragObj(null); setDragObjOver(null);
+                              }}
+                              className={`rounded-lg border p-2.5 transition-all ${
+                                isDragObjOver ? 'bg-[#E8FAF7] border-[#c8eadf] border-dashed'
+                                : isDragObjThis ? 'opacity-40 bg-[#F0E9E0] border-[#E0CFC4]'
+                                : 'bg-white border-[#E0CFC4]'
+                              }`}
+                            >
+                              {/* Title row */}
+                              <div className="flex items-center gap-2">
+                                <span
+                                  draggable
+                                  onDragStart={e => { e.stopPropagation(); e.dataTransfer.effectAllowed = 'move'; setDragObj({ ph: i, obj: j }); }}
+                                  onDragEnd={() => { setDragObj(null); setDragObjOver(null); }}
+                                  className="text-[#BBA79C] hover:text-[#8A7265] cursor-grab text-sm select-none leading-none shrink-0"
+                                >⠿</span>
+                                <input
+                                  className="flex-1 bg-transparent border-none outline-none text-sm text-[#2D1E1A] placeholder:text-[#BBA79C] focus:ring-0"
+                                  placeholder="Objective title"
+                                  value={m.title}
+                                  onChange={e => setEditMilestonesMap(prev => ({
+                                    ...prev,
+                                    [i]: prev[i].map((ms, k) => k === j ? { ...ms, title: e.target.value } : ms),
+                                  }))}
+                                />
+                                <button
+                                  onClick={() => setEditMilestonesMap(prev => ({
+                                    ...prev,
+                                    [i]: prev[i].map((ms, k) => k === j ? { ...ms, _deleted: true } : ms),
+                                  }))}
+                                  className="text-[#BBA79C] hover:text-[#ba1a1a] text-base leading-none shrink-0 transition-colors"
+                                >×</button>
+                              </div>
+
+                              {/* Due date + assignees */}
+                              <div className="flex items-center gap-2 mt-2 ml-5">
+                                <input
+                                  type="date"
+                                  className="border border-[#E0CFC4] rounded-lg px-2 py-1.5 text-xs bg-[#FFF5E9] focus:outline-none focus:ring-2 focus:ring-[#adcec3] focus:bg-white"
+                                  value={m.dueDate}
+                                  onChange={e => setEditMilestonesMap(prev => ({
+                                    ...prev,
+                                    [i]: prev[i].map((ms, k) => k === j ? { ...ms, dueDate: e.target.value } : ms),
+                                  }))}
+                                />
+                                {canAssign && project.members && project.members.length > 0 && (
+                                  <div className="flex-1 min-w-0">
+                                    <AssigneePickerDropdown
+                                      members={project.members}
+                                      selectedIds={m.assigneeIds}
+                                      onChange={ids => setEditMilestonesMap(prev => ({
+                                        ...prev,
+                                        [i]: prev[i].map((ms, k) => k === j ? { ...ms, assigneeIds: ids } : ms),
+                                      }))}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
                       <button
                         onClick={() => setEditMilestonesMap(prev => ({
                           ...prev,
-                          [activePhaseIdx]: prev[activePhaseIdx].map((ms, j) =>
-                            j === i ? { ...ms, _deleted: true } : ms),
+                          [i]: [...(prev[i] ?? []), { title: '', dueDate: '', assigneeIds: [], _deleted: false }],
                         }))}
-                        className="text-stone-400 hover:text-red-400 text-base leading-none shrink-0 transition-colors">
-                        ×
-                      </button>
+                        className="mt-2 text-xs text-[#8A7265] hover:text-[#C4601A] transition-colors"
+                      >+ Add objective</button>
                     </div>
-                    <input type="date"
-                      className="w-full bg-white border border-stone-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-200"
-                      value={m.dueDate}
-                      onChange={e => setEditMilestonesMap(prev => ({
-                        ...prev,
-                        [activePhaseIdx]: prev[activePhaseIdx].map((ms, j) => j === i ? { ...ms, dueDate: e.target.value } : ms),
-                      }))}
-                    />
+
                   </div>
-                ))}
-              </div>
-              <button
-                onClick={() => setEditMilestonesMap(prev => ({
-                  ...prev,
-                  [activePhaseIdx]: [...(prev[activePhaseIdx] ?? []), { title: '', dueDate: '', _deleted: false }],
-                }))}
-                className="w-full py-2.5 rounded-xl border-2 border-dashed border-stone-200 text-sm text-stone-400 hover:border-blue-300 hover:text-blue-400 transition-colors">
-                + Add milestone
-              </button>
-            </div>
-          )}
+                </div>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={() => setEditPhases(prev => [...prev, { title: '', description: '', dependsOnIds: [], _deleted: false }])}
+            className="w-full py-2.5 rounded-xl border-2 border-dashed border-[#E0CFC4] text-sm text-[#8A7265] hover:border-[#adcec3] hover:text-[#C4601A] transition-colors"
+          >+ Add phase</button>
+
         </div>
 
-        {/* Footer */}
-        <div className="flex gap-3 px-6 pb-6">
-          <button
-            onClick={step === 'project' ? onClose : () => goToStep(step === 'milestones' ? 'phases' : 'project')}
-            className="flex-1 py-2.5 rounded-lg text-sm text-stone-500 bg-stone-100 hover:bg-stone-200 transition-colors">
-            {step === 'project' ? 'Cancel' : '← Back'}
-          </button>
-          <button
-            disabled={saving || (!form.title.trim())}
-            onClick={step === 'milestones' ? handleSave : () => goToStep(step === 'project' ? 'phases' : 'milestones')}
-            className="flex-1 py-2.5 rounded-lg text-sm text-white bg-blue-500 hover:bg-blue-600 disabled:opacity-60 transition-colors font-medium">
-            {saving ? 'Saving…' : step === 'milestones' ? 'Save Changes' : 'Next →'}
-          </button>
+        {/* ── Footer ─────────────────────────────────────────────── */}
+        <div className="px-6 pb-6 pt-4 border-t border-[#E0CFC4] shrink-0">
+          {saveError && <p className="text-xs text-[#ba1a1a] mb-3 text-center">{saveError}</p>}
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 py-2.5 rounded-lg text-sm text-[#8A7265] bg-[#F0E9E0] hover:bg-[#E0CFC4] transition-colors"
+            >Cancel</button>
+            <button
+              disabled={saving || !form.title.trim()}
+              onClick={handleSave}
+              className="flex-1 py-2.5 rounded-lg text-sm text-white bg-[#C4601A] hover:bg-[#C4601A] disabled:opacity-40 transition-colors font-medium"
+            >{saving ? 'Saving…' : 'Save Changes'}</button>
+          </div>
         </div>
+
       </div>
+    </div>
+  );
+}
+
+// ── Assignee picker dropdown ─────────────────────────────────────────
+function AssigneePickerDropdown({
+  members, selectedIds, onChange,
+}: {
+  members: ProjectMember[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [open, setOpen]     = useState(false);
+  const [search, setSearch] = useState('');
+  const wrapRef             = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
+  const q        = search.toLowerCase();
+  const filtered = members.filter(m =>
+    m.user.name.toLowerCase().includes(q) || m.user.email.toLowerCase().includes(q)
+  );
+  const selected = members.filter(m => selectedIds.includes(m.userId));
+
+  function toggle(userId: string) {
+    onChange(selectedIds.includes(userId)
+      ? selectedIds.filter(id => id !== userId)
+      : [...selectedIds, userId]);
+  }
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <button
+        type="button"
+        onClick={() => { setOpen(o => !o); setSearch(''); }}
+        className="w-full flex items-center gap-1.5 px-2 py-1.5 bg-[#FFF5E9] border border-[#E0CFC4] rounded-lg text-xs text-[#8A7265] hover:border-[#adcec3] transition-colors min-h-[28px]"
+      >
+        {selected.length === 0 ? (
+          <span className="text-[#8A7265]">Assign…</span>
+        ) : (
+          <div className="flex items-center gap-1 flex-wrap">
+            <div className="flex items-center -space-x-1">
+              {selected.slice(0, 3).map(m => (
+                <div key={m.userId} title={m.user.name}
+                  className={`w-4 h-4 rounded-full border border-white flex items-center justify-center text-white text-[7px] font-semibold shrink-0 ${memberColor(m.user.name)}`}
+                >
+                  {m.user.name[0]?.toUpperCase()}
+                </div>
+              ))}
+            </div>
+            <span className="text-[10px] text-[#54433A] truncate">
+              {selected[0].user.name.split(' ')[0]}{selected.length > 1 ? ` +${selected.length - 1}` : ''}
+            </span>
+          </div>
+        )}
+        <ChevronDown className={`w-3 h-3 ml-auto shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} animateOnHover="default" />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full mt-1 w-full min-w-[200px] bg-white border border-[#E0CFC4] rounded-xl shadow-lg z-30">
+          <div className="p-2 border-b border-[#E0CFC4]">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-[#8A7265] absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                autoFocus
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search members…"
+                className="w-full pl-8 pr-2.5 py-1.5 text-xs border border-[#E0CFC4] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#adcec3]"
+              />
+            </div>
+          </div>
+          <ul className="max-h-44 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <li className="px-3 py-2 text-xs text-[#8A7265]">No members found</li>
+            ) : filtered.map(mem => {
+              const isSel = selectedIds.includes(mem.userId);
+              return (
+                <li key={mem.userId}>
+                  <button
+                    type="button"
+                    onClick={() => toggle(mem.userId)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-[#FFF5E9] ${isSel ? 'bg-[#E8FAF7]' : ''}`}
+                  >
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-semibold shrink-0 ${memberColor(mem.user.name)}`}>
+                      {mem.user.name[0]?.toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-[#54433A] truncate">{mem.user.name}</p>
+                      <p className="text-[10px] text-[#8A7265] truncate">{mem.user.email}</p>
+                    </div>
+                    {isSel && (
+                      <Check className="w-3.5 h-3.5 text-[#46645c] shrink-0" />
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
