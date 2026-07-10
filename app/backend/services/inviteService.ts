@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import prisma from "../lib/prisma";
 import {PermissionError} from "./projectService";
-import { FRONTEND_URL, FROM_EMAIL, getResend, emailShell } from "../lib/emailTemplate";
+import { FRONTEND_URL, sendEmail, emailShell } from "../lib/emailTemplate";
 
 //handle error
 
@@ -53,16 +53,11 @@ export async function createInvite(projectId:string,createdBy:string,invitedEmai
 
     const inviteUrl=`${FRONTEND_URL}/invite/${token}`;
 
-    try {
-        await getResend().emails.send({
-            from: FROM_EMAIL,
-            to: invitedEmail,
-            subject: `${creator.name} invited you to "${project.title}" on Steadily`,
-            html:emailHtml({ inviterName: creator.name, projectTitle: project.title, role, inviteUrl }),
-        });
-    } catch (err) {
-        console.warn('[invite] email send failed (no key configured locally):', (err as Error).message);
-    }
+    await sendEmail('invite', {
+        to: invitedEmail,
+        subject: `${creator.name} invited you to "${project.title}" on Steadily`,
+        html: emailHtml({ inviterName: creator.name, projectTitle: project.title, role, inviteUrl }),
+    });
 
     return invite;
 }

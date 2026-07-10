@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import prisma from '../lib/prisma';
-import { FRONTEND_URL, FROM_EMAIL, getResend, emailShell } from '../lib/emailTemplate';
+import { FRONTEND_URL, sendEmail, emailShell } from '../lib/emailTemplate';
 
 const SECRET = process.env.JWT_SECRET!;
 
@@ -20,6 +20,7 @@ export async function register(email: string, name: string, password: string)
     const user = await prisma.user.create({ data: { email, name, passwordHash, emailVerified: false } });
     const token = jwt.sign({ userId: user.id }, SECRET, { expiresIn: '30d' });
 
+    await sendEmail('welcome', { to: user.email, subject: 'Welcome to Steadily', html: welcomeEmailHtml({ name: user.name }) });
     await sendVerificationEmail(user.id);
 
     return { token, user: { id: user.id, email: user.email, name: user.name, avatarUrl: user.avatarUrl, emailVerified: user.emailVerified } };
@@ -87,6 +88,8 @@ export async function changePassword(userId: string, currentPassword: string, ne
 
     const passwordHash = await bcrypt.hash(newPassword, 12);
     await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+
+    await sendEmail('password-changed', { to: user.email, subject: 'Your Steadily password was changed', html: passwordChangedEmailHtml({ name: user.name }) });
 }
 
 export async function deleteAccount(userId: string, password: string)
@@ -96,6 +99,9 @@ export async function deleteAccount(userId: string, password: string)
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new Error('INVALID_CREDENTIALS');
+
+    // Send before deleting — nothing to notify afterwards once the row is gone.
+    await sendEmail('account-deleted', { to: user.email, subject: 'Your Steadily account has been deleted', html: accountDeletedEmailHtml({ name: user.name }) });
 
     // All owned records (tasks, habits, projects, memberships, invites, etc.)
     // cascade via onDelete: Cascade on the User relations in schema.prisma.
@@ -119,19 +125,7 @@ export async function requestPasswordReset(email: string)
     });
 
     const resetUrl = `${FRONTEND_URL}/reset-password/${token}`;
-    try
-    {
-        await getResend().emails.send({
-            from: FROM_EMAIL,
-            to: user.email,
-            subject: 'Reset your Steadily password',
-            html: resetPasswordEmailHtml({ name: user.name, resetUrl }),
-        });
-    }
-    catch (err)
-    {
-        console.warn('[auth] reset email send failed (no key configured locally):', (err as Error).message);
-    }
+    await sendEmail('reset-password', { to: user.email, subject: 'Reset your Steadily password', html: resetPasswordEmailHtml({ name: user.name, resetUrl }) });
 }
 
 export async function resetPassword(token: string, newPassword: string)
@@ -140,10 +134,12 @@ export async function resetPassword(token: string, newPassword: string)
     if (!record || record.usedAt || record.expiresAt < new Date()) throw new Error('INVALID_TOKEN');
 
     const passwordHash = await bcrypt.hash(newPassword, 12);
-    await prisma.$transaction([
+    const [user] = await prisma.$transaction([
         prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
         prisma.passwordResetToken.update({ where: { token }, data: { usedAt: new Date() } }),
     ]);
+
+    await sendEmail('password-changed', { to: user.email, subject: 'Your Steadily password was changed', html: passwordChangedEmailHtml({ name: user.name }) });
 }
 
 // ── Email verification ──────────────────────────────────────────────────────
@@ -161,19 +157,7 @@ export async function sendVerificationEmail(userId: string)
     });
 
     const verifyUrl = `${FRONTEND_URL}/verify-email/${token}`;
-    try
-    {
-        await getResend().emails.send({
-            from: FROM_EMAIL,
-            to: user.email,
-            subject: 'Verify your Steadily email',
-            html: verifyEmailHtml({ name: user.name, verifyUrl }),
-        });
-    }
-    catch (err)
-    {
-        console.warn('[auth] verification email send failed (no key configured locally):', (err as Error).message);
-    }
+    await sendEmail('verify-email', { to: user.email, subject: 'Verify your Steadily email', html: verifyEmailHtml({ name: user.name, verifyUrl }) });
 }
 
 export async function verifyEmail(token: string)
@@ -217,5 +201,45 @@ function verifyEmailHtml({ name, verifyUrl }: { name: string; verifyUrl: string 
         style="display:inline-block;background:#4C8077;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-size:14px;font-weight:600;">
         Verify email →
       </a>
+    `);
+}
+
+function welcomeEmailHtml({ name }: { name: string })
+{
+    return emailShell(`
+      <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 6px;">Hi ${name},</p>
+      <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 20px;">
+        Welcome to Steadily — glad to have you. Small actions, done daily, add up to big change.
+      </p>
+      <a href="${FRONTEND_URL}"
+        style="display:inline-block;background:#C4601A;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-size:14px;font-weight:600;">
+        Open Steadily →
+      </a>
+    `);
+}
+
+function passwordChangedEmailHtml({ name }: { name: string })
+{
+    return emailShell(`
+      <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 6px;">Hi ${name},</p>
+      <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 20px;">
+        Your Steadily password was just changed. If this was you, no action is needed.
+      </p>
+      <p style="color:#78716c;font-size:13px;margin:0;">
+        If you didn't make this change, reset your password immediately and contact support.
+      </p>
+    `);
+}
+
+function accountDeletedEmailHtml({ name }: { name: string })
+{
+    return emailShell(`
+      <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 6px;">Hi ${name},</p>
+      <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 20px;">
+        Your Steadily account and all associated data have been permanently deleted, as requested.
+      </p>
+      <p style="color:#78716c;font-size:13px;margin:0;">
+        If you didn't request this, please contact support right away.
+      </p>
     `);
 }

@@ -8,6 +8,20 @@ export function getResend()
     return new Resend(process.env.RESEND_API_KEY ?? 'missing');
 }
 
+// Fire-and-forget send used by every notification email — never lets a send
+// failure (or missing RESEND_API_KEY in local dev) break the calling flow.
+export async function sendEmail(label: string, params: { to: string; subject: string; html: string })
+{
+    try
+    {
+        await getResend().emails.send({ from: FROM_EMAIL, to: params.to, subject: params.subject, html: params.html });
+    }
+    catch (err)
+    {
+        console.warn(`[email] ${label} send failed (no key configured locally):`, (err as Error).message);
+    }
+}
+
 // Shared header/footer chrome for every transactional email. Pass the
 // purpose-specific body as `bodyHtml`; `footerHtml` is optional extra content
 // (e.g. a "copy this link" fallback) rendered below the main card content.
