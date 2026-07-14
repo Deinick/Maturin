@@ -23,17 +23,6 @@ Steadily is a project-management and habit-tracking app built around a simple be
 
 ---
 
-## Screenshots
-
-| Dashboard | Project phase structure |
-|---|---|
-| ![Dashboard](app/frontend/src/assets/hero.png) | ![Phase structure](app/frontend/src/assets/screen_in_phase_strucutre.png) |
-
-| Tasks |
-|---|
-| ![Tasks](app/frontend/src/assets/tasks.png) |
-
----
 
 ## Tech stack
 
