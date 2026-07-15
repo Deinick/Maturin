@@ -9,11 +9,12 @@ import {
     getAllPendingChangeCounts, getProjects,
     updateTask, logHabit, updateHabitLog,
 } from '../api/client';
+import { localDate } from '../utils/date';
 import { ChevronRight } from '@/components/animate-ui/icons/chevron-right';
 import { Check } from '@/components/animate-ui/icons/check';
 import { LoaderCircle } from '@/components/animate-ui/icons/loader-circle';
 
-const TODAY      = new Date().toISOString().split('T')[0];
+const TODAY      = localDate();
 const HOUR       = new Date().getHours();
 const GREETING   = HOUR < 12 ? 'Good morning' : HOUR < 17 ? 'Good afternoon' : 'Good evening';
 const DATE_LABEL = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
@@ -91,9 +92,7 @@ export default function DashboardPage() {
 
     // 7-day habit completion bars
     const habitDays = Array.from({ length: 7 }, (_, i) => {
-        const d = new Date();
-        d.setDate(d.getDate() - (6 - i));
-        const dateStr = d.toISOString().split('T')[0];
+        const dateStr = localDate(-(6 - i));
         const logsForDay = habits.flatMap(h => h.logs.filter(l => l.date === dateStr && l.status === 'completed'));
         return habits.length === 0 ? 0 : Math.round(logsForDay.length / habits.length * 100);
     });
