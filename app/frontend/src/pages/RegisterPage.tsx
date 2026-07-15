@@ -27,8 +27,8 @@ export default function RegisterPage()
         try
         {
             await register(email, name, password);
-            // Account exists but is unverified — confirming the emailed code is
-            // what actually grants a session, so send them there instead of in.
+            // Already logged in at this point — this just nudges them to enter
+            // the emailed code, with a skip option if it doesn't show up.
             navigate(`/confirm-email${next !== '/' ? `?next=${encodeURIComponent(next)}` : ''}`, {
                 replace: true,
                 state: { email },

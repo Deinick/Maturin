@@ -6,7 +6,7 @@ const CODE_LENGTH = 6;
 
 export default function ConfirmRegistrationPage()
 {
-    const { confirmRegistration, resendRegistrationCode } = useAuth();
+    const { confirmRegistration, resendRegistrationCode, token } = useAuth();
     const navigate      = useNavigate();
     const location       = useLocation();
     const [searchParams] = useSearchParams();
@@ -114,6 +114,7 @@ export default function ConfirmRegistrationPage()
                     <h1 className="text-lg font-semibold text-[#2D1E1A] mb-1">Confirm your email</h1>
                     <p className="text-sm text-[#8A7265] mb-6 leading-relaxed">
                         Enter the 6-digit code we sent to <span className="font-medium text-[#54433A]">{email}</span>.
+                        {token && ' You can also do this later from your account page.'}
                     </p>
 
                     <div className="flex items-center justify-between gap-2" onPaste={handlePaste}>
@@ -159,11 +160,21 @@ export default function ConfirmRegistrationPage()
                             {resending ? 'Sending…' : 'Resend code'}
                         </button>
                     </p>
+
+                    {token && (
+                        <button
+                            type="button"
+                            onClick={() => navigate(next, { replace: true })}
+                            className="w-full text-center text-xs text-[#BBA79C] hover:text-[#8A7265] transition-colors mt-4"
+                        >
+                            Skip for now — I'll confirm later
+                        </button>
+                    )}
                 </div>
 
                 <p className="text-center text-sm text-[#8A7265] mt-6">
-                    <Link to="/login" className="text-[#4C8077] hover:text-[#16342d] font-medium transition-colors">
-                        Back to sign in
+                    <Link to={token ? next : '/login'} className="text-[#4C8077] hover:text-[#16342d] font-medium transition-colors">
+                        {token ? 'Go to Steadily' : 'Back to sign in'}
                     </Link>
                 </p>
             </div>

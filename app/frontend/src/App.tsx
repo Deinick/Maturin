@@ -225,7 +225,7 @@ export default function App() {
                     <Routes>
                         <Route path="/login"         element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
                         <Route path="/register"      element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
-                        <Route path="/confirm-email" element={<PublicOnlyRoute><ConfirmRegistrationPage /></PublicOnlyRoute>} />
+                        <Route path="/confirm-email" element={<ConfirmRegistrationPage />} />
                         <Route path="/invite/:token" element={<InvitePage />} />
                         <Route path="/forgot-password"      element={<ForgotPasswordPage />} />
                         <Route path="/reset-password/:token" element={<ResetPasswordPage />} />

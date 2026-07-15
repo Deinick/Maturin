@@ -26,14 +26,6 @@ export default function LoginPage()
         catch (err: any)
         {
             const msg = err.response?.data?.error;
-            if (msg === 'EMAIL_NOT_CONFIRMED')
-            {
-                const confirmEmail = err.response?.data?.email ?? email;
-                navigate(`/confirm-email${next !== '/' ? `?next=${encodeURIComponent(next)}` : ''}`, {
-                    state: { email: confirmEmail },
-                });
-                return;
-            }
             setError(msg ?? 'Something went wrong — please try again');
         }
         finally { setLoading(false); }
