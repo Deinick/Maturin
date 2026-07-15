@@ -42,6 +42,9 @@ model EmailVerificationToken {
   id        String    @id @default(uuid())
   userId    String
   token     String    @unique
+  // Only set for the registration flow's 6-digit confirmation code — link-based
+  // verification (resend-from-account, email-change) leaves this null.
+  code      String?
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())

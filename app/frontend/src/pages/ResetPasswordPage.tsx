@@ -2,6 +2,52 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { resetPassword } from '../api/client';
 
+function EyeIcon({ open }: { open: boolean })
+{
+    return open ? (
+        <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2 10s3-5.5 8-5.5S18 10 18 10s-3 5.5-8 5.5S2 10 2 10z" />
+            <circle cx="10" cy="10" r="2.25" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+    ) : (
+        <svg className="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.6}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 2.5l15 15M8.3 8.53a2.25 2.25 0 003.17 3.17M5.2 5.16C3.4 6.4 2 10 2 10s3 5.5 8 5.5c1.6 0 2.98-.56 4.1-1.32M9 4.53c.33-.02.66-.03 1-.03 5 0 8 5.5 8 5.5s-.63 1.15-1.75 2.36" />
+        </svg>
+    );
+}
+
+function PasswordField({ label, value, onChange, autoFocus }: {
+    label: string; value: string; onChange: (v: string) => void; autoFocus?: boolean;
+})
+{
+    const [visible, setVisible] = useState(false);
+    return (
+        <div>
+            <label className="text-xs font-medium text-[#8A7265] uppercase tracking-wide">{label}</label>
+            <div className="relative mt-1.5">
+                <input
+                    type={visible ? 'text' : 'password'}
+                    autoFocus={autoFocus}
+                    required
+                    value={value}
+                    onChange={e => onChange(e.target.value)}
+                    className="w-full border border-[#E0CFC4] rounded-xl pl-3 pr-10 py-2.5 text-sm text-[#2D1E1A] focus:outline-none focus:ring-2 focus:ring-[#c8eadf] bg-[#FFF5E9]"
+                    placeholder="••••••••"
+                />
+                <button
+                    type="button"
+                    onClick={() => setVisible(v => !v)}
+                    tabIndex={-1}
+                    title={visible ? 'Hide password' : 'Show password'}
+                    className="absolute right-0 top-0 h-full px-3 flex items-center text-[#8A7265] hover:text-[#54433A] transition-colors"
+                >
+                    <EyeIcon open={visible} />
+                </button>
+            </div>
+        </div>
+    );
+}
+
 export default function ResetPasswordPage()
 {
     const { token } = useParams<{ token: string }>();
@@ -57,30 +103,18 @@ export default function ResetPasswordPage()
                             <p className="text-sm text-[#8A7265] mb-6">Choose a new password for your account.</p>
 
                             <form onSubmit={handleSubmit} className="space-y-4">
-                                <div>
-                                    <label className="text-xs font-medium text-[#8A7265] uppercase tracking-wide">New password</label>
-                                    <input
-                                        type="password"
-                                        autoFocus
-                                        required
-                                        value={newPassword}
-                                        onChange={e => setNewPassword(e.target.value)}
-                                        className="w-full mt-1.5 border border-[#E0CFC4] rounded-xl px-3 py-2.5 text-sm text-[#2D1E1A] focus:outline-none focus:ring-2 focus:ring-[#c8eadf] bg-[#FFF5E9]"
-                                        placeholder="••••••••"
-                                    />
-                                </div>
+                                <PasswordField
+                                    label="New password"
+                                    value={newPassword}
+                                    onChange={setNewPassword}
+                                    autoFocus
+                                />
 
-                                <div>
-                                    <label className="text-xs font-medium text-[#8A7265] uppercase tracking-wide">Confirm password</label>
-                                    <input
-                                        type="password"
-                                        required
-                                        value={confirmPassword}
-                                        onChange={e => setConfirmPassword(e.target.value)}
-                                        className="w-full mt-1.5 border border-[#E0CFC4] rounded-xl px-3 py-2.5 text-sm text-[#2D1E1A] focus:outline-none focus:ring-2 focus:ring-[#c8eadf] bg-[#FFF5E9]"
-                                        placeholder="••••••••"
-                                    />
-                                </div>
+                                <PasswordField
+                                    label="Confirm password"
+                                    value={confirmPassword}
+                                    onChange={setConfirmPassword}
+                                />
 
                                 {error && (
                                     <p className="text-xs text-[#ba1a1a] bg-[#ffdad6] border border-[#ffdad6] rounded-lg px-3 py-2">

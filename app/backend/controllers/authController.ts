@@ -57,9 +57,59 @@ export async function login(req: Request, res: Response): Promise<void>
             res.status(401).json({ error: 'Invalid email or password' });
             return;
         }
+        if (err.message === 'EMAIL_NOT_CONFIRMED')
+        {
+            res.status(403).json({ error: 'EMAIL_NOT_CONFIRMED', email: email.trim().toLowerCase() });
+            return;
+        }
         console.error('[auth] login failed:', err);
         res.status(500).json({ error: 'Login failed' });
     }
+}
+
+export async function confirmRegistration(req: Request, res: Response): Promise<void>
+{
+    const { email, code } = req.body;
+
+    if (!email || !code)
+    {
+        res.status(400).json({ error: 'email and code are required' });
+        return;
+    }
+
+    try
+    {
+        const result = await authService.confirmRegistration(String(email).trim().toLowerCase(), String(code).trim());
+        res.json(result);
+    }
+    catch (err: any)
+    {
+        if (err.message === 'INVALID_CODE')
+        {
+            res.status(400).json({ error: 'That code is incorrect or has expired' });
+            return;
+        }
+        console.error('[auth] confirmRegistration failed:', err);
+        res.status(500).json({ error: 'Failed to confirm code' });
+    }
+}
+
+export async function resendRegistrationCode(req: Request, res: Response): Promise<void>
+{
+    const { email } = req.body;
+
+    if (!email)
+    {
+        res.status(400).json({ error: 'email is required' });
+        return;
+    }
+
+    // Always respond the same way whether or not the account exists/is already
+    // verified — same enumeration-prevention rationale as forgotPassword.
+    try { await authService.resendRegistrationCode(String(email).trim().toLowerCase()); }
+    catch (err) { console.error('[auth] resendRegistrationCode failed:', err); }
+
+    res.json({ message: 'If that account is awaiting confirmation, we sent a new code.' });
 }
 
 export async function getMe(req: Request, res: Response): Promise<void>

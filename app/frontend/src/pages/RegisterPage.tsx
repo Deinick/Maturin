@@ -13,7 +13,6 @@ export default function RegisterPage()
     const [password, setPassword] = useState('');
     const [error,      setError]      = useState('');
     const [loading,    setLoading]    = useState(false);
-    const [registered, setRegistered] = useState(false);
 
     async function handleSubmit(e: FormEvent)
     {
@@ -28,7 +27,12 @@ export default function RegisterPage()
         try
         {
             await register(email, name, password);
-            setRegistered(true);
+            // Account exists but is unverified — confirming the emailed code is
+            // what actually grants a session, so send them there instead of in.
+            navigate(`/confirm-email${next !== '/' ? `?next=${encodeURIComponent(next)}` : ''}`, {
+                replace: true,
+                state: { email },
+            });
         }
         catch (err: any)
         {
@@ -48,22 +52,7 @@ export default function RegisterPage()
                 </div>
 
                 <div className="bg-white rounded-2xl border border-[#E0CFC4] shadow-sm p-8">
-                    {registered ? (
-                        <>
-                            <h1 className="text-lg font-semibold text-[#2D1E1A] mb-2">Check your email</h1>
-                            <p className="text-sm text-[#8A7265] leading-relaxed mb-6">
-                                We've sent a verification link to <span className="font-medium text-[#54433A]">{email}</span>. Click it to confirm your address — you can keep using Steadily in the meantime.
-                            </p>
-                            <button
-                                onClick={() => navigate(next, { replace: true })}
-                                className="w-full py-2.5 rounded-xl text-sm font-medium text-white bg-[#C4601A] hover:bg-[#A84E14] transition-colors"
-                            >
-                                Continue to Steadily
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            <h1 className="text-lg font-semibold text-[#2D1E1A] mb-6">Create your account</h1>
+                    <h1 className="text-lg font-semibold text-[#2D1E1A] mb-6">Create your account</h1>
 
                             <form onSubmit={handleSubmit} className="space-y-4">
                                 <div>
@@ -117,8 +106,6 @@ export default function RegisterPage()
                                     {loading ? 'Creating account…' : 'Create account'}
                                 </button>
                             </form>
-                        </>
-                    )}
                 </div>
 
                 <p className="text-center text-sm text-[#8A7265] mt-6">
