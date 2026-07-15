@@ -23,6 +23,27 @@ Steadily is a project-management and habit-tracking app built around a simple be
 
 ---
 
+## Screenshots
+
+**Project overview** — health score, velocity forecast (actual pace vs. target, projected finish date), kanban board with locked/in-progress/done objectives, and a live activity feed of who changed what.
+![Project overview](app/frontend/src/assets/screenshots/ProjectOverview.png)
+
+**Team & performance** — five roles in one project (owner, an approving contributor, two regular contributors, a viewer), plus per-member performance computed from actual assignment and deadline data — not everyone scores 100%.
+![Team and performance](app/frontend/src/assets/screenshots/TeamAndPerformance.png)
+
+**Field-level approval workflow** — a contributor without sign-off rights edited a due date and a description; each field shows up as its own diff, approved or rejected independently.
+![Pending changes](app/frontend/src/assets/screenshots/PendingChanges.png)
+
+**Phase dependency graph** — completed phases, an active one, and two correctly locked downstream phases waiting on their prerequisites — computed, not manually set.
+![Phase dependency graph](app/frontend/src/assets/screenshots/PhaseDependencyGraph.png)
+
+**Dashboard** — today's tasks and habits, project progress, and a pending-review banner surfacing changes that need a decision.
+![Dashboard](app/frontend/src/assets/screenshots/Dashboard.png)
+
+**Insights** — the suggestion engine reasoning over real data: a stalled task, habits below their recovery threshold, an overdue milestone.
+![Insights](app/frontend/src/assets/screenshots/InsightsSection.png)
+
+---
 
 ## Tech stack
 
