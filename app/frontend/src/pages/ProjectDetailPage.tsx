@@ -8,7 +8,6 @@ import {
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import InviteModal         from '../components/InviteModal';
-import PendingChangesModal from '../components/PendingChangesModal';
 import Modal                from '../components/Modal';
 import {
   ReactFlow,
@@ -190,7 +189,6 @@ export default function ProjectDetailPage() {
   const [activeTab,        setActiveTab]       = useState<Tab>('overview');
   const [canvasExpanded,   setCanvasExpanded]  = useState(false);
   const [showInvite,       setShowInvite]      = useState(false);
-  const [showPending,      setShowPending]     = useState(false);
   const [pendingChanges,   setPendingChanges]  = useState<PendingChange[]>([]);
   const [performance,      setPerformance]     = useState<MemberPerformance[] | null>(null);
   const [phaseDetail,      setPhaseDetail]     = useState<ONodeData | null>(null);
@@ -209,11 +207,16 @@ export default function ProjectDetailPage() {
 
   function refreshPending(role: string, canApprove: boolean) {
     if (role === 'owner' || (role === 'contributor' && canApprove)) {
-      getPendingChanges(id!).then(list => {
-        setPendingChanges(list);
-        if (list.length > 0) setShowPending(true);
-      }).catch(() => setPendingChanges([]));
+      getPendingChanges(id!).then(setPendingChanges).catch(() => setPendingChanges([]));
     }
+  }
+
+  // Reviewing pending changes now happens inline on the edit page (same layout,
+  // read-only diffs + approve/reject) instead of a separate modal — land on
+  // whichever step actually has the change so it's obvious where to look.
+  function goReviewChanges() {
+    const step = pendingChanges.some(c => c.entityType === 'project') ? 1 : 2;
+    navigate(`/projects/${id}/edit`, { state: { step } });
   }
 
   const { data: allProjects }    = useQuery({ queryKey: ['projects'], queryFn: getProjects });
@@ -502,16 +505,17 @@ export default function ProjectDetailPage() {
               </div>
             )}
 
-            {pendingChanges.length > 0 && (
+            {pendingChanges.length > 0 ? (
+              // Editing is locked while changes are unresolved — this is the only
+              // way in, and it lands on the edit page in read-only review mode.
               <button
-                onClick={() => setShowPending(true)}
+                onClick={goReviewChanges}
                 className="flex items-center gap-1.5 text-xs font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-1.5 rounded-lg transition-colors"
               >
                 <span className="w-4 h-4 rounded-full bg-amber-400 text-white flex items-center justify-center text-[9px] font-bold">!</span>
-                {pendingChanges.length} pending
+                {pendingChanges.length} pending — review to edit
               </button>
-            )}
-            {canEdit && (
+            ) : canEdit && (
               <button
                 onClick={() => navigate(`/projects/${id}/edit`)}
                 className="flex items-center gap-1.5 text-sm text-[#8A7265] hover:text-[#C4601A] hover:bg-[#FFF5E9] px-3 py-1.5 rounded-lg border border-[#E0CFC4] hover:border-[#c8eadf] transition-colors"
@@ -786,27 +790,6 @@ export default function ProjectDetailPage() {
       )}
 
       {/* ── Modals ───────────────────────────────────────────── */}
-      {showPending && (
-        <PendingChangesModal
-          project={project}
-          changes={pendingChanges}
-          onResolved={changeId => {
-            setPendingChanges(prev => {
-              const next = prev.filter(c => c.id !== changeId);
-              if (next.length === 0) {
-                queryClient.invalidateQueries({ queryKey: ['projects'] });
-                getProjects().then(all => {
-                  const fresh = all.find(p => p.id === id);
-                  if (fresh) setProject(fresh);
-                });
-              }
-              return next;
-            });
-          }}
-          onClose={() => setShowPending(false)}
-        />
-      )}
-
       {showInvite && <InviteModal projectId={project.id} onClose={() => setShowInvite(false)} />}
 
       {/* Phase Structure lightbox */}
@@ -837,13 +820,17 @@ export default function ProjectDetailPage() {
               <div className="flex items-center gap-2">
                 {canEdit && (
                   <button
-                    onClick={() => { setCanvasExpanded(false); navigate(`/projects/${id}/edit`, { state: { step: 2 } }); }}
+                    onClick={() => { setCanvasExpanded(false); pendingChanges.length > 0 ? goReviewChanges() : navigate(`/projects/${id}/edit`, { state: { step: 2 } }); }}
                     className="flex items-center gap-1.5 text-xs font-medium text-[#8A7265] hover:text-[#4C8077] hover:bg-[#FFF5E9] px-3 py-1.5 rounded-lg transition-colors"
                   >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
-                    </svg>
-                    Edit
+                    {pendingChanges.length > 0 ? (
+                      <span className="w-3.5 h-3.5 rounded-full bg-amber-400 text-white text-[9px] font-bold flex items-center justify-center shrink-0">!</span>
+                    ) : (
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                      </svg>
+                    )}
+                    {pendingChanges.length > 0 ? 'Review' : 'Edit'}
                   </button>
                 )}
                 <button

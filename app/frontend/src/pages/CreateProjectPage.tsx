@@ -229,11 +229,15 @@ export default function CreateProjectPage() {
     el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, []);
 
+  // Custom nodes report their measured size asynchronously (ResizeObserver),
+  // so a fitView called right on mount can compute against zero/stale
+  // dimensions and leave the camera centered off in empty space. Refit a
+  // couple of times after paint to catch up once real sizes are known.
   useEffect(() => {
-    if (rfInstance && nodes.length > 0) {
-      const t = setTimeout(() => rfInstance.fitView({ padding: 0.2, duration: 300 }), 50);
-      return () => clearTimeout(t);
-    }
+    if (!rfInstance || nodes.length === 0) return;
+    const t1 = setTimeout(() => rfInstance.fitView({ padding: 0.2, duration: 300 }), 100);
+    const t2 = setTimeout(() => rfInstance.fitView({ padding: 0.2, duration: 200 }), 400);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [nodes.length, rfInstance]);
 
   // ── Phase mutations ──────────────────────────────────────────────────────────
@@ -603,10 +607,10 @@ export default function CreateProjectPage() {
       )}
 
       {/* Main: sidebar + canvas */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
 
         {/* Left sidebar: phase form cards */}
-        <aside className="w-[420px] shrink-0 bg-white border-r border-[#E0CFC4] flex flex-col overflow-hidden">
+        <aside className="w-[420px] shrink-0 bg-white border-r border-[#E0CFC4] flex flex-col min-h-0 overflow-hidden">
           <div className="px-8 pt-7 pb-5 border-b border-[#E0CFC4] shrink-0">
             <div className="flex items-center gap-2 mb-4">
               <span className="h-[3px] w-8 bg-[#C4601A] rounded-full" />
@@ -630,7 +634,7 @@ export default function CreateProjectPage() {
             </div>
           </div>
 
-          <div ref={sidebarRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+          <div ref={sidebarRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
             {nodes.length === 0 ? (
               <div className="flex flex-col items-center py-10 text-center">
                 <div className="w-12 h-12 bg-[#F0E9E0] rounded-2xl mx-auto flex items-center justify-center mb-3">
@@ -668,7 +672,7 @@ export default function CreateProjectPage() {
         </aside>
 
         {/* Right: React Flow canvas */}
-        <div className="flex-1 relative bg-[#FFF5E9]">
+        <div className="flex-1 relative bg-[#EEF2F5]">
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -686,7 +690,7 @@ export default function CreateProjectPage() {
             maxZoom={2}
             proOptions={{ hideAttribution: true }}
           >
-            <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#e2e8f0" />
+            <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#C7D2DA" />
             <Controls showInteractive={false} style={{ boxShadow: 'none', border: '1px solid #e2e8f0', borderRadius: 8 }} />
           </ReactFlow>
 

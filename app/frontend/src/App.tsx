@@ -197,7 +197,7 @@ function AppShell() {
             <main
                 className={`flex-1 min-h-screen transition-all duration-300 ease-in-out ${collapsed ? 'ml-12' : 'ml-52'} ${isFullscreenFlow ? 'p-0 overflow-hidden h-screen' : 'px-8 py-8 overflow-x-hidden'}`}
             >
-                <div key={location.pathname} className="page-fade">
+                <div key={location.pathname} className={`page-fade ${isFullscreenFlow ? 'h-full min-h-0' : ''}`}>
                     <Routes>
                         <Route path="/"                element={<DashboardPage />} />
                         <Route path="/tasks"           element={<TasksPage />} />
