@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
     register, login, getMe, updateProfile, changePassword, deleteAccount,
     forgotPassword, resetPassword, verifyEmail, resendVerification,
+    confirmRegistration, resendRegistrationCode,
 } from '../controllers/authController';
 import { requireAuth } from '../middleware/auth';
 
@@ -17,5 +18,7 @@ router.post  ('/forgot-password',  forgotPassword);
 router.post  ('/reset-password',   resetPassword);
 router.post  ('/verify-email',     verifyEmail);
 router.post  ('/resend-verification', requireAuth, resendVerification);
+router.post  ('/confirm-registration',    confirmRegistration);
+router.post  ('/resend-registration-code', resendRegistrationCode);
 
 export default router;

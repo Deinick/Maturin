@@ -17,6 +17,8 @@ interface AuthContextValue
     loading:    boolean;
     login:      (email: string, password: string) => Promise<void>;
     register:   (email: string, name: string, password: string) => Promise<void>;
+    confirmRegistration:   (email: string, code: string) => Promise<void>;
+    resendRegistrationCode: (email: string) => Promise<void>;
     logout:     () => void;
     updateUser: (patch: Partial<AuthUser>) => void;
 }
@@ -61,10 +63,23 @@ export function AuthProvider({ children }: { children: ReactNode })
         persist(res.data.token, res.data.user);
     }
 
+    // Registration no longer logs the user in directly — the account sits
+    // unverified until confirmRegistration() supplies the emailed code, which
+    // is the call that actually returns a usable session.
     async function register(email: string, name: string, password: string)
     {
-        const res = await axios.post(`${BASE_URL}/auth/register`, { email, name, password });
+        await axios.post(`${BASE_URL}/auth/register`, { email, name, password });
+    }
+
+    async function confirmRegistration(email: string, code: string)
+    {
+        const res = await axios.post(`${BASE_URL}/auth/confirm-registration`, { email, code });
         persist(res.data.token, res.data.user);
+    }
+
+    async function resendRegistrationCode(email: string)
+    {
+        await axios.post(`${BASE_URL}/auth/resend-registration-code`, { email });
     }
 
     function logout()
@@ -86,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode })
     }
 
     return (
-        <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateUser }}>
+        <AuthContext.Provider value={{ user, token, loading, login, register, confirmRegistration, resendRegistrationCode, logout, updateUser }}>
             {children}
         </AuthContext.Provider>
     );

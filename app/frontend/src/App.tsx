@@ -15,6 +15,7 @@ import AccountPage        from './pages/AccountPage';
 import SuggestionsPage  from './pages/SuggestionsPage';
 import LoginPage        from './pages/LoginPage';
 import RegisterPage     from './pages/RegisterPage';
+import ConfirmRegistrationPage from './pages/ConfirmRegistrationPage';
 import InvitePage       from './pages/InvitePage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage  from './pages/ResetPasswordPage';
@@ -224,6 +225,7 @@ export default function App() {
                     <Routes>
                         <Route path="/login"         element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
                         <Route path="/register"      element={<PublicOnlyRoute><RegisterPage /></PublicOnlyRoute>} />
+                        <Route path="/confirm-email" element={<PublicOnlyRoute><ConfirmRegistrationPage /></PublicOnlyRoute>} />
                         <Route path="/invite/:token" element={<InvitePage />} />
                         <Route path="/forgot-password"      element={<ForgotPasswordPage />} />
                         <Route path="/reset-password/:token" element={<ResetPasswordPage />} />

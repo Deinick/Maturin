@@ -6,11 +6,20 @@ import { FRONTEND_URL, sendEmail, emailShell } from '../lib/emailTemplate';
 
 const SECRET = process.env.JWT_SECRET!;
 
-const RESET_TOKEN_TTL_MS  = 60 * 60 * 1000;      // 1 hour
-const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const RESET_TOKEN_TTL_MS   = 60 * 60 * 1000;      // 1 hour
+const VERIFY_TOKEN_TTL_MS  = 24 * 60 * 60 * 1000; // 24 hours
+const CONFIRM_CODE_TTL_MS  = 15 * 60 * 1000;      // 15 minutes
 
 const PUBLIC_USER_SELECT = { id: true, email: true, name: true, avatarUrl: true, emailVerified: true } as const;
 
+function generateConfirmCode(): string
+{
+    return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
+}
+
+// New accounts don't get a usable session until they enter the 6-digit code
+// sent here — register() deliberately returns no token, only a pending-email
+// marker, so a stolen/observed API response can't grant access on its own.
 export async function register(email: string, name: string, password: string)
 {
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -18,12 +27,64 @@ export async function register(email: string, name: string, password: string)
 
     const passwordHash = await bcrypt.hash(password, 12);
     const user = await prisma.user.create({ data: { email, name, passwordHash, emailVerified: false } });
-    const token = jwt.sign({ userId: user.id }, SECRET, { expiresIn: '30d' });
 
-    await sendEmail('welcome', { to: user.email, subject: 'Welcome to Steadily', html: welcomeEmailHtml({ name: user.name }) });
-    await sendVerificationEmail(user.id);
+    await issueConfirmCode(user.id, user.email, user.name);
 
-    return { token, user: { id: user.id, email: user.email, name: user.name, avatarUrl: user.avatarUrl, emailVerified: user.emailVerified } };
+    return { pendingEmail: user.email };
+}
+
+async function issueConfirmCode(userId: string, email: string, name: string)
+{
+    await prisma.emailVerificationToken.deleteMany({ where: { userId, usedAt: null } });
+
+    const code = generateConfirmCode();
+    await prisma.emailVerificationToken.create({
+        data: {
+            userId,
+            token: crypto.randomBytes(32).toString('hex'),
+            code,
+            expiresAt: new Date(Date.now() + CONFIRM_CODE_TTL_MS),
+        },
+    });
+
+    await sendEmail('confirm-registration', { to: email, subject: `${code} is your Steadily confirmation code`, html: confirmCodeEmailHtml({ name, code }) });
+}
+
+export async function confirmRegistration(email: string, code: string)
+{
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) throw new Error('INVALID_CODE');
+    if (user.emailVerified)
+    {
+        const token = jwt.sign({ userId: user.id }, SECRET, { expiresIn: '30d' });
+        return { token, user: { id: user.id, email: user.email, name: user.name, avatarUrl: user.avatarUrl, emailVerified: user.emailVerified } };
+    }
+
+    const record = await prisma.emailVerificationToken.findFirst({
+        where: { userId: user.id, code, usedAt: null, expiresAt: { gt: new Date() } },
+        orderBy: { createdAt: 'desc' },
+    });
+    if (!record) throw new Error('INVALID_CODE');
+
+    const [updatedUser] = await prisma.$transaction([
+        prisma.user.update({ where: { id: user.id }, data: { emailVerified: true }, select: PUBLIC_USER_SELECT }),
+        prisma.emailVerificationToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+    ]);
+
+    await sendEmail('welcome', { to: updatedUser.email, subject: 'Welcome to Steadily', html: welcomeEmailHtml({ name: updatedUser.name }) });
+
+    const token = jwt.sign({ userId: updatedUser.id }, SECRET, { expiresIn: '30d' });
+    return { token, user: updatedUser };
+}
+
+export async function resendRegistrationCode(email: string)
+{
+    const user = await prisma.user.findUnique({ where: { email } });
+    // Deliberately silent if there's no matching unverified account — same
+    // enumeration-prevention rationale as requestPasswordReset below.
+    if (!user || user.emailVerified) return;
+
+    await issueConfirmCode(user.id, user.email, user.name);
 }
 
 export async function login(email: string, password: string)
@@ -33,6 +94,18 @@ export async function login(email: string, password: string)
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new Error('INVALID_CREDENTIALS');
+
+    if (!user.emailVerified)
+    {
+        // Only accounts created under the code-gated registration flow ever get
+        // a code-bearing token — pre-existing unverified accounts (registered
+        // before this feature) never do, so they're left able to log in as
+        // before rather than getting retroactively locked out.
+        const pendingCode = await prisma.emailVerificationToken.findFirst({
+            where: { userId: user.id, code: { not: null } },
+        });
+        if (pendingCode) throw new Error('EMAIL_NOT_CONFIRMED');
+    }
 
     const token = jwt.sign({ userId: user.id }, SECRET, { expiresIn: '30d' });
     return { token, user: { id: user.id, email: user.email, name: user.name, avatarUrl: user.avatarUrl, emailVerified: user.emailVerified } };
@@ -186,6 +259,23 @@ function resetPasswordEmailHtml({ name, resetUrl }: { name: string; resetUrl: st
       </a>
       <p style="color:#a8a29e;font-size:12px;margin:24px 0 0;">
         If you didn't request this, you can safely ignore this email.
+      </p>
+    `);
+}
+
+function confirmCodeEmailHtml({ name, code }: { name: string; code: string })
+{
+    const digits = code.split('');
+    return emailShell(`
+      <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 6px;">Hi ${name},</p>
+      <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 20px;">
+        Enter this code to confirm your email and finish creating your Steadily account. It expires in 15 minutes.
+      </p>
+      <div style="text-align:center;margin:0 0 20px;">
+        ${digits.map(d => `<span style="display:inline-block;width:38px;height:46px;line-height:46px;margin:0 4px;background:#FFF5E9;border:1px solid #E0CFC4;border-radius:10px;font-size:22px;font-weight:700;color:#2D1E1A;text-align:center;">${d}</span>`).join('')}
+      </div>
+      <p style="color:#a8a29e;font-size:12px;margin:0;">
+        If you didn't create a Steadily account, you can safely ignore this email.
       </p>
     `);
 }
