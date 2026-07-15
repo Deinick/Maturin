@@ -74,4 +74,4 @@ You'll need a `.env` at the root with `DATABASE_URL`, `JWT_SECRET`, `FRONTEND_UR
 
 ## Where this stands
 
-This is an active solo project, not a finished product. The service layer (permissions, diffing, scoring) is the part I'm proudest of and the part I'd want reviewed most closely. Test coverage and CI are the two things I know are missing and am actively working on next — everything above describes what's built and running today, not what's planned.
+This is an active solo project, not a finished product. The service layer (permissions, diffing, scoring) is the part I'm proudest of and the part I'd want reviewed most closely. CI runs on every push (typecheck + build, backend and frontend). Automated test coverage is the one thing I know is still missing and am actively working on next — everything above describes what's built and running today, not what's planned.
