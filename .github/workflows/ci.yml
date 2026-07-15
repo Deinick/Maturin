@@ -9,6 +9,8 @@ jobs:
   backend:
     name: Backend — typecheck & build
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres@localhost:5432/steadily?schema=public
     steps:
       - uses: actions/checkout@v4
 
