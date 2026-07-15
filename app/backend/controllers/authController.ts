@@ -57,11 +57,6 @@ export async function login(req: Request, res: Response): Promise<void>
             res.status(401).json({ error: 'Invalid email or password' });
             return;
         }
-        if (err.message === 'EMAIL_NOT_CONFIRMED')
-        {
-            res.status(403).json({ error: 'EMAIL_NOT_CONFIRMED', email: email.trim().toLowerCase() });
-            return;
-        }
         console.error('[auth] login failed:', err);
         res.status(500).json({ error: 'Login failed' });
     }

@@ -63,12 +63,10 @@ export function AuthProvider({ children }: { children: ReactNode })
         persist(res.data.token, res.data.user);
     }
 
-    // Registration no longer logs the user in directly — the account sits
-    // unverified until confirmRegistration() supplies the emailed code, which
-    // is the call that actually returns a usable session.
     async function register(email: string, name: string, password: string)
     {
-        await axios.post(`${BASE_URL}/auth/register`, { email, name, password });
+        const res = await axios.post(`${BASE_URL}/auth/register`, { email, name, password });
+        persist(res.data.token, res.data.user);
     }
 
     async function confirmRegistration(email: string, code: string)
