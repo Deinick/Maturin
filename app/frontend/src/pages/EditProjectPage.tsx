@@ -38,9 +38,9 @@ import { X } from '@/components/animate-ui/icons/x';
 import {
   getProjects, updateProject, createPhase, updatePhase, deletePhase,
   createMilestone, updateMilestone, deleteMilestone, setDependencies,
-  deleteProject,
+  deleteProject, getPendingChanges, approvePendingChange, rejectPendingChange,
 } from '../api/client';
-import type { Phase } from '../types';
+import type { Phase, PendingChange } from '../types';
 
 // ── Local types ────────────────────────────────────────────────────────────────
 
@@ -64,9 +64,18 @@ interface EPhase {
   isExisting: boolean;
 }
 
+interface EPhaseReview {
+  changed: boolean;
+  childChanged: boolean;
+  titleChanged: boolean;
+  titleOld: string | null;
+  titleNew: string | null;
+}
+
 interface EPhaseNodeData extends Record<string, unknown> {
   phase: EPhase;
   phaseNum: number;
+  review?: EPhaseReview;
 }
 
 type EPhaseNodeType = Node<EPhaseNodeData, 'phaseNode'>;
@@ -98,6 +107,65 @@ function AvatarCircle({ name, size = 'sm' }: { name: string; size?: 'xs' | 'sm' 
   );
 }
 
+// ── Review field row — read-only diff pill + approve/reject ─────────────────────
+
+function ReviewFieldRow({ label, currentValue, change, acting, onApprove, onReject }: {
+  label: string;
+  currentValue?: string | null;
+  change?: PendingChange;
+  acting: boolean;
+  onApprove: () => void;
+  onReject: () => void;
+}) {
+  const field  = change ? Object.keys(change.newData)[0] : null;
+  const oldVal = field ? (change!.oldData[field] ?? null) : null;
+  const newVal = field ? (change!.newData[field] ?? null) : null;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="block text-xs font-semibold text-[#54433A] flex items-center gap-1.5">
+          {label}
+          {change && (
+            <span className="w-4 h-4 rounded-full bg-amber-400 text-white text-[9px] font-bold flex items-center justify-center shrink-0">!</span>
+          )}
+        </span>
+        {change && (
+          <div className="flex items-center gap-1 ml-2 shrink-0">
+            <button
+              onClick={onApprove}
+              disabled={acting}
+              title="Approve"
+              className="w-6 h-6 flex items-center justify-center rounded-lg bg-[#E8FAF7] text-[#4C8077] hover:bg-[#c8eadf] disabled:opacity-40 transition-colors text-xs border border-[#c8eadf] font-bold"
+            >✓</button>
+            <button
+              onClick={onReject}
+              disabled={acting}
+              title="Reject"
+              className="w-6 h-6 flex items-center justify-center rounded-lg bg-[#ffdad6] text-[#ba1a1a] hover:bg-red-100 disabled:opacity-40 transition-colors text-xs border border-[#ffdad6] font-bold"
+            >✕</button>
+          </div>
+        )}
+      </div>
+      {change ? (
+        <div className="flex items-start gap-2 flex-wrap">
+          <span className="px-2.5 py-1.5 rounded-lg text-xs bg-[#F0E9E0] text-[#54433A] border border-[#E0CFC4] break-words">
+            {oldVal || <span className="italic text-[#BBA79C]">empty</span>}
+          </span>
+          <span className="text-[#BBA79C] self-center text-sm">→</span>
+          <span className="px-2.5 py-1.5 rounded-lg text-xs bg-[#E8FAF7] text-[#16342d] border border-[#E0CFC4] font-medium break-words">
+            {newVal || <span className="italic font-normal text-[#BBA79C]">empty</span>}
+          </span>
+        </div>
+      ) : (
+        <div className="w-full px-4 py-3 border border-[#E0CFC4] rounded-xl text-sm text-[#54433A] bg-[#FFF5E9] min-h-[44px] break-words">
+          {currentValue || <span className="text-[#BBA79C] italic text-xs">—</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Handle style ───────────────────────────────────────────────────────────────
 
 const HS: React.CSSProperties = {
@@ -112,19 +180,26 @@ const HS: React.CSSProperties = {
 // ── Phase canvas node ──────────────────────────────────────────────────────────
 
 const PhaseNode = memo(function PhaseNode({ data, selected, positionAbsoluteX, positionAbsoluteY }: NodeProps<EPhaseNodeType>) {
-  const { phase, phaseNum } = data;
+  const { phase, phaseNum, review } = data;
   const { setCenter } = useReactFlow();
+  const flagged = !!(review?.changed || review?.childChanged);
   return (
     <div
-      className={`w-80 bg-white rounded-2xl overflow-hidden shadow-xl border transition-all duration-150 ${selected ? 'border-[#46645c] shadow-blue-100/60' : 'border-[#E0CFC4] shadow-slate-200/60'}`}
+      className={`w-80 bg-white rounded-2xl overflow-hidden shadow-xl border transition-all duration-150 ${
+        flagged ? 'border-amber-400 ring-2 ring-amber-200 shadow-amber-100/60'
+        : selected ? 'border-[#46645c] shadow-blue-100/60' : 'border-[#E0CFC4] shadow-slate-200/60'
+      }`}
       onClick={() => setCenter(positionAbsoluteX + 160, positionAbsoluteY + 90, { duration: 600 })}
     >
       <Handle type="source" position={Position.Top}    id="t" style={HS} />
       <Handle type="source" position={Position.Bottom} id="b" style={HS} />
 
       <div className="px-4 py-2.5 bg-[#FFF5E9] border-b border-[#E0CFC4] flex items-center justify-between">
-        <span className="text-[10px] font-bold text-[#8A7265] uppercase tracking-widest">
+        <span className="text-[10px] font-bold text-[#8A7265] uppercase tracking-widest flex items-center gap-1.5">
           Phase {String(phaseNum).padStart(2, '0')}
+          {flagged && (
+            <span className="w-4 h-4 rounded-full bg-amber-400 text-white text-[9px] font-bold flex items-center justify-center shrink-0">!</span>
+          )}
         </span>
         <svg className="w-4 h-4 text-[#BBA79C]" viewBox="0 0 20 20" fill="currentColor">
           <path d="M7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm0 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm0 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6-12a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm0 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm0 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
@@ -132,9 +207,18 @@ const PhaseNode = memo(function PhaseNode({ data, selected, positionAbsoluteX, p
       </div>
 
       <div className="px-4 py-3">
-        <h4 className="font-bold text-[#2D1E1A] text-[15px] leading-snug">
-          {phase.title || <span className="text-[#BBA79C] font-normal italic">Unnamed phase</span>}
-        </h4>
+        {review?.titleChanged ? (
+          <>
+            <p className="text-[11px] text-[#BBA79C] line-through leading-snug">{review.titleOld || 'empty'}</p>
+            <h4 className="font-bold text-[15px] leading-snug text-[#16342d]">
+              {review.titleNew || <span className="text-[#BBA79C] font-normal italic">empty</span>}
+            </h4>
+          </>
+        ) : (
+          <h4 className="font-bold text-[15px] leading-snug text-[#2D1E1A]">
+            {phase.title || <span className="text-[#BBA79C] font-normal italic">Unnamed phase</span>}
+          </h4>
+        )}
         {phase.description && (
           <p className="text-xs text-[#8A7265] mt-1 line-clamp-2">{phase.description}</p>
         )}
@@ -242,6 +326,17 @@ export default function EditProjectPage() {
   const [members,    setMembers]   = useState<{ id: string; name: string }[]>([]);
   const [canAssign,  setCanAssign] = useState(false);
 
+  // Review mode: while any pending changes exist for this project, the page
+  // shows a read-only diff + approve/reject view instead of the editable
+  // form, so nobody edits on top of an unresolved change. Only owners and
+  // approving contributors ever see pending changes (backend-enforced), so
+  // this array — and reviewMode — stays empty for everyone else.
+  const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
+  const [actingChangeId, setActingChangeId] = useState<string | null>(null);
+  const reviewMode = pendingChanges.length > 0;
+  const projectChanges = pendingChanges.filter(c => c.entityType === 'project');
+  const structureChanges = pendingChanges.filter(c => c.entityType !== 'project');
+
   const [nodes, setNodes, onNodesChange] = useNodesState<EPhaseNodeType>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
@@ -252,93 +347,138 @@ export default function EditProjectPage() {
     el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, []);
 
-  useEffect(() => {
-    getProjects()
-      .then(all => {
-        const found = all.find(p => p.id === id);
-        if (!found) { navigate('/projects'); return; }
-        setProjectTitle(found.title);
-        setForm({ title: found.title, description: found.description ?? '', targetEndDate: found.targetEndDate ?? '' });
-        // Viewers cannot be assigned — filter them out of the assignee picker.
-        const assignableMembers = (found.members ?? []).filter((m: { role: string }) => m.role !== 'viewer');
-        setMembers(assignableMembers.map((m: { user: { id: string; name: string } }) => ({ id: m.user.id, name: m.user.name })));
-        // Only owner or contributor-with-canApprove can set assignments.
-        const myEntry = (found.members ?? []).find((m: { user: { id: string }; role: string; canApprove: boolean }) => m.user.id === user?.id);
-        const myCanAssign = myEntry?.role === 'owner' || (myEntry?.role === 'contributor' && myEntry?.canApprove);
-        setCanAssign(!!myCanAssign);
+  const load = useCallback(async (): Promise<PendingChange[]> => {
+    try {
+      const all = await getProjects();
+      const found = all.find(p => p.id === id);
+      if (!found) { navigate('/projects'); return []; }
+      setProjectTitle(found.title);
+      setForm({ title: found.title, description: found.description ?? '', targetEndDate: found.targetEndDate ?? '' });
+      // Viewers cannot be assigned — filter them out of the assignee picker.
+      const assignableMembers = (found.members ?? []).filter((m: { role: string }) => m.role !== 'viewer');
+      setMembers(assignableMembers.map((m: { user: { id: string; name: string } }) => ({ id: m.user.id, name: m.user.name })));
+      // Only owner or contributor-with-canApprove can set assignments, and — same
+      // permission — see/resolve pending changes for this project.
+      const myEntry = (found.members ?? []).find((m: { user: { id: string }; role: string; canApprove: boolean }) => m.user.id === user?.id);
+      const myCanAssign = myEntry?.role === 'owner' || (myEntry?.role === 'contributor' && myEntry?.canApprove);
+      setCanAssign(!!myCanAssign);
 
-        const sorted = [...found.phases].sort((a, b) => a.order - b.order);
-        originalPhasesRef.current = sorted;
+      let changes: PendingChange[] = [];
+      if (myCanAssign) {
+        try { changes = await getPendingChanges(id!); }
+        catch { changes = []; }
+      }
+      setPendingChanges(changes);
 
-        // Restore saved canvas layout from localStorage (positions + edges)
-        const storageKey = `steadily-canvas-${id}`;
-        let stored: { positions?: Record<string, { x: number; y: number }>; edges?: { source: string; target: string }[] } | null = null;
-        try { stored = JSON.parse(localStorage.getItem(storageKey) ?? 'null'); } catch { /* ignore */ }
+      const sorted = [...found.phases].sort((a, b) => a.order - b.order);
+      originalPhasesRef.current = sorted;
 
-        setNodes(sorted.map((ph, i) => {
-          const savedPos = stored?.positions?.[ph.id];
-          return {
-            id: ph.id,
-            type: 'phaseNode',
-            position: savedPos ?? { x: 80 + (i % 3) * 360, y: 80 + Math.floor(i / 3) * 280 },
-            data: {
-              phase: {
-                realId: ph.id,
-                title: ph.title,
-                description: ph.description ?? '',
-                dueDate: ph.dueDate ?? '',
-                objectives: [...ph.milestones].sort((a, b) => a.order - b.order).map(m => ({
-                  id: m.id,
-                  title: m.title,
-                  description: m.description ?? '',
-                  dueDate: m.dueDate ?? '',
-                  assigneeId: m.assignees?.[0]?.id ?? '',
-                  assigneeName: m.assignees?.[0]?.name ?? '',
-                  isNew: false,
-                  completed: m.completed,
-                })),
-                isExisting: true,
-              },
-              phaseNum: i + 1,
+      // Restore saved canvas layout from localStorage (positions + edges)
+      const storageKey = `steadily-canvas-${id}`;
+      let stored: { positions?: Record<string, { x: number; y: number }>; edges?: { source: string; target: string }[] } | null = null;
+      try { stored = JSON.parse(localStorage.getItem(storageKey) ?? 'null'); } catch { /* ignore */ }
+
+      setNodes(sorted.map((ph, i) => {
+        const savedPos = stored?.positions?.[ph.id];
+        return {
+          id: ph.id,
+          type: 'phaseNode',
+          position: savedPos ?? { x: 80 + (i % 3) * 360, y: 80 + Math.floor(i / 3) * 280 },
+          data: {
+            phase: {
+              realId: ph.id,
+              title: ph.title,
+              description: ph.description ?? '',
+              dueDate: ph.dueDate ?? '',
+              objectives: [...ph.milestones].sort((a, b) => a.order - b.order).map(m => ({
+                id: m.id,
+                title: m.title,
+                description: m.description ?? '',
+                dueDate: m.dueDate ?? '',
+                assigneeId: m.assignees?.[0]?.id ?? '',
+                assigneeName: m.assignees?.[0]?.name ?? '',
+                isNew: false,
+                completed: m.completed,
+              })),
+              isExisting: true,
             },
-          };
-        }));
+            phaseNum: i + 1,
+          },
+        };
+      }));
 
-        // Prefer stored edges; fall back to backend dependencies
-        const storedEdges = stored?.edges;
-        if (storedEdges && storedEdges.length > 0) {
-          setEdges(storedEdges.map(e => ({
-            id: `${e.source}→${e.target}`,
-            source: e.source,
-            target: e.target,
+      // Prefer stored edges; fall back to backend dependencies
+      const storedEdges = stored?.edges;
+      if (storedEdges && storedEdges.length > 0) {
+        setEdges(storedEdges.map(e => ({
+          id: `${e.source}→${e.target}`,
+          source: e.source,
+          target: e.target,
+          type: 'phaseEdge',
+          animated: false,
+          markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b', width: 14, height: 14 },
+        })));
+      } else {
+        setEdges(sorted.flatMap(ph =>
+          (ph.dependencies ?? []).map(dep => ({
+            id: `${dep.dependsOnId}→${ph.id}`,
+            source: dep.dependsOnId,
+            target: ph.id,
             type: 'phaseEdge',
             animated: false,
             markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b', width: 14, height: 14 },
-          })));
-        } else {
-          setEdges(sorted.flatMap(ph =>
-            (ph.dependencies ?? []).map(dep => ({
-              id: `${dep.dependsOnId}→${ph.id}`,
-              source: dep.dependsOnId,
-              target: ph.id,
-              type: 'phaseEdge',
-              animated: false,
-              markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b', width: 14, height: 14 },
-            }))
-          ));
-        }
+          }))
+        ));
+      }
 
-        setLoading(false);
-      })
-      .catch(() => navigate('/projects'));
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (rfInstance && nodes.length > 0) {
-      const t = setTimeout(() => rfInstance.fitView({ padding: 0.2, duration: 300 }), 50);
-      return () => clearTimeout(t);
+      setLoading(false);
+      return changes;
+    } catch {
+      navigate('/projects');
+      return [];
     }
-  }, [nodes.length, rfInstance]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleApprove(change: PendingChange) {
+    setActingChangeId(change.id);
+    try {
+      await approvePendingChange(change.id);
+      const remaining = await load();
+      // Nothing left to review — back to the project instead of falling
+      // through to the (now unlocked) editable form.
+      if (remaining.length === 0) navigate(`/projects/${id}`);
+    } finally { setActingChangeId(null); }
+  }
+
+  async function handleReject(change: PendingChange) {
+    setActingChangeId(change.id);
+    try {
+      await rejectPendingChange(change.id);
+      const remaining = await load();
+      if (remaining.length === 0) navigate(`/projects/${id}`);
+    } finally { setActingChangeId(null); }
+  }
+
+  function findChange(entityType: string, entityId: string, field: string): PendingChange | undefined {
+    return pendingChanges.find(c => c.entityType === entityType && c.entityId === entityId && field in c.newData);
+  }
+
+  // Custom nodes report their measured size asynchronously (ResizeObserver),
+  // so a fitView called right on mount can compute against zero/stale
+  // dimensions and leave the camera centered off in empty space. Refit a
+  // couple of times after paint to catch up once real sizes are known —
+  // and refire on pendingChanges.length too, since resolving a change keeps
+  // the same phase ids (so the id-set key alone wouldn't retrigger this).
+  const nodeIdsKey = nodes.map(n => n.id).join('|');
+  useEffect(() => {
+    if (!rfInstance || nodes.length === 0) return;
+    const t1 = setTimeout(() => rfInstance.fitView({ padding: 0.2, duration: 300 }), 100);
+    const t2 = setTimeout(() => rfInstance.fitView({ padding: 0.2, duration: 200 }), 400);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [nodeIdsKey, pendingChanges.length, rfInstance]);
 
   // ── Phase mutations ────────────────────────────────────────────────────────
 
@@ -536,6 +676,36 @@ export default function EditProjectPage() {
     setStep(2);
   }
 
+  // In review mode, annotate each canvas node with its pending-change info
+  // (own field diffs + whether any objective underneath it also changed) so
+  // PhaseNode can flag it and show the proposed value inline.
+  const displayNodes = reviewMode
+    ? nodes.map(n => {
+        const ph = n.data.phase;
+        const phaseId = ph.realId ?? n.id;
+        const titleChange = findChange('phase', phaseId, 'title');
+        const ownChanged = !!(titleChange || findChange('phase', phaseId, 'description') || findChange('phase', phaseId, 'dueDate'));
+        const childChanged = ph.objectives.some(o =>
+          findChange('milestone', o.id, 'title') ||
+          findChange('milestone', o.id, 'description') ||
+          findChange('milestone', o.id, 'dueDate')
+        );
+        return {
+          ...n,
+          data: {
+            ...n.data,
+            review: {
+              changed: ownChanged,
+              childChanged,
+              titleChanged: !!titleChange,
+              titleOld: titleChange ? (titleChange.oldData['title'] ?? null) : null,
+              titleNew: titleChange ? (titleChange.newData['title'] ?? null) : null,
+            },
+          },
+        };
+      })
+    : nodes;
+
   if (loading) return (
     <div className="flex items-center justify-center h-full">
       <div className="text-sm text-[#8A7265]">Loading project…</div>
@@ -560,87 +730,120 @@ export default function EditProjectPage() {
               <span className="text-[11px] text-[#BBA79C]">·</span>
               <span className="text-[11px] text-[#8A7265] font-medium truncate max-w-[180px]">{projectTitle}</span>
             </div>
-            <h2 className="text-2xl font-bold text-[#2D1E1A] tracking-tight">Edit Project</h2>
+            <h2 className="text-2xl font-bold text-[#2D1E1A] tracking-tight">{reviewMode ? 'Review Changes' : 'Edit Project'}</h2>
             <p className="text-sm text-[#8A7265] mt-2 leading-relaxed">
-              Update the core details of your project.
+              {reviewMode
+                ? 'Approve or reject proposed edits to the project details. Editing is locked until every change is resolved.'
+                : 'Update the core details of your project.'}
             </p>
           </div>
 
           <div className="px-8 flex-1 space-y-5 overflow-y-auto">
-            <div>
-              <label className="block text-xs font-semibold text-[#54433A] mb-1.5">Project Name</label>
-              <input
-                autoFocus
-                type="text"
-                value={form.title}
-                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                onKeyDown={e => e.key === 'Enter' && goToStep2()}
-                className="w-full h-11 px-4 border border-[#E0CFC4] rounded-xl text-sm focus:outline-none focus:border-[#46645c] focus:ring-2 focus:ring-[#c8eadf] transition-all placeholder:text-[#BBA79C]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-[#54433A] mb-1.5">Description</label>
-              <textarea
-                rows={5}
-                value={form.description}
-                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                placeholder="Briefly describe the objectives and scope of this project..."
-                className="w-full px-4 py-3 border border-[#E0CFC4] rounded-xl text-sm focus:outline-none focus:border-[#46645c] focus:ring-2 focus:ring-[#c8eadf] transition-all resize-none placeholder:text-[#BBA79C]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-[#54433A] mb-1.5">Completion Deadline</label>
-              <div className="relative">
-                <input
-                  type="date"
-                  value={form.targetEndDate}
-                  onChange={e => setForm(f => ({ ...f, targetEndDate: e.target.value }))}
-                  className="w-full h-11 pl-11 pr-4 border border-[#E0CFC4] rounded-xl text-sm focus:outline-none focus:border-[#46645c] focus:ring-2 focus:ring-[#c8eadf] transition-all"
+            {reviewMode ? (
+              <>
+                <ReviewFieldRow
+                  label="Project Name"
+                  currentValue={form.title}
+                  change={findChange('project', id!, 'title')}
+                  acting={actingChangeId === findChange('project', id!, 'title')?.id}
+                  onApprove={() => { const c = findChange('project', id!, 'title'); c && handleApprove(c); }}
+                  onReject={() => { const c = findChange('project', id!, 'title'); c && handleReject(c); }}
                 />
-                <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A7265] pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                </svg>
-              </div>
-            </div>
-
-            {/* Danger zone */}
-            <div className="pt-2 border-t border-[#E0CFC4]">
-              <label className="block text-xs font-semibold text-[#ba1a1a] mb-2 uppercase tracking-widest">Danger Zone</label>
-              {!confirmDelete ? (
-                <button
-                  onClick={() => { setDeleteTyped(''); setConfirmDelete(true); }}
-                  className="text-xs text-[#ba1a1a] hover:text-[#93000a] hover:bg-[#ffdad6] px-3 py-2 rounded-lg border border-[#ffdad6] transition-colors"
-                >
-                  Delete this project
-                </button>
-              ) : (
-                <div className="space-y-2.5">
-                  <p className="text-xs text-[#8A7265]">
-                    To confirm, type{' '}
-                    <span className="font-mono text-[#ba1a1a] bg-[#ffdad6] px-1.5 py-0.5 rounded">{deleteTarget}</span>{' '}
-                    below.
-                  </p>
+                <ReviewFieldRow
+                  label="Description"
+                  currentValue={form.description}
+                  change={findChange('project', id!, 'description')}
+                  acting={actingChangeId === findChange('project', id!, 'description')?.id}
+                  onApprove={() => { const c = findChange('project', id!, 'description'); c && handleApprove(c); }}
+                  onReject={() => { const c = findChange('project', id!, 'description'); c && handleReject(c); }}
+                />
+                <ReviewFieldRow
+                  label="Completion Deadline"
+                  currentValue={form.targetEndDate}
+                  change={findChange('project', id!, 'targetEndDate')}
+                  acting={actingChangeId === findChange('project', id!, 'targetEndDate')?.id}
+                  onApprove={() => { const c = findChange('project', id!, 'targetEndDate'); c && handleApprove(c); }}
+                  onReject={() => { const c = findChange('project', id!, 'targetEndDate'); c && handleReject(c); }}
+                />
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-xs font-semibold text-[#54433A] mb-1.5">Project Name</label>
                   <input
                     autoFocus
-                    className="w-full border border-[#E0CFC4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#ffdad6] font-mono"
-                    placeholder={deleteTarget}
-                    value={deleteTyped}
-                    onChange={e => setDeleteTyped(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleDelete()}
+                    type="text"
+                    value={form.title}
+                    onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                    onKeyDown={e => e.key === 'Enter' && goToStep2()}
+                    className="w-full h-11 px-4 border border-[#E0CFC4] rounded-xl text-sm focus:outline-none focus:border-[#46645c] focus:ring-2 focus:ring-[#c8eadf] transition-all placeholder:text-[#BBA79C]"
                   />
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleDelete}
-                      disabled={deleteTyped.trim().toLowerCase() !== deleteTarget.toLowerCase() || deleting}
-                      className="text-xs bg-[#ba1a1a] text-white hover:bg-[#93000a] px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 font-medium"
-                    >{deleting ? 'Deleting…' : 'Delete this project'}</button>
-                    <button onClick={() => { setConfirmDelete(false); setDeleteTyped(''); }} className="text-xs text-[#8A7265] hover:text-[#54433A]">Cancel</button>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#54433A] mb-1.5">Description</label>
+                  <textarea
+                    rows={5}
+                    value={form.description}
+                    onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                    placeholder="Briefly describe the objectives and scope of this project..."
+                    className="w-full px-4 py-3 border border-[#E0CFC4] rounded-xl text-sm focus:outline-none focus:border-[#46645c] focus:ring-2 focus:ring-[#c8eadf] transition-all resize-none placeholder:text-[#BBA79C]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#54433A] mb-1.5">Completion Deadline</label>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={form.targetEndDate}
+                      onChange={e => setForm(f => ({ ...f, targetEndDate: e.target.value }))}
+                      className="w-full h-11 pl-11 pr-4 border border-[#E0CFC4] rounded-xl text-sm focus:outline-none focus:border-[#46645c] focus:ring-2 focus:ring-[#c8eadf] transition-all"
+                    />
+                    <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A7265] pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                    </svg>
                   </div>
                 </div>
-              )}
-            </div>
+
+                {/* Danger zone */}
+                <div className="pt-2 border-t border-[#E0CFC4]">
+                  <label className="block text-xs font-semibold text-[#ba1a1a] mb-2 uppercase tracking-widest">Danger Zone</label>
+                  {!confirmDelete ? (
+                    <button
+                      onClick={() => { setDeleteTyped(''); setConfirmDelete(true); }}
+                      className="text-xs text-[#ba1a1a] hover:text-[#93000a] hover:bg-[#ffdad6] px-3 py-2 rounded-lg border border-[#ffdad6] transition-colors"
+                    >
+                      Delete this project
+                    </button>
+                  ) : (
+                    <div className="space-y-2.5">
+                      <p className="text-xs text-[#8A7265]">
+                        To confirm, type{' '}
+                        <span className="font-mono text-[#ba1a1a] bg-[#ffdad6] px-1.5 py-0.5 rounded">{deleteTarget}</span>{' '}
+                        below.
+                      </p>
+                      <input
+                        autoFocus
+                        className="w-full border border-[#E0CFC4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#ffdad6] font-mono"
+                        placeholder={deleteTarget}
+                        value={deleteTyped}
+                        onChange={e => setDeleteTyped(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleDelete()}
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleDelete}
+                          disabled={deleteTyped.trim().toLowerCase() !== deleteTarget.toLowerCase() || deleting}
+                          className="text-xs bg-[#ba1a1a] text-white hover:bg-[#93000a] px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 font-medium"
+                        >{deleting ? 'Deleting…' : 'Delete this project'}</button>
+                        <button onClick={() => { setConfirmDelete(false); setDeleteTyped(''); }} className="text-xs text-[#8A7265] hover:text-[#54433A]">Cancel</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           <div className="px-8 pt-5 pb-8 shrink-0">
@@ -649,12 +852,15 @@ export default function EditProjectPage() {
               <button
                 onClick={() => navigate(`/projects/${id}`)}
                 className="px-5 py-2.5 text-sm text-[#8A7265] hover:text-[#54433A] transition-colors rounded-xl"
-              >Cancel</button>
+              >{reviewMode ? 'Close' : 'Cancel'}</button>
               <button
-                onClick={goToStep2}
+                onClick={reviewMode ? () => setStep(2) : goToStep2}
                 className="flex-1 h-12 bg-[#C4601A] text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2 hover:bg-[#C4601A] transition-all"
               >
-                Continue to Phases
+                {reviewMode ? 'Phases & Objectives' : 'Continue to Phases'}
+                {reviewMode && structureChanges.length > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-white text-[#C4601A] text-[10px] font-bold flex items-center justify-center shrink-0">!</span>
+                )}
                 <ChevronRight className="w-4 h-4" animateOnHover="default" />
               </button>
             </div>
@@ -742,8 +948,11 @@ export default function EditProjectPage() {
         <div className="flex items-center gap-6">
           <span className="font-bold text-[#2D1E1A] text-sm">Steadily</span>
           <nav className="flex items-center gap-5 text-sm">
-            <button onClick={() => setStep(1)} className="text-[#8A7265] hover:text-[#54433A] transition-colors">
+            <button onClick={() => setStep(1)} className="text-[#8A7265] hover:text-[#54433A] transition-colors flex items-center gap-1.5">
               Project Info
+              {reviewMode && projectChanges.length > 0 && (
+                <span className="w-4 h-4 rounded-full bg-amber-400 text-white text-[9px] font-bold flex items-center justify-center shrink-0">!</span>
+              )}
             </button>
             <span className="text-[#2D1E1A] font-semibold border-b-2 border-[#2D1E1A] pb-px leading-none py-0.5">
               Phases & Objectives
@@ -752,23 +961,43 @@ export default function EditProjectPage() {
         </div>
         <div className="flex items-center gap-3">
           {saveError && <p className="text-xs text-[#ba1a1a]">{saveError}</p>}
-          <button
-            onClick={() => setStep(1)}
-            className="px-4 py-1.5 text-sm text-[#54433A] hover:text-[#2D1E1A] rounded-lg hover:bg-[#F0E9E0] transition-all"
-          >Back</button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-5 py-1.5 bg-[#C4601A] text-white text-sm font-semibold rounded-lg hover:bg-[#C4601A] disabled:opacity-40 transition-all"
-          >{saving ? 'Saving…' : 'Save Changes'}</button>
+          {reviewMode ? (
+            <>
+              {pendingChanges.length === 0
+                ? <span className="text-xs text-[#4C8077] font-medium">✓ All resolved</span>
+                : <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full font-medium">{pendingChanges.length} pending</span>
+              }
+              <button
+                onClick={() => setStep(1)}
+                className="px-4 py-1.5 text-sm text-[#54433A] hover:text-[#2D1E1A] rounded-lg hover:bg-[#F0E9E0] transition-all flex items-center gap-1.5"
+              >
+                Back
+                {projectChanges.length > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-amber-400 text-white text-[9px] font-bold flex items-center justify-center shrink-0">!</span>
+                )}
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setStep(1)}
+                className="px-4 py-1.5 text-sm text-[#54433A] hover:text-[#2D1E1A] rounded-lg hover:bg-[#F0E9E0] transition-all"
+              >Back</button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-5 py-1.5 bg-[#C4601A] text-white text-sm font-semibold rounded-lg hover:bg-[#C4601A] disabled:opacity-40 transition-all"
+              >{saving ? 'Saving…' : 'Save Changes'}</button>
+            </>
+          )}
         </div>
       </header>
 
       {/* Main: sidebar + canvas */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
 
         {/* Left sidebar: phase form cards */}
-        <aside className="w-[420px] shrink-0 bg-white border-r border-[#E0CFC4] flex flex-col overflow-hidden">
+        <aside className="w-[420px] shrink-0 bg-white border-r border-[#E0CFC4] flex flex-col min-h-0 overflow-hidden">
           <div className="px-8 pt-7 pb-5 border-b border-[#E0CFC4] shrink-0">
             <div className="flex items-center gap-2 mb-4">
               <span className="h-[3px] w-8 bg-[#C4601A] rounded-full" />
@@ -779,21 +1008,37 @@ export default function EditProjectPage() {
               <div>
                 <h2 className="text-2xl font-bold text-[#2D1E1A] tracking-tight">Phases &amp; Objectives</h2>
                 <p className="text-sm text-[#8A7265] mt-1.5 leading-relaxed">
-                  Adjust phases and objectives — changes will be saved to your project.
+                  {reviewMode
+                    ? 'Approve or reject proposed edits below, or click a phase on the canvas.'
+                    : 'Adjust phases and objectives — changes will be saved to your project.'}
                 </p>
               </div>
-              <button
-                onClick={addPhase}
-                className="mt-1 w-8 h-8 rounded-full bg-[#E8FAF7] text-[#46645c] hover:bg-[#FFE8D1] flex items-center justify-center transition-colors shrink-0"
-                title="Add phase"
-              >
-                <Plus className="w-4 h-4" animateOnHover="default" />
-              </button>
+              {!reviewMode && (
+                <button
+                  onClick={addPhase}
+                  className="mt-1 w-8 h-8 rounded-full bg-[#E8FAF7] text-[#46645c] hover:bg-[#FFE8D1] flex items-center justify-center transition-colors shrink-0"
+                  title="Add phase"
+                >
+                  <Plus className="w-4 h-4" animateOnHover="default" />
+                </button>
+              )}
             </div>
           </div>
 
-          <div ref={sidebarRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-            {nodes.length === 0 ? (
+          <div ref={sidebarRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
+            {reviewMode ? (
+              nodes.map((node, idx) => (
+                <ReviewPhaseCard
+                  key={node.id}
+                  node={node}
+                  phaseNum={idx + 1}
+                  findChange={findChange}
+                  actingChangeId={actingChangeId}
+                  onApprove={handleApprove}
+                  onReject={handleReject}
+                />
+              ))
+            ) : nodes.length === 0 ? (
               <div className="flex flex-col items-center py-10 text-center">
                 <div className="w-12 h-12 bg-[#F0E9E0] rounded-2xl mx-auto flex items-center justify-center mb-3">
                   <Plus className="w-5 h-5 text-[#8A7265]" animateOnHover="default" />
@@ -819,36 +1064,40 @@ export default function EditProjectPage() {
               ))
             )}
 
-            <button
-              onClick={addPhase}
-              className="w-full py-6 border-2 border-dashed border-[#E0CFC4] rounded-2xl flex flex-col items-center justify-center text-[#8A7265] hover:border-[#adcec3] hover:text-[#C4601A] transition-all group"
-            >
-              <CirclePlus className="w-7 h-7 mb-1.5 group-hover:scale-110 transition-transform" animateOnHover="default" />
-              <span className="text-sm font-medium">Add New Phase Block</span>
-            </button>
+            {!reviewMode && (
+              <button
+                onClick={addPhase}
+                className="w-full py-6 border-2 border-dashed border-[#E0CFC4] rounded-2xl flex flex-col items-center justify-center text-[#8A7265] hover:border-[#adcec3] hover:text-[#C4601A] transition-all group"
+              >
+                <CirclePlus className="w-7 h-7 mb-1.5 group-hover:scale-110 transition-transform" animateOnHover="default" />
+                <span className="text-sm font-medium">Add New Phase Block</span>
+              </button>
+            )}
           </div>
         </aside>
 
         {/* Right: React Flow canvas */}
-        <div className="flex-1 relative bg-[#FFF5E9]">
+        <div className="flex-1 relative bg-[#EEF2F5]">
           <ReactFlow
-            nodes={nodes}
+            nodes={displayNodes}
             edges={edges}
-            onNodesChange={onNodesChange as unknown as OnNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
+            onNodesChange={reviewMode ? undefined : (onNodesChange as unknown as OnNodesChange)}
+            onEdgesChange={reviewMode ? undefined : onEdgesChange}
+            onConnect={reviewMode ? undefined : onConnect}
             onInit={setRfInstance}
             onNodeClick={handleNodeClick}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             connectionMode={ConnectionMode.Loose}
             fitView={nodes.length > 0}
-            deleteKeyCode="Delete"
+            deleteKeyCode={reviewMode ? null : 'Delete'}
+            nodesDraggable={!reviewMode}
+            nodesConnectable={!reviewMode}
             minZoom={0.35}
             maxZoom={2}
             proOptions={{ hideAttribution: true }}
           >
-            <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#e2e8f0" />
+            <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#C7D2DA" />
             <Controls showInteractive={false} style={{ boxShadow: 'none', border: '1px solid #e2e8f0', borderRadius: 8 }} />
           </ReactFlow>
 
@@ -871,11 +1120,112 @@ export default function EditProjectPage() {
               <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
               </svg>
-              Drag anchor points to create dependencies · Press Delete to remove a connection
+              {reviewMode ? 'Click a phase to jump to its changes' : 'Drag anchor points to create dependencies · Press Delete to remove a connection'}
             </div>
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Review phase card (left sidebar, review mode) ───────────────────────────────
+
+function ReviewPhaseCard({ node, phaseNum, findChange, actingChangeId, onApprove, onReject }: {
+  node: EPhaseNodeType;
+  phaseNum: number;
+  findChange: (entityType: string, entityId: string, field: string) => PendingChange | undefined;
+  actingChangeId: string | null;
+  onApprove: (change: PendingChange) => void;
+  onReject: (change: PendingChange) => void;
+}) {
+  const ph = node.data.phase;
+  const phaseId = ph.realId ?? node.id;
+  const titleChange       = findChange('phase', phaseId, 'title');
+  const descriptionChange = findChange('phase', phaseId, 'description');
+  const dueDateChange     = findChange('phase', phaseId, 'dueDate');
+
+  const objectivesWithChanges = ph.objectives.filter(obj =>
+    findChange('milestone', obj.id, 'title') ||
+    findChange('milestone', obj.id, 'description') ||
+    findChange('milestone', obj.id, 'dueDate')
+  );
+
+  return (
+    <div data-node-id={node.id} className="bg-white border border-[#E0CFC4] rounded-2xl overflow-hidden">
+      <div className="px-4 py-3 bg-[#FFF5E9] border-b border-[#E0CFC4]">
+        <span className="text-sm font-bold text-[#54433A] uppercase tracking-widest">
+          Phase {String(phaseNum).padStart(2, '0')}
+        </span>
+      </div>
+
+      <div className="px-4 pt-3 pb-2 space-y-3">
+        <ReviewFieldRow
+          label="Phase Name"
+          currentValue={ph.title}
+          change={titleChange}
+          acting={actingChangeId === titleChange?.id}
+          onApprove={() => titleChange && onApprove(titleChange)}
+          onReject={() => titleChange && onReject(titleChange)}
+        />
+        <ReviewFieldRow
+          label="Description"
+          currentValue={ph.description}
+          change={descriptionChange}
+          acting={actingChangeId === descriptionChange?.id}
+          onApprove={() => descriptionChange && onApprove(descriptionChange)}
+          onReject={() => descriptionChange && onReject(descriptionChange)}
+        />
+        <ReviewFieldRow
+          label="Due Date"
+          currentValue={ph.dueDate}
+          change={dueDateChange}
+          acting={actingChangeId === dueDateChange?.id}
+          onApprove={() => dueDateChange && onApprove(dueDateChange)}
+          onReject={() => dueDateChange && onReject(dueDateChange)}
+        />
+      </div>
+
+      {objectivesWithChanges.length > 0 && (
+        <div className="border-t border-[#E0CFC4] px-4 py-3">
+          <span className="text-[11px] font-semibold text-[#8A7265]">Objectives</span>
+          <div className="space-y-2.5 mt-2.5">
+            {objectivesWithChanges.map(obj => {
+              const objTitleChange       = findChange('milestone', obj.id, 'title');
+              const objDescriptionChange = findChange('milestone', obj.id, 'description');
+              const objDueDateChange     = findChange('milestone', obj.id, 'dueDate');
+              return (
+                <div key={obj.id} className="rounded-lg border border-[#E0CFC4] bg-[#FFF5E9] p-2.5 space-y-2.5">
+                  <ReviewFieldRow
+                    label="Title"
+                    currentValue={obj.title}
+                    change={objTitleChange}
+                    acting={actingChangeId === objTitleChange?.id}
+                    onApprove={() => objTitleChange && onApprove(objTitleChange)}
+                    onReject={() => objTitleChange && onReject(objTitleChange)}
+                  />
+                  <ReviewFieldRow
+                    label="Description"
+                    currentValue={obj.description}
+                    change={objDescriptionChange}
+                    acting={actingChangeId === objDescriptionChange?.id}
+                    onApprove={() => objDescriptionChange && onApprove(objDescriptionChange)}
+                    onReject={() => objDescriptionChange && onReject(objDescriptionChange)}
+                  />
+                  <ReviewFieldRow
+                    label="Due date"
+                    currentValue={obj.dueDate}
+                    change={objDueDateChange}
+                    acting={actingChangeId === objDueDateChange?.id}
+                    onApprove={() => objDueDateChange && onApprove(objDueDateChange)}
+                    onReject={() => objDueDateChange && onReject(objDueDateChange)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
