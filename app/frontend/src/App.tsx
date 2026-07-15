@@ -70,8 +70,9 @@ const NAV_LINKS = [
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
     const { token, loading } = useAuth();
+    const location = useLocation();
     if (loading) return null;
-    if (!token)  return <Navigate to="/login" replace />;
+    if (!token)  return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
     return <>{children}</>;
 }
 
