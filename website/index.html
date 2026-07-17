@@ -1,15 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="intro-lock">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>Steadily — the autonomous productivity planner</title>
-<meta name="description" content="Steadily plans your day, tracks your habits, and keeps your streak honest — even when life doesn't cooperate. Open the web app or grab the desktop app.">
+<title>Steadily — the adaptive productivity planner</title>
+<meta name="description" content="Steadily plans your day, tracks your habits with honest streaks, and breaks big projects into phases you can actually finish. Open the web app or grab the desktop app.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23232628'/%3E%3Ccircle cx='50' cy='50' r='24' fill='%23CD8D50'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
+<script>
+(function(){
+  var stored = localStorage.getItem('steadily-theme');
+  var theme = stored || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  document.documentElement.setAttribute('data-theme', theme);
+})();
+</script>
 </head>
 <body>
 
@@ -17,10 +24,20 @@
 
 <nav id="site-nav">
   <div class="nav-inner">
-    <a href="#top" class="nav-brand wordmark wordmark-sm" aria-label="Steadily">
-      <span class="nav-brand-dot" aria-hidden="true"></span>
-      <span>S</span><span>t</span><span>e</span><span>a</span><span>d</span><span>i</span><span>l</span><span>y</span>
-    </a>
+    <div class="nav-controls">
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to light theme" aria-pressed="false">
+        <span class="theme-knob">
+          <svg class="theme-icon icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="4.2"/>
+            <path d="M12 2.5v2.4M12 19.1v2.4M4.6 4.6l1.7 1.7M17.7 17.7l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.6 19.4l1.7-1.7M17.7 6.3l1.7-1.7" style="fill:none;stroke:#232628;stroke-width:1.6;stroke-linecap:round"/>
+          </svg>
+          <svg class="theme-icon icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/>
+          </svg>
+        </span>
+      </button>
+    </div>
+
     <button id="nav-toggle" class="nav-toggle" aria-label="Toggle menu" aria-expanded="false">
       <span></span><span></span><span></span>
     </button>
@@ -30,7 +47,7 @@
       <a href="#faq">FAQ</a>
       <a href="#support">Support</a>
       <a href="https://steadily-mocha.vercel.app" target="_blank" rel="noopener" class="nav-cta lens">
-        <span class="shape3d shape-cuboid" aria-hidden="true"></span>
+        <span class="shape3d" data-shape="cuboid" aria-hidden="true"></span>
         Open App
       </a>
     </div>
@@ -39,22 +56,25 @@
 
 <section class="pin-wrap" id="top">
   <div class="pin">
+    <div class="hero-sky" aria-hidden="true"></div>
 
     <div class="hero-copy">
-      <p class="hero-eyebrow">Autonomous productivity planner</p>
-      <h1 class="wordmark wordmark-lg" aria-label="Steadily">
-        <span>S</span><span>t</span><span>e</span><span>a</span><span>d</span><span>i</span><span>l</span><span>y</span>
-      </h1>
-      <p class="hero-sub">Plans that adapt around your real life, habits that build honest streaks, and big projects broken into phases you can actually finish.</p>
-      <div class="hero-cta-row">
-        <a href="https://steadily-mocha.vercel.app" target="_blank" rel="noopener" class="btn btn-primary lens">
-          <span class="shape3d shape-cube" aria-hidden="true"></span>
-          Open App
-        </a>
-        <a href="#features" class="btn btn-ghost lens">
-          <span class="shape3d shape-prism" aria-hidden="true"></span>
-          See features
-        </a>
+      <div class="hero-glass">
+        <p class="hero-eyebrow">Adaptive productivity planner</p>
+        <h1 class="wordmark wordmark-lg" aria-label="Steadily">
+          <span>𝙎</span><span>𝙩</span><span>𝙚</span><span>𝙖</span><span>𝙙</span><span>𝙞</span><span>𝙡</span><span>𝙮</span>
+        </h1>
+        <p class="hero-sub">Plans that adapt around your real life, habits tracked with honest, unfudged streaks, and big projects broken into phases you can actually finish.</p>
+        <div class="hero-cta-row">
+          <a href="https://steadily-mocha.vercel.app" target="_blank" rel="noopener" class="btn btn-primary lens">
+            <span class="shape3d" data-shape="cuboid" aria-hidden="true"></span>
+            Open App
+          </a>
+          <a href="#features" class="btn btn-ghost lens">
+            <span class="shape3d" data-shape="prism" aria-hidden="true"></span>
+            See features
+          </a>
+        </div>
       </div>
     </div>
 
@@ -66,8 +86,6 @@
     </div>
 
     <div id="webgl-align"><div id="webgl-wrap"></div></div>
-
-    <div class="hint" id="hint">Scroll to rotate</div>
 
   </div>
 </section>
@@ -81,24 +99,29 @@
 
     <div class="feature-grid">
       <div class="feature-card lens" data-reveal>
-        <span class="feature-icon" aria-hidden="true"><span class="shape3d shape-sphere"></span></span>
+        <span class="feature-icon" aria-hidden="true"><span class="shape3d" data-shape="torus"></span></span>
         <h3>Adaptive daily planning</h3>
         <p>Miss a task and Steadily reshuffles your plan around it, instead of guilting you into a backlog.</p>
       </div>
       <div class="feature-card lens" data-reveal>
-        <span class="feature-icon" aria-hidden="true"><span class="shape3d shape-cone"></span></span>
+        <span class="feature-icon" aria-hidden="true"><span class="shape3d" data-shape="cylinder"></span></span>
         <h3>Habits &amp; honest streaks</h3>
-        <p>Streaks that reflect effort, not just perfect attendance — so one bad day doesn't erase your progress.</p>
+        <p>Streaks that count what you actually did — no padding, no fudged numbers, just a clear read on your consistency.</p>
       </div>
       <div class="feature-card lens" data-reveal>
-        <span class="feature-icon" aria-hidden="true"><span class="shape3d shape-pyramid"></span></span>
+        <span class="feature-icon" aria-hidden="true"><span class="shape3d" data-shape="octahedron"></span></span>
         <h3>Project phases</h3>
-        <p>Break big, vague goals into phases with a clear canvas view — no more one giant unmoving to-do list.</p>
+        <p>Break big, vague goals into phases on a dependency canvas that shows what blocks what, with a milestone kanban board for the work inside each phase.</p>
       </div>
       <div class="feature-card lens" data-reveal>
-        <span class="feature-icon" aria-hidden="true"><span class="shape3d shape-cylinder"></span></span>
+        <span class="feature-icon" aria-hidden="true"><span class="shape3d" data-shape="sphere"></span></span>
         <h3>Insights that matter</h3>
-        <p>See the patterns behind your habits and projects over weeks and months, not just today's checklist.</p>
+        <p>Steadily flags what's actually going on — tasks you keep avoiding, milestones stalled for the same reason twice, and whether you're consistently over- or under-estimating effort.</p>
+      </div>
+      <div class="feature-card lens" data-reveal>
+        <span class="feature-icon" aria-hidden="true"><span class="shape3d" data-shape="prism"></span></span>
+        <h3>Collaborative projects</h3>
+        <p>Invite people by email as contributors or viewers — proposed changes go through review before they land, so shared projects stay in sync.</p>
       </div>
     </div>
   </div>
@@ -113,21 +136,21 @@
     <div class="download-row">
       <div class="download-card lens" data-reveal>
         <span class="download-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><rect x="2" y="4" width="9" height="9"/><rect x="13" y="4" width="9" height="9"/><rect x="2" y="15" width="9" height="5"/><rect x="13" y="15" width="9" height="5"/></svg>
+          <img src="assets/windows-platform-logo.png" alt="">
         </span>
         <h3>Windows</h3>
         <span class="badge-soon">Coming soon</span>
       </div>
       <div class="download-card lens" data-reveal>
         <span class="download-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M17.5 12.5c0-2.1 1.7-3.2 1.8-3.3-1-1.4-2.5-1.6-3-1.6-1.3-.1-2.5.7-3.1.7-.6 0-1.6-.7-2.7-.7-1.4 0-2.7.8-3.4 2-1.5 2.5-.4 6.2 1.1 8.2.7 1 1.5 2.1 2.6 2 1-.1 1.4-.6 2.7-.6s1.6.6 2.7.6c1.1 0 1.9-1 2.6-2 .6-.9.9-1.7 1.1-2.2-2.8-1-3.4-4.1-1.4-4.1z"/><path d="M14.8 5.3c.6-.7 1-1.7.9-2.7-.9.1-1.9.6-2.5 1.3-.6.6-1.1 1.6-.9 2.6 1 .1 1.9-.5 2.5-1.2z"/></svg>
+          <img src="assets/apple-logo.png" alt="">
         </span>
         <h3>macOS</h3>
         <span class="badge-soon">Coming soon</span>
       </div>
       <div class="download-card lens" data-reveal>
         <span class="download-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4"/><path d="M8 13c-2 3-2 5-1 7h10c1-2 1-4-1-7"/></svg>
+          <img src="assets/linux-platform.png" alt="">
         </span>
         <h3>Linux</h3>
         <span class="badge-soon">Coming soon</span>
@@ -135,7 +158,7 @@
     </div>
 
     <a href="https://steadily-mocha.vercel.app" target="_blank" rel="noopener" class="btn btn-primary download-cta lens" data-reveal>
-      <span class="shape3d shape-cylinder" aria-hidden="true"></span>
+      <span class="shape3d" data-shape="cuboid" aria-hidden="true"></span>
       Use the web app now
     </a>
   </div>
@@ -152,7 +175,7 @@
           What is Steadily?
           <span class="faq-icon" aria-hidden="true"></span>
         </button>
-        <div class="faq-answer"><p>Steadily is an autonomous productivity planner. It plans your day, tracks your habits and streaks, and organizes bigger goals into projects with phases — and it adjusts automatically when your day doesn't go as planned.</p></div>
+        <div class="faq-answer"><p>Steadily is an adaptive productivity planner. It plans your day, tracks your habits and streaks, and organizes bigger goals into projects with phases — and it adjusts automatically when your day doesn't go as planned.</p></div>
       </div>
       <div class="faq-item" data-reveal>
         <button class="faq-question" aria-expanded="false">
@@ -173,14 +196,14 @@
           If I miss a day, do I lose my streak?
           <span class="faq-icon" aria-hidden="true"></span>
         </button>
-        <div class="faq-answer"><p>Not automatically. Steadily is built around consistency, not perfection — streak logic accounts for real-life gaps instead of resetting on the first missed day.</p></div>
+        <div class="faq-answer"><p>Your streak counts consecutive completed days on that habit's active days, so missing one does reset it — there's no hidden grace period. What we won't do is pad the number or hide a miss to make it look better than it is. Your full history and stats stay intact either way, so you can always see the real pattern, not just today's count.</p></div>
       </div>
       <div class="faq-item" data-reveal>
         <button class="faq-question" aria-expanded="false">
           Can I use Steadily for shared or team projects?
           <span class="faq-icon" aria-hidden="true"></span>
         </button>
-        <div class="faq-answer"><p>Today, Steadily is focused on individual planning. Shared projects are on the roadmap — <a href="#support">let us know</a> if that's something you'd use.</p></div>
+        <div class="faq-answer"><p>Yes. Invite people to a project by email and assign them a role — contributors or viewers. Contributors can propose changes to phases and milestones, and anyone with approval permission on the project reviews each proposed change before it's accepted or rejected, so nothing gets overwritten without a second set of eyes.</p></div>
       </div>
       <div class="faq-item" data-reveal>
         <button class="faq-question" aria-expanded="false">
@@ -208,13 +231,13 @@
 
     <div class="support-grid">
       <a class="support-card lens" data-reveal href="mailto:nikolaydeinego@gmail.com?subject=Steadily%20feedback">
-        <span class="feature-icon" aria-hidden="true"><span class="shape3d shape-cube"></span></span>
+        <span class="feature-icon" aria-hidden="true"><span class="shape3d" data-shape="cone"></span></span>
         <h3>Send feedback</h3>
         <p>Ideas, requests, or things that feel off — all welcome.</p>
         <span class="support-link">nikolaydeinego@gmail.com →</span>
       </a>
       <a class="support-card lens" data-reveal href="mailto:nikolaydeinego@gmail.com?subject=Steadily%20bug%20report">
-        <span class="feature-icon" aria-hidden="true"><span class="shape3d shape-prism"></span></span>
+        <span class="feature-icon" aria-hidden="true"><span class="shape3d" data-shape="pyramid"></span></span>
         <h3>Report a bug</h3>
         <p>Something broken? Include what you were doing and it'll get looked at.</p>
         <span class="support-link">nikolaydeinego@gmail.com →</span>
@@ -228,9 +251,9 @@
     <div>
       <a href="#top" class="nav-brand wordmark wordmark-sm" aria-label="Steadily">
         <span class="nav-brand-dot" aria-hidden="true"></span>
-        <span>S</span><span>t</span><span>e</span><span>a</span><span>d</span><span>i</span><span>l</span><span>y</span>
+        <span>𝙎</span><span>𝙩</span><span>𝙚</span><span>𝙖</span><span>𝙙</span><span>𝙞</span><span>𝙡</span><span>𝙮</span>
       </a>
-      <p class="footer-tagline">The autonomous productivity planner.</p>
+      <p class="footer-tagline">The adaptive productivity planner.</p>
     </div>
     <div class="footer-links">
       <a href="#features">Features</a>

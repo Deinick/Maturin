@@ -49,7 +49,6 @@ const drawDuration = 1500 + (turtlePaths.length - 1) * 90 + 300;
 const stage = document.getElementById('intro-stage');
 const webglAlign = document.getElementById('webgl-align');
 const webglWrap = document.getElementById('webgl-wrap');
-const hint = document.getElementById('hint');
 const heroCopy = document.querySelector('.hero-copy');
 const logoFrame = document.querySelector('.logo-frame');
 
@@ -68,10 +67,42 @@ setTimeout(() => {
   webglWrap.classList.add('show');
 }, modelCrossfadeAt);
 
+/* the glass hero card waits until the 3D turtle has fully settled behind it (opacity/blur/scale done
+   resolving) — showing it earlier means the backdrop it's blurring is still changing under it, which
+   reads as the glass drifting from clear to "matte" mid-appearance */
+const heroGlass = document.querySelector('.hero-glass');
+const heroCopyShowAt = modelCrossfadeAt + modelCrossfadeDuration + 200;
+
+/* intro lock: nothing but the pinned logo is visible/scrollable until the 3D hand-off is done —
+   release it here, in step with the rest of the page appearing */
 setTimeout(() => {
-  hint.classList.add('show');
+  document.documentElement.classList.remove('intro-lock');
+}, heroCopyShowAt);
+
+setTimeout(() => {
   heroCopy.classList.add('show');
-}, modelCrossfadeAt + modelCrossfadeDuration - 300);
+}, heroCopyShowAt);
+
+/* card appears crisp/transparent first, then the blur ramps in a beat later. Driven frame-by-frame in JS
+   rather than a CSS transition on backdrop-filter, since browsers don't reliably interpolate that property
+   smoothly — some just snap straight to the end value, which is what read as "abrupt". */
+function animateBlur(el, fromPx, toPx, duration) {
+  const start = performance.now();
+  function step(now) {
+    const t = Math.min((now - start) / duration, 1);
+    const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    const px = fromPx + (toPx - fromPx) * eased;
+    el.style.backdropFilter = `blur(${px}px)`;
+    el.style.webkitBackdropFilter = `blur(${px}px)`;
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+setTimeout(() => {
+  heroGlass.classList.add('blur-in');
+  animateBlur(heroGlass, 0, 10, 1600);
+}, heroCopyShowAt + 450);
 
 /* ---------- 3D: extrude the same SVG shapes ---------- */
 const scene = new THREE.Scene();
@@ -173,20 +204,21 @@ window.addEventListener('resize', fitAndAlignModel);
 fitAndAlignModel();
 
 /* smoothed scroll value: eases toward the real scroll position instead of tracking it 1:1,
-   so the flight path drifts gently rather than snapping with every scroll tick */
+   so the tumble follows gently rather than snapping with every scroll tick */
 let smoothProgress = 0;
 
 function animate(now) {
   const t = now * 0.00012;
-  smoothProgress += (scrollProgress - smoothProgress) * 0.035;
+  smoothProgress += (scrollProgress - smoothProgress) * 0.028;
   const s = smoothProgress;
 
-  /* main turtle: constant idle spin + a slow, gentle wandering drift while scrolling */
-  outer.rotation.y = s * Math.PI * 1.4 + t;
-  outer.rotation.x = Math.sin(s * Math.PI) * 0.14 + Math.sin(s * Math.PI * 1.4) * 0.16;
-  outer.rotation.z = Math.sin(s * Math.PI * 1.1) * 0.55;
-  outer.position.x = Math.sin(s * Math.PI * 1.1) * 8;
-  outer.position.y = Math.sin(s * Math.PI * 0.85) * 3.2 - s * 1.1;
+  /* main turtle: constant idle spin (untouched) + a straight vertical tumble tied to scroll —
+     scrolling down rotates it forward, scrolling up rotates it back the same way, no lateral drift */
+  outer.rotation.y = t;
+  outer.rotation.x = s * Math.PI * 1.15;
+  outer.rotation.z = 0;
+  outer.position.x = 0;
+  outer.position.y = 0;
 
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
@@ -259,6 +291,23 @@ if (featuresTurtlesEl) {
   }
   requestAnimationFrame(animateFeatureTurtles);
 }
+
+/* ---------- theme toggle: sun sets below the button, moon rises on the left (and vice versa) ---------- */
+const themeToggle = document.getElementById('theme-toggle');
+
+function syncThemeToggleLabel() {
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  themeToggle.setAttribute('aria-pressed', String(isLight));
+  themeToggle.setAttribute('aria-label', isLight ? 'Switch to dark theme' : 'Switch to light theme');
+}
+syncThemeToggleLabel();
+
+themeToggle.addEventListener('click', () => {
+  const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('steadily-theme', next);
+  syncThemeToggleLabel();
+});
 
 /* ---------- nav: scroll shadow + mobile toggle ---------- */
 const siteNav = document.getElementById('site-nav');
@@ -336,3 +385,90 @@ function updateColorLayer() {
 }
 window.addEventListener('scroll', updateColorLayer, { passive: true });
 updateColorLayer();
+
+/* ---------- 3D button/card icons: real Three.js meshes, one small canvas per icon ----------
+   Each canvas is a normal DOM child of its `.shape3d` span, so it scrolls with the page exactly
+   like any other element — no JS position-tracking, so no lag/inertia versus native scrolling.
+   Rendering is paused (not disposed) for icons currently off-screen, via IntersectionObserver. */
+const iconEls = Array.from(document.querySelectorAll('.shape3d[data-shape]'));
+if (iconEls.length && window.THREE) {
+  const SHAPE_GEOMETRY = {
+    cuboid: () => new THREE.BoxGeometry(1.15, 1.3, 1.15),
+    sphere: () => new THREE.SphereGeometry(0.78, 28, 20),
+    cylinder: () => new THREE.CylinderGeometry(0.62, 0.62, 1.3, 28),
+    cone: () => new THREE.ConeGeometry(0.78, 1.35, 28),
+    pyramid: () => new THREE.ConeGeometry(0.85, 1.3, 4),
+    prism: () => new THREE.CylinderGeometry(0.8, 0.8, 1.3, 3),
+    octahedron: () => new THREE.OctahedronGeometry(0.88),
+    torus: () => new THREE.TorusGeometry(0.6, 0.26, 16, 32)
+  };
+  const SHAPE_COLOR = {
+    cuboid: 0x4C8077,
+    sphere: 0x63BAAB,
+    cylinder: 0x4C8077,
+    cone: 0xC4601A,
+    pyramid: 0xDF974F,
+    prism: 0x63BAAB,
+    octahedron: 0xC4601A,
+    torus: 0x4C8077
+  };
+
+  const iconObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.target._iconRec) entry.target._iconRec.visible = entry.isIntersecting;
+    });
+  }, { threshold: 0.01 });
+
+  iconEls.forEach((el) => {
+    const shape = el.dataset.shape;
+    const canvas = document.createElement('canvas');
+    el.appendChild(canvas);
+
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 10);
+    camera.position.set(0, 0, 3.2);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+    const key = new THREE.DirectionalLight(0xffffff, 0.95);
+    key.position.set(2, 3, 4);
+    scene.add(key);
+    const rim = new THREE.DirectionalLight(0xffffff, 0.3);
+    rim.position.set(-3, -2, -2);
+    scene.add(rim);
+
+    const buildGeometry = SHAPE_GEOMETRY[shape] || SHAPE_GEOMETRY.cuboid;
+    const mesh = new THREE.Mesh(
+      buildGeometry(),
+      new THREE.MeshStandardMaterial({ color: SHAPE_COLOR[shape] || 0xCD8D50, roughness: 0.35, metalness: 0.25 })
+    );
+    if (shape === 'pyramid') mesh.rotation.y = Math.PI / 4;
+    scene.add(mesh);
+
+    function resize() {
+      const w = el.clientWidth, h = el.clientHeight;
+      if (!w || !h) return;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const rec = { visible: true, t: Math.random() * 10, spinSpeed: 0.006 + Math.random() * 0.004 };
+    el._iconRec = rec;
+    iconObserver.observe(el);
+
+    (function loop() {
+      if (rec.visible) {
+        rec.t += 0.012;
+        mesh.rotation.y += rec.spinSpeed;
+        mesh.rotation.x = Math.sin(rec.t) * 0.22 + 0.12;
+        renderer.render(scene, camera);
+      }
+      requestAnimationFrame(loop);
+    })();
+  });
+}
