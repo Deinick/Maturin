@@ -233,7 +233,7 @@ export default function AccountPage({ onLogout }: { onLogout: () => void }) {
                     <div className="flex items-center justify-between px-6 py-3.5">
                         <span className="text-sm text-[#54433A] flex items-center gap-3">
                             <RadioTower className="w-4 h-4 shrink-0" animateOnHover="default" />
-                            About Steadily
+                            About 𝙎𝙩𝙚𝙖𝙙𝙞𝙡𝙮
                         </span>
                         <span className="text-xs text-[#8A7265]">v1.0</span>
                     </div>

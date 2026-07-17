@@ -36,7 +36,7 @@ export default function LoginPage()
             <div className="w-full max-w-sm">
 
                 <div className="text-center mb-8">
-                    <p className="text-3xl font-bold text-[#2D1E1A] tracking-tight">Steadily</p>
+                    <p className="text-3xl font-bold text-[#2D1E1A] tracking-tight">𝙎𝙩𝙚𝙖𝙙𝙞𝙡𝙮</p>
                     <p className="text-sm text-[#8A7265] mt-1">Slow &amp; Consistent</p>
                 </div>
 
