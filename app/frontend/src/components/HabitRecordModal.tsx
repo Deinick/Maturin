@@ -113,9 +113,9 @@ const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct
 const DAY_LABELS   = ['M','T','W','T','F','S','S'];
 
 const DIFF_COLOR: Record<string, { background: string; color: string }> = {
-  easy:   { background: '#E8FAF7', color: '#4C8077' },
-  medium: { background: '#FFF5E9', color: '#C4601A' },
-  hard:   { background: '#FDECEA', color: '#C0392B' },
+  easy:   { background: 'var(--c-teal-xlight)',    color: 'var(--c-teal-bright)' },
+  medium: { background: 'var(--c-primary-xlight)', color: 'var(--c-primary)'     },
+  hard:   { background: 'var(--c-error-light)',    color: 'var(--c-error)'       },
 };
 
 interface TooltipState {
@@ -176,7 +176,7 @@ function HabitList({ habits, onSelect, onClose }: {
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    {streak > 0 && <span className="text-xs text-amber-500 font-medium">🔥 {streak}d</span>}
+                    {streak > 0 && <span className="text-xs badge-streak">🔥 {streak}d</span>}
                     <span className="text-[#BBA79C] group-hover:text-[#8A7265] transition-colors">→</span>
                   </div>
                 </button>
@@ -244,8 +244,8 @@ function HabitDetail({ habit, onBack, onClose }: {
     const d = new Date(date + 'T00:00:00');
     if (!activeDayNums.has(getISODayNum(d))) return 'var(--c-surface-high)';
     const status = logMap[date];
-    if (status === 'completed') return 'var(--c-teal)';
-    if (status === 'skipped')   return 'var(--c-primary-dim)';
+    if (status === 'completed') return 'var(--c-teal-strong)';
+    if (status === 'skipped')   return 'var(--c-warning)';
     return 'var(--c-border)';
   }
 
@@ -284,7 +284,7 @@ function HabitDetail({ habit, onBack, onClose }: {
 
       <div className="px-7 pt-6 pb-7 flex flex-col gap-6">
         <div className="grid grid-cols-3 gap-4">
-          <StatCard label="Current streak"      value={currentStreak  > 0 ? `🔥 ${currentStreak}d`  : '—'} />
+          <StatCard label="Current streak"      value={currentStreak  > 0 ? `🔥 ${currentStreak}d`  : '—'} accent={currentStreak > 0} />
           <StatCard label="Longest streak ever" value={longestStreak  > 0 ? `${longestStreak}d`       : '—'} />
           <StatCard label="Total completed"     value={`${totalCompleted} days`} />
         </div>
@@ -347,10 +347,10 @@ function HabitDetail({ habit, onBack, onClose }: {
               <div className="w-3 h-3 rounded-[2px]" style={{ background: 'var(--c-border)' }} />
               <span className="text-[10px] text-[#8A7265]">No entry</span>
               <div className="w-px h-3 mx-0.5" style={{ background: 'var(--c-border)' }} />
-              <div className="w-3 h-3 rounded-[2px]" style={{ background: 'var(--c-teal)' }} />
+              <div className="w-3 h-3 rounded-[2px]" style={{ background: 'var(--c-teal-strong)' }} />
               <span className="text-[10px] text-[#8A7265]">Completed</span>
               <div className="w-px h-3 mx-0.5" style={{ background: 'var(--c-border)' }} />
-              <div className="w-3 h-3 rounded-[2px]" style={{ background: 'var(--c-primary-dim)' }} />
+              <div className="w-3 h-3 rounded-[2px]" style={{ background: 'var(--c-warning)' }} />
               <span className="text-[10px] text-[#8A7265]">Skipped</span>
             </div>
           </div>
@@ -391,11 +391,11 @@ function HabitDetail({ habit, onBack, onClose }: {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
   return (
     <div className="bg-[#FFF5E9] rounded-xl p-4 border border-[#E0CFC4]">
       <p className="text-xs text-[#8A7265] mb-1.5 leading-tight">{label}</p>
-      <p className="text-sm font-semibold text-[#2D1E1A]">{value}</p>
+      <p className={`text-sm font-semibold ${accent ? '' : 'text-[#2D1E1A]'}`} style={accent ? { color: 'var(--c-warning)' } : undefined}>{value}</p>
     </div>
   );
 }

@@ -115,7 +115,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
                     {!collapsed && (
                         <span
                             className="text-xl tracking-tight select-none"
-                            style={{ color: 'rgba(245,237,229,0.85)' }}
+                            style={{ color: 'var(--c-sidebar-brand)' }}
                         >
                             𝙎𝙩𝙚𝙖𝙙𝙞𝙡𝙮
                         </span>
@@ -157,7 +157,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
                 </nav>
 
                 {/* User profile */}
-                <div className="px-2 py-4 sidebar-bottom-border" style={{ borderTop: '1px solid rgba(245,237,229,0.12)' }}>
+                <div className="px-2 py-4 sidebar-bottom-border">
                     <NavLink
                         to="/account"
                         title={collapsed ? (user?.name ?? 'Account') : undefined}
@@ -168,7 +168,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
                         }
                     >
                         <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
-                            style={{ background: 'rgba(245,237,229,0.15)', border: '1px solid rgba(245,237,229,0.2)', color: '#F5EDE5' }}>
+                            style={{ background: 'var(--c-sidebar-avatar-bg)', border: '1px solid var(--c-sidebar-avatar-border)', color: 'var(--c-sidebar-avatar-text)' }}>
                             {user?.name?.[0]?.toUpperCase() ?? '?'}
                         </div>
                         {!collapsed && (

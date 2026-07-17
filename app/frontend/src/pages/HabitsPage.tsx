@@ -22,7 +22,7 @@ const DIFFICULTY_OPTIONS = [
 ] as const;
 
 const DIFF_BADGE: Record<string, { background: string; color: string }> = {
-  easy:   { background: 'var(--c-teal-xlight)',    color: 'var(--c-teal)'    },
+  easy:   { background: 'var(--c-teal-xlight)',    color: 'var(--c-teal-bright)' },
   medium: { background: 'var(--c-primary-xlight)', color: 'var(--c-primary)' },
   hard:   { background: 'var(--c-error-light)',    color: 'var(--c-error)'   },
 };
@@ -125,7 +125,7 @@ function heatmapBg(pct: number, isFuture: boolean): string {
   if (pct === 0)  return 'var(--c-surface-mid)';
   if (pct < 40)  return 'var(--c-teal-light)';
   if (pct < 70)  return 'var(--c-teal-bright)';
-  return 'var(--c-teal)';
+  return 'var(--c-teal-strong)';
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -309,7 +309,7 @@ export default function HabitsPage() {
                       onClick={() => handleCircleClick(habit, TODAY)}
                       className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${loading ? 'opacity-60' : ''}`}
                       style={todayDone
-                        ? { background: 'var(--c-teal)', borderColor: 'var(--c-teal)' }
+                        ? { background: 'var(--c-teal-strong)', borderColor: 'var(--c-teal-strong)' }
                         : !isDayActive(habit, TODAY)
                         ? { borderColor: 'var(--c-border)', background: 'var(--c-surface-mid)', cursor: 'not-allowed' }
                         : { borderColor: 'var(--c-border)', cursor: 'pointer' }}
@@ -328,7 +328,7 @@ export default function HabitsPage() {
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">
                         {streak > 0
-                          ? <span className="text-xs text-amber-500">🔥 {streak}d streak</span>
+                          ? <span className="text-xs badge-streak">🔥 {streak}d streak</span>
                           : <span className="text-xs text-[#BBA79C]">No streak</span>}
                         <span className="text-[10px] px-1.5 py-0.5 rounded font-medium capitalize"
                           style={DIFF_BADGE[habit.difficulty] ?? { background: 'var(--c-surface-mid)', color: 'var(--c-text-muted)' } as React.CSSProperties}>
@@ -353,8 +353,8 @@ export default function HabitsPage() {
                         let barColor = 'var(--c-border)';
                         if (!active) barColor = 'var(--c-border)';
                         else if (isFuture) barColor = 'var(--c-surface-mid)';
-                        else if (completed) barColor = 'var(--c-teal)';
-                        else if (skipped) barColor = 'var(--c-primary-dim)';
+                        else if (completed) barColor = 'var(--c-teal-strong)';
+                        else if (skipped) barColor = 'var(--c-warning)';
                         else if (!isFuture) barColor = 'var(--c-border)';
 
                         return (
@@ -363,7 +363,7 @@ export default function HabitsPage() {
                             style={{
                               height: active ? (completed ? '16px' : '10px') : '6px',
                               background: barColor,
-                              ...(isToday ? { outline: '1px solid #C4601A', outlineOffset: '1px' } : {}),
+                              ...(isToday ? { outline: '1px solid var(--c-primary)', outlineOffset: '1px' } : {}),
                             }}
                             title={day}
                           />
@@ -447,8 +447,8 @@ export default function HabitsPage() {
                       className="aspect-square rounded-sm"
                       style={{
                         background: heatmapBg(pct, isFuture),
-                        ...(isToday ? { outline: '2px solid #C4601A', outlineOffset: '1px' } : {}),
-                        ...(isFuture ? { border: '1px dashed #E0CFC4', background: 'transparent' } : {}),
+                        ...(isToday ? { outline: '2px solid var(--c-primary)', outlineOffset: '1px' } : {}),
+                        ...(isFuture ? { border: '1px dashed var(--c-border-subtle)', background: 'transparent' } : {}),
                       }}
                     />
                   );
@@ -461,7 +461,7 @@ export default function HabitsPage() {
                 <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--c-surface-mid)' }} />
                 <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--c-teal-light)' }} />
                 <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--c-teal-bright)' }} />
-                <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--c-teal)' }} />
+                <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--c-teal-strong)' }} />
                 <span className="text-[9px] text-[#8A7265]">More</span>
               </div>
             </div>

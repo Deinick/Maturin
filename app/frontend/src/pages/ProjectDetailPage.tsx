@@ -1611,9 +1611,9 @@ function OverviewPhaseCanvas({ phases, today, preview = false, projectId = '', o
       onNodeClick={onPhaseClick ? (_, node) => onPhaseClick(node.data as ONodeData) : undefined}
       onEdgeClick={onEdgeClick ? (_, edge) => onEdgeClick(edge.source, edge.target) : undefined}
     >
-      <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#f1f5f9" />
+      <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--c-border)" />
       {!preview && (
-        <Controls showInteractive={false} style={{ boxShadow: 'none', border: '1px solid #e2e8f0', borderRadius: 8 }} />
+        <Controls showInteractive={false} style={{ boxShadow: 'none', border: '1px solid var(--c-border-subtle)', borderRadius: 8 }} />
       )}
     </ReactFlow>
   );

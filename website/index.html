@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Steadily — the autonomous productivity planner</title>
+<meta name="description" content="Steadily plans your day, tracks your habits, and keeps your streak honest — even when life doesn't cooperate. Open the web app or grab the desktop app.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23232628'/%3E%3Ccircle cx='50' cy='50' r='24' fill='%23CD8D50'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="color-layer" aria-hidden="true"></div>
+
+<nav id="site-nav">
+  <div class="nav-inner">
+    <a href="#top" class="nav-brand wordmark wordmark-sm" aria-label="Steadily">
+      <span class="nav-brand-dot" aria-hidden="true"></span>
+      <span>S</span><span>t</span><span>e</span><span>a</span><span>d</span><span>i</span><span>l</span><span>y</span>
+    </a>
+    <button id="nav-toggle" class="nav-toggle" aria-label="Toggle menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <div id="nav-links" class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#download">Download</a>
+      <a href="#faq">FAQ</a>
+      <a href="#support">Support</a>
+      <a href="https://steadily-mocha.vercel.app" target="_blank" rel="noopener" class="nav-cta lens">
+        <span class="shape3d shape-cuboid" aria-hidden="true"></span>
+        Open App
+      </a>
+    </div>
+  </div>
+</nav>
+
+<section class="pin-wrap" id="top">
+  <div class="pin">
+
+    <div class="hero-copy">
+      <p class="hero-eyebrow">Autonomous productivity planner</p>
+      <h1 class="wordmark wordmark-lg" aria-label="Steadily">
+        <span>S</span><span>t</span><span>e</span><span>a</span><span>d</span><span>i</span><span>l</span><span>y</span>
+      </h1>
+      <p class="hero-sub">Plans that adapt around your real life, habits that build honest streaks, and big projects broken into phases you can actually finish.</p>
+      <div class="hero-cta-row">
+        <a href="https://steadily-mocha.vercel.app" target="_blank" rel="noopener" class="btn btn-primary lens">
+          <span class="shape3d shape-cube" aria-hidden="true"></span>
+          Open App
+        </a>
+        <a href="#features" class="btn btn-ghost lens">
+          <span class="shape3d shape-prism" aria-hidden="true"></span>
+          See features
+        </a>
+      </div>
+    </div>
+
+    <div id="intro-stage">
+      <div class="logo-frame">
+        <svg id="outline-svg" viewBox="1162 509 700 700"></svg>
+        <div id="filled-container"></div>
+      </div>
+    </div>
+
+    <div id="webgl-align"><div id="webgl-wrap"></div></div>
+
+    <div class="hint" id="hint">Scroll to rotate</div>
+
+  </div>
+</section>
+
+<section class="content-section" id="features">
+  <div id="features-turtles" aria-hidden="true"></div>
+  <div class="section-inner">
+    <p class="section-eyebrow" data-reveal>Features</p>
+    <h2 data-reveal>Built to keep you steady</h2>
+    <p class="section-lead" data-reveal>No perfect-week pressure. Steadily adapts to what actually happened and helps you show up again tomorrow.</p>
+
+    <div class="feature-grid">
+      <div class="feature-card lens" data-reveal>
+        <span class="feature-icon" aria-hidden="true"><span class="shape3d shape-sphere"></span></span>
+        <h3>Adaptive daily planning</h3>
+        <p>Miss a task and Steadily reshuffles your plan around it, instead of guilting you into a backlog.</p>
+      </div>
+      <div class="feature-card lens" data-reveal>
+        <span class="feature-icon" aria-hidden="true"><span class="shape3d shape-cone"></span></span>
+        <h3>Habits &amp; honest streaks</h3>
+        <p>Streaks that reflect effort, not just perfect attendance — so one bad day doesn't erase your progress.</p>
+      </div>
+      <div class="feature-card lens" data-reveal>
+        <span class="feature-icon" aria-hidden="true"><span class="shape3d shape-pyramid"></span></span>
+        <h3>Project phases</h3>
+        <p>Break big, vague goals into phases with a clear canvas view — no more one giant unmoving to-do list.</p>
+      </div>
+      <div class="feature-card lens" data-reveal>
+        <span class="feature-icon" aria-hidden="true"><span class="shape3d shape-cylinder"></span></span>
+        <h3>Insights that matter</h3>
+        <p>See the patterns behind your habits and projects over weeks and months, not just today's checklist.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="content-section alt" id="download">
+  <div class="section-inner">
+    <p class="section-eyebrow" data-reveal>Desktop app</p>
+    <h2 data-reveal>Steadily, right on your desktop</h2>
+    <p class="section-lead" data-reveal>A native installable app is on the way, so you can plan without a browser tab. Until then, the full web app is ready right now.</p>
+
+    <div class="download-row">
+      <div class="download-card lens" data-reveal>
+        <span class="download-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><rect x="2" y="4" width="9" height="9"/><rect x="13" y="4" width="9" height="9"/><rect x="2" y="15" width="9" height="5"/><rect x="13" y="15" width="9" height="5"/></svg>
+        </span>
+        <h3>Windows</h3>
+        <span class="badge-soon">Coming soon</span>
+      </div>
+      <div class="download-card lens" data-reveal>
+        <span class="download-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M17.5 12.5c0-2.1 1.7-3.2 1.8-3.3-1-1.4-2.5-1.6-3-1.6-1.3-.1-2.5.7-3.1.7-.6 0-1.6-.7-2.7-.7-1.4 0-2.7.8-3.4 2-1.5 2.5-.4 6.2 1.1 8.2.7 1 1.5 2.1 2.6 2 1-.1 1.4-.6 2.7-.6s1.6.6 2.7.6c1.1 0 1.9-1 2.6-2 .6-.9.9-1.7 1.1-2.2-2.8-1-3.4-4.1-1.4-4.1z"/><path d="M14.8 5.3c.6-.7 1-1.7.9-2.7-.9.1-1.9.6-2.5 1.3-.6.6-1.1 1.6-.9 2.6 1 .1 1.9-.5 2.5-1.2z"/></svg>
+        </span>
+        <h3>macOS</h3>
+        <span class="badge-soon">Coming soon</span>
+      </div>
+      <div class="download-card lens" data-reveal>
+        <span class="download-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4"/><path d="M8 13c-2 3-2 5-1 7h10c1-2 1-4-1-7"/></svg>
+        </span>
+        <h3>Linux</h3>
+        <span class="badge-soon">Coming soon</span>
+      </div>
+    </div>
+
+    <a href="https://steadily-mocha.vercel.app" target="_blank" rel="noopener" class="btn btn-primary download-cta lens" data-reveal>
+      <span class="shape3d shape-cylinder" aria-hidden="true"></span>
+      Use the web app now
+    </a>
+  </div>
+</section>
+
+<section class="content-section" id="faq">
+  <div class="section-inner">
+    <p class="section-eyebrow" data-reveal>FAQ</p>
+    <h2 data-reveal>Questions, answered</h2>
+
+    <div class="faq-list">
+      <div class="faq-item" data-reveal>
+        <button class="faq-question" aria-expanded="false">
+          What is Steadily?
+          <span class="faq-icon" aria-hidden="true"></span>
+        </button>
+        <div class="faq-answer"><p>Steadily is an autonomous productivity planner. It plans your day, tracks your habits and streaks, and organizes bigger goals into projects with phases — and it adjusts automatically when your day doesn't go as planned.</p></div>
+      </div>
+      <div class="faq-item" data-reveal>
+        <button class="faq-question" aria-expanded="false">
+          Is Steadily free to use?
+          <span class="faq-icon" aria-hidden="true"></span>
+        </button>
+        <div class="faq-answer"><p>Yes — the web app is free to use right now. If that changes for any future features, existing core planning and habit tracking will stay free.</p></div>
+      </div>
+      <div class="faq-item" data-reveal>
+        <button class="faq-question" aria-expanded="false">
+          Is there a desktop app?
+          <span class="faq-icon" aria-hidden="true"></span>
+        </button>
+        <div class="faq-answer"><p>An installable desktop app is in progress — see the <a href="#download">Download</a> section. Until it ships, the web app works fully in your browser and can be installed as a PWA on most systems.</p></div>
+      </div>
+      <div class="faq-item" data-reveal>
+        <button class="faq-question" aria-expanded="false">
+          If I miss a day, do I lose my streak?
+          <span class="faq-icon" aria-hidden="true"></span>
+        </button>
+        <div class="faq-answer"><p>Not automatically. Steadily is built around consistency, not perfection — streak logic accounts for real-life gaps instead of resetting on the first missed day.</p></div>
+      </div>
+      <div class="faq-item" data-reveal>
+        <button class="faq-question" aria-expanded="false">
+          Can I use Steadily for shared or team projects?
+          <span class="faq-icon" aria-hidden="true"></span>
+        </button>
+        <div class="faq-answer"><p>Today, Steadily is focused on individual planning. Shared projects are on the roadmap — <a href="#support">let us know</a> if that's something you'd use.</p></div>
+      </div>
+      <div class="faq-item" data-reveal>
+        <button class="faq-question" aria-expanded="false">
+          Is my data private?
+          <span class="faq-icon" aria-hidden="true"></span>
+        </button>
+        <div class="faq-answer"><p>Your data is stored under your account and isn't shared with third parties. You can permanently delete your account and all associated data at any time from the app.</p></div>
+      </div>
+      <div class="faq-item" data-reveal>
+        <button class="faq-question" aria-expanded="false">
+          How do I report a bug or request a feature?
+          <span class="faq-icon" aria-hidden="true"></span>
+        </button>
+        <div class="faq-answer"><p>Use the <a href="#support">Support</a> section below — both go straight to the person building Steadily.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="content-section alt" id="support">
+  <div class="section-inner">
+    <p class="section-eyebrow" data-reveal>Support</p>
+    <h2 data-reveal>We're here if you get stuck</h2>
+    <p class="section-lead" data-reveal>Steadily is actively developed — feedback and bug reports go directly to the person building it.</p>
+
+    <div class="support-grid">
+      <a class="support-card lens" data-reveal href="mailto:nikolaydeinego@gmail.com?subject=Steadily%20feedback">
+        <span class="feature-icon" aria-hidden="true"><span class="shape3d shape-cube"></span></span>
+        <h3>Send feedback</h3>
+        <p>Ideas, requests, or things that feel off — all welcome.</p>
+        <span class="support-link">nikolaydeinego@gmail.com →</span>
+      </a>
+      <a class="support-card lens" data-reveal href="mailto:nikolaydeinego@gmail.com?subject=Steadily%20bug%20report">
+        <span class="feature-icon" aria-hidden="true"><span class="shape3d shape-prism"></span></span>
+        <h3>Report a bug</h3>
+        <p>Something broken? Include what you were doing and it'll get looked at.</p>
+        <span class="support-link">nikolaydeinego@gmail.com →</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer id="site-footer">
+  <div class="section-inner footer-inner">
+    <div>
+      <a href="#top" class="nav-brand wordmark wordmark-sm" aria-label="Steadily">
+        <span class="nav-brand-dot" aria-hidden="true"></span>
+        <span>S</span><span>t</span><span>e</span><span>a</span><span>d</span><span>i</span><span>l</span><span>y</span>
+      </a>
+      <p class="footer-tagline">The autonomous productivity planner.</p>
+    </div>
+    <div class="footer-links">
+      <a href="#features">Features</a>
+      <a href="#download">Download</a>
+      <a href="#faq">FAQ</a>
+      <a href="#support">Support</a>
+      <a href="https://steadily-mocha.vercel.app" target="_blank" rel="noopener">Open App</a>
+    </div>
+  </div>
+  <p class="footer-fine">© 2026 Steadily. All rights reserved.</p>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/SVGLoader.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

@@ -871,8 +871,8 @@ export default function EditProjectPage() {
         <section
           className="flex-1 flex items-center justify-center relative overflow-hidden"
           style={{
-            background: '#f8fafc',
-            backgroundImage: 'radial-gradient(#e2e8f0 1px, transparent 1px)',
+            background: 'var(--c-surface-low)',
+            backgroundImage: 'radial-gradient(var(--c-border-subtle) 1px, transparent 1px)',
             backgroundSize: '24px 24px',
           }}
         >
@@ -1097,8 +1097,8 @@ export default function EditProjectPage() {
             maxZoom={2}
             proOptions={{ hideAttribution: true }}
           >
-            <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#C7D2DA" />
-            <Controls showInteractive={false} style={{ boxShadow: 'none', border: '1px solid #e2e8f0', borderRadius: 8 }} />
+            <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--c-border)" />
+            <Controls showInteractive={false} style={{ boxShadow: 'none', border: '1px solid var(--c-border-subtle)', borderRadius: 8 }} />
           </ReactFlow>
 
           {nodes.length === 0 && (
