@@ -106,6 +106,17 @@ export async function deleteProject(req: Request, res: Response, next: NextFunct
     } catch (err) { next(err); }
 }
 
+export async function removeMember(req: Request, res: Response, next: NextFunction): Promise<void>
+{
+    try {
+        const userId    = (req as AuthRequest).userId;
+        const projectId = req.params['id'] as string;
+        const memberId  = req.params['memberId'] as string;
+        await projectService.removeMember(projectId, memberId, userId);
+        res.status(204).send();
+    } catch (err) { next(err); }
+}
+
 export async function deletePhase(req: Request, res: Response, next: NextFunction): Promise<void>
 {
     try {

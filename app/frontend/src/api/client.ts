@@ -195,6 +195,9 @@ export const deleteMilestone = (id: string) =>
 export const setMemberPermission = (projectId: string, memberId: string, canApprove: boolean) =>
     api.patch(`/projects/${projectId}/members/${memberId}/permissions`, { canApprove }).then(r => r.data);
 
+export const removeMember = (projectId: string, memberId: string) =>
+    api.delete(`/projects/${projectId}/members/${memberId}`).then(r => r.data);
+
 export const getProjectPerformance = (projectId: string) =>
     api.get<MemberPerformance[]>(`/projects/${projectId}/performance`).then(r => r.data);
 

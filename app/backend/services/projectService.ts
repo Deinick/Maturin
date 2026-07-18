@@ -3,8 +3,8 @@ import prisma from '../lib/prisma';
 export class PermissionError extends Error
 {
     readonly status = 403;
-    constructor() {
-        super('Insufficient permissions');
+    constructor(message = 'Insufficient permissions') {
+        super(message);
         this.name = 'PermissionError';
     }
 }
@@ -363,6 +363,19 @@ export async function setMemberPermission(
         where: { projectId_userId: { projectId, userId: targetUserId } },
         data: { canApprove },
         include: { user: { select: { id: true, name: true, email: true } } },
+    });
+}
+
+export async function removeMember(projectId: string, targetUserId: string, requesterId: string) {
+    await requireRole(projectId, requesterId, 'owner');
+    const member = await prisma.projectMember.findUnique({
+        where: { projectId_userId: { projectId, userId: targetUserId } },
+    });
+    if (!member) throw new PermissionError('Member not found');
+    if (targetUserId === requesterId) throw new PermissionError("You can't remove yourself from the project");
+    if (member.role === 'owner') throw new PermissionError("The project owner can't be removed");
+    return prisma.projectMember.delete({
+        where: { projectId_userId: { projectId, userId: targetUserId } },
     });
 }
 

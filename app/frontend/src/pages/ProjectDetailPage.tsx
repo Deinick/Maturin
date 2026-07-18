@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback, memo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'motion/react';
 import type { Project, Milestone, Phase, ProjectMember, PendingChange, MemberPerformance } from '../types';
 import {
   getProjects, updateMilestone, getProjectInsights,
-  getPendingChanges, setMemberPermission, getProjectPerformance,
+  getPendingChanges, setMemberPermission, removeMember, getProjectPerformance,
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import InviteModal         from '../components/InviteModal';
@@ -31,6 +32,7 @@ import { Expand } from '@/components/animate-ui/icons/expand';
 import { Check } from '@/components/animate-ui/icons/check';
 import { Lock } from '@/components/animate-ui/icons/lock';
 import { ChevronRight } from '@/components/animate-ui/icons/chevron-right';
+import { Trash2 } from '@/components/animate-ui/icons/trash-2';
 
 type Tab = 'overview' | 'team';
 
@@ -194,11 +196,33 @@ export default function ProjectDetailPage() {
   const [phaseDetail,      setPhaseDetail]     = useState<ONodeData | null>(null);
   const [phaseDetailCache, setPhaseDetailCache]= useState<ONodeData | null>(null);
   const [tracePathChain,   setTracePathChain]  = useState<Phase[] | null>(null);
+  const [removeTarget,      setRemoveTarget]      = useState<ProjectMember | null>(null);
+  const [removeTargetCache, setRemoveTargetCache] = useState<ProjectMember | null>(null);
+  const [removing,          setRemoving]          = useState(false);
+  const [removeError,       setRemoveError]        = useState<string | null>(null);
 
   // Same rationale as milestoneCache: keep the last-selected phase's data around
   // while the modal fades out, so the exit animation isn't reading fields off null.
   useEffect(() => { if (phaseDetail) setPhaseDetailCache(phaseDetail); }, [phaseDetail]);
+  useEffect(() => { if (removeTarget) setRemoveTargetCache(removeTarget); }, [removeTarget]);
 
+  async function handleConfirmRemove() {
+    if (!project || !removeTarget) return;
+    setRemoving(true);
+    setRemoveError(null);
+    try {
+      await removeMember(project.id, removeTarget.userId);
+      await queryClient.invalidateQueries({ queryKey: ['projects'] });
+      const all = await getProjects();
+      const fresh = all.find(p => p.id === project.id);
+      if (fresh) setProject(fresh);
+      setRemoveTarget(null);
+    } catch (err: any) {
+      setRemoveError(err?.response?.data?.error ?? 'Failed to remove member — please try again');
+    } finally {
+      setRemoving(false);
+    }
+  }
 
   const myMemberData = project?.members?.find(m => m.user.id === user?.id);
   const myRole       = myMemberData?.role ?? 'viewer';
@@ -786,6 +810,7 @@ export default function ProjectDetailPage() {
             const fresh = all.find(p => p.id === project.id);
             if (fresh) setProject(fresh);
           }}
+          onRequestRemove={m => { setRemoveError(null); setRemoveTarget(m); }}
         />
       )}
 
@@ -1008,6 +1033,40 @@ export default function ProjectDetailPage() {
             </div>
           </>
           )}
+      </Modal>
+
+      {/* ── Remove member confirmation ──────────────────────────── */}
+      <Modal
+        open={!!removeTarget}
+        backdropClassName="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+        onBackdropClick={() => { if (!removing) setRemoveTarget(null); }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"
+      >
+        {removeTargetCache && (
+          <>
+            <h2 className="text-lg font-bold text-[#2D1E1A] mb-2">Remove {removeTargetCache.user.name}?</h2>
+            <p className="text-sm text-[#54433A] mb-5">
+              They'll lose access to this project immediately. You can invite them again later if needed.
+            </p>
+            {removeError && <p className="text-xs text-[#ba1a1a] mb-3">{removeError}</p>}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setRemoveTarget(null)}
+                disabled={removing}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-[#3A2A22] bg-[#F0E9E0] border border-[#E0CFC4] hover:bg-[#E0CFC4] transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmRemove}
+                disabled={removing}
+                className="flex-1 py-2.5 rounded-xl text-sm text-white bg-[#ba1a1a] hover:bg-[#8c1414] transition-colors font-semibold disabled:opacity-40"
+              >
+                {removing ? 'Removing…' : 'Remove member'}
+              </button>
+            </div>
+          </>
+        )}
       </Modal>
 
       {/* ── Trace path modal ───────────────────────────────────── */}
@@ -1696,7 +1755,7 @@ function scoreColor(score: number) {
   return               { ring: 'text-[#ba1a1a]',        bg: 'bg-[#ffdad6] text-[#93000a] border-[#ffdad6]'           };
 }
 
-function MembersSection({ members, currentUserId, isOwner, canAssign, performance, onInvite, onToggleCanApprove }: {
+function MembersSection({ members, currentUserId, isOwner, canAssign, performance, onInvite, onToggleCanApprove, onRequestRemove }: {
   members: ProjectMember[];
   currentUserId: string;
   isOwner: boolean;
@@ -1704,6 +1763,7 @@ function MembersSection({ members, currentUserId, isOwner, canAssign, performanc
   performance: MemberPerformance[] | null;
   onInvite: () => void;
   onToggleCanApprove: (memberId: string, val: boolean) => void;
+  onRequestRemove: (member: ProjectMember) => void;
 }) {
   const myMember = members.find(m => m.user.id === currentUserId);
 
@@ -1732,40 +1792,59 @@ function MembersSection({ members, currentUserId, isOwner, canAssign, performanc
           )}
         </div>
         <ul className="divide-y divide-[#e4e2e2]">
-          {members.map(m => (
-            <li key={m.id} className="flex items-center justify-between px-5 py-3.5">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold text-white shrink-0 ${memberColor(m.user.name)}`}>
-                  {m.user.name[0]?.toUpperCase()}
+          <AnimatePresence initial={false}>
+            {members.map(m => (
+              <motion.li
+                key={m.id}
+                layout
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, height: 0, paddingTop: 0, paddingBottom: 0 }}
+                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                className="flex items-center justify-between px-5 py-3.5 overflow-hidden"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold text-white shrink-0 ${memberColor(m.user.name)}`}>
+                    {m.user.name[0]?.toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-[#2D1E1A] truncate">
+                      {m.user.name}
+                      {m.user.id === currentUserId && <span className="text-[#8A7265] font-normal"> (you)</span>}
+                    </p>
+                    <p className="text-xs text-[#8A7265] truncate">{m.user.email}</p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-[#2D1E1A] truncate">
-                    {m.user.name}
-                    {m.user.id === currentUserId && <span className="text-[#8A7265] font-normal"> (you)</span>}
-                  </p>
-                  <p className="text-xs text-[#8A7265] truncate">{m.user.email}</p>
+                <div className="flex items-center gap-2 shrink-0 ml-3">
+                  {isOwner && m.role === 'contributor' && m.user.id !== currentUserId && (
+                    <button
+                      onClick={() => onToggleCanApprove(m.userId, !m.canApprove)}
+                      title={m.canApprove ? 'Revoke approval permission' : 'Grant approval permission'}
+                      className={`text-xs px-2 py-1 rounded-lg border transition-colors ${
+                        m.canApprove
+                          ? 'bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100'
+                          : 'bg-[#FFF5E9] text-[#8A7265] border-[#E0CFC4] hover:border-violet-300 hover:text-violet-500'
+                      }`}
+                    >
+                      {m.canApprove ? '✓ can approve' : 'can approve?'}
+                    </button>
+                  )}
+                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full border capitalize ${ROLE_COLORS[m.role] ?? ROLE_COLORS.viewer}`}>
+                    {m.role}
+                  </span>
+                  {isOwner && m.role !== 'owner' && m.user.id !== currentUserId && (
+                    <button
+                      onClick={() => onRequestRemove(m)}
+                      title="Remove from project"
+                      className="w-7 h-7 flex items-center justify-center rounded-lg text-[#8A7265] hover:text-[#ba1a1a] hover:bg-[#ffdad6] transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" animateOnHover="default" />
+                    </button>
+                  )}
                 </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0 ml-3">
-                {isOwner && m.role === 'contributor' && m.user.id !== currentUserId && (
-                  <button
-                    onClick={() => onToggleCanApprove(m.userId, !m.canApprove)}
-                    title={m.canApprove ? 'Revoke approval permission' : 'Grant approval permission'}
-                    className={`text-xs px-2 py-1 rounded-lg border transition-colors ${
-                      m.canApprove
-                        ? 'bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100'
-                        : 'bg-[#FFF5E9] text-[#8A7265] border-[#E0CFC4] hover:border-violet-300 hover:text-violet-500'
-                    }`}
-                  >
-                    {m.canApprove ? '✓ can approve' : 'can approve?'}
-                  </button>
-                )}
-                <span className={`text-xs font-medium px-2.5 py-1 rounded-full border capitalize ${ROLE_COLORS[m.role] ?? ROLE_COLORS.viewer}`}>
-                  {m.role}
-                </span>
-              </div>
-            </li>
-          ))}
+              </motion.li>
+            ))}
+          </AnimatePresence>
         </ul>
       </div>
 
