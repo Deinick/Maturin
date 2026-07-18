@@ -8,7 +8,7 @@ interface Settings {
     weekStart: WeekStart;
 }
 
-const DEFAULTS: Settings = { theme: 'light', weekStart: 'monday' };
+const DEFAULTS: Settings = { theme: 'system', weekStart: 'monday' };
 const KEY = 'steadily_settings';
 
 function load(): Settings {
