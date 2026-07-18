@@ -17,6 +17,13 @@
 <link rel="stylesheet" href="styles.css">
 <script>
 (function(){
+  /* the intro (.pin) is position:sticky — if the browser restores a mid-page
+     scroll position on reload, sticky content is already scrolled before any
+     JS runs, so the turtle draw-in gets skipped. Force top + take manual
+     control of scroll restoration so every load/reload always starts there. */
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  window.scrollTo(0, 0);
+
   var stored = localStorage.getItem('steadily-theme');
   var theme = stored || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
   document.documentElement.setAttribute('data-theme', theme);
