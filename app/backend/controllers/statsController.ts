@@ -34,6 +34,6 @@ export async function exportData(req: Request, res: Response): Promise<void>
 {
     const userId = (req as AuthRequest).userId;
     const data   = await statsService.exportUserData(userId);
-    res.setHeader('Content-Disposition', 'attachment; filename="steadily-export.json"');
+    res.setHeader('Content-Disposition', 'attachment; filename="chelone-export.json"');
     res.json(data);
 }

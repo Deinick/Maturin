@@ -45,7 +45,7 @@ async function issueConfirmCode(userId: string, email: string, name: string)
         },
     });
 
-    await sendEmail('confirm-registration', { to: email, subject: `${code} is your Steadily confirmation code`, html: confirmCodeEmailHtml({ name, code }) });
+    await sendEmail('confirm-registration', { to: email, subject: `${code} is your Chelone confirmation code`, html: confirmCodeEmailHtml({ name, code }) });
 }
 
 export async function confirmRegistration(email: string, code: string)
@@ -69,7 +69,7 @@ export async function confirmRegistration(email: string, code: string)
         prisma.emailVerificationToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
     ]);
 
-    await sendEmail('welcome', { to: updatedUser.email, subject: 'Welcome to Steadily', html: welcomeEmailHtml({ name: updatedUser.name }) });
+    await sendEmail('welcome', { to: updatedUser.email, subject: 'Welcome to Chelone', html: welcomeEmailHtml({ name: updatedUser.name }) });
 
     const token = jwt.sign({ userId: updatedUser.id }, SECRET, { expiresIn: '30d' });
     return { token, user: updatedUser };
@@ -148,7 +148,7 @@ export async function changePassword(userId: string, currentPassword: string, ne
     const passwordHash = await bcrypt.hash(newPassword, 12);
     await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
 
-    await sendEmail('password-changed', { to: user.email, subject: 'Your Steadily password was changed', html: passwordChangedEmailHtml({ name: user.name }) });
+    await sendEmail('password-changed', { to: user.email, subject: 'Your Chelone password was changed', html: passwordChangedEmailHtml({ name: user.name }) });
 }
 
 export async function deleteAccount(userId: string, password: string)
@@ -160,7 +160,7 @@ export async function deleteAccount(userId: string, password: string)
     if (!valid) throw new Error('INVALID_CREDENTIALS');
 
     // Send before deleting — nothing to notify afterwards once the row is gone.
-    await sendEmail('account-deleted', { to: user.email, subject: 'Your Steadily account has been deleted', html: accountDeletedEmailHtml({ name: user.name }) });
+    await sendEmail('account-deleted', { to: user.email, subject: 'Your Chelone account has been deleted', html: accountDeletedEmailHtml({ name: user.name }) });
 
     // All owned records (tasks, habits, projects, memberships, invites, etc.)
     // cascade via onDelete: Cascade on the User relations in schema.prisma.
@@ -184,7 +184,7 @@ export async function requestPasswordReset(email: string)
     });
 
     const resetUrl = `${FRONTEND_URL}/reset-password/${token}`;
-    await sendEmail('reset-password', { to: user.email, subject: 'Reset your Steadily password', html: resetPasswordEmailHtml({ name: user.name, resetUrl }) });
+    await sendEmail('reset-password', { to: user.email, subject: 'Reset your Chelone password', html: resetPasswordEmailHtml({ name: user.name, resetUrl }) });
 }
 
 export async function resetPassword(token: string, newPassword: string)
@@ -198,7 +198,7 @@ export async function resetPassword(token: string, newPassword: string)
         prisma.passwordResetToken.update({ where: { token }, data: { usedAt: new Date() } }),
     ]);
 
-    await sendEmail('password-changed', { to: user.email, subject: 'Your Steadily password was changed', html: passwordChangedEmailHtml({ name: user.name }) });
+    await sendEmail('password-changed', { to: user.email, subject: 'Your Chelone password was changed', html: passwordChangedEmailHtml({ name: user.name }) });
 }
 
 // ── Email verification ──────────────────────────────────────────────────────
@@ -216,7 +216,7 @@ export async function sendVerificationEmail(userId: string)
     });
 
     const verifyUrl = `${FRONTEND_URL}/verify-email/${token}`;
-    await sendEmail('verify-email', { to: user.email, subject: 'Verify your Steadily email', html: verifyEmailHtml({ name: user.name, verifyUrl }) });
+    await sendEmail('verify-email', { to: user.email, subject: 'Verify your Chelone email', html: verifyEmailHtml({ name: user.name, verifyUrl }) });
 }
 
 export async function verifyEmail(token: string)
@@ -237,7 +237,7 @@ function resetPasswordEmailHtml({ name, resetUrl }: { name: string; resetUrl: st
     return emailShell(`
       <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 6px;">Hi ${name},</p>
       <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 20px;">
-        We received a request to reset your Steadily password. This link expires in 1 hour.
+        We received a request to reset your Chelone password. This link expires in 1 hour.
       </p>
       <a href="${resetUrl}"
         style="display:inline-block;background:#C4601A;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-size:14px;font-weight:600;">
@@ -255,13 +255,13 @@ function confirmCodeEmailHtml({ name, code }: { name: string; code: string })
     return emailShell(`
       <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 6px;">Hi ${name},</p>
       <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 20px;">
-        Enter this code to confirm your email and finish creating your Steadily account. It expires in 15 minutes.
+        Enter this code to confirm your email and finish creating your Chelone account. It expires in 15 minutes.
       </p>
       <div style="text-align:center;margin:0 0 20px;">
         ${digits.map(d => `<span style="display:inline-block;width:38px;height:46px;line-height:46px;margin:0 4px;background:#FFF5E9;border:1px solid #E0CFC4;border-radius:10px;font-size:22px;font-weight:700;color:#2D1E1A;text-align:center;">${d}</span>`).join('')}
       </div>
       <p style="color:#a8a29e;font-size:12px;margin:0;">
-        If you didn't create a Steadily account, you can safely ignore this email.
+        If you didn't create a Chelone account, you can safely ignore this email.
       </p>
     `);
 }
@@ -285,11 +285,11 @@ function welcomeEmailHtml({ name }: { name: string })
     return emailShell(`
       <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 6px;">Hi ${name},</p>
       <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 20px;">
-        Welcome to Steadily — glad to have you. Small actions, done daily, add up to big change.
+        Welcome to Chelone — glad to have you. Small actions, done daily, add up to big change.
       </p>
       <a href="${FRONTEND_URL}"
         style="display:inline-block;background:#C4601A;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-size:14px;font-weight:600;">
-        Open Steadily →
+        Open Chelone →
       </a>
     `);
 }
@@ -299,7 +299,7 @@ function passwordChangedEmailHtml({ name }: { name: string })
     return emailShell(`
       <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 6px;">Hi ${name},</p>
       <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 20px;">
-        Your Steadily password was just changed. If this was you, no action is needed.
+        Your Chelone password was just changed. If this was you, no action is needed.
       </p>
       <p style="color:#78716c;font-size:13px;margin:0;">
         If you didn't make this change, reset your password immediately and contact support.
@@ -312,7 +312,7 @@ function accountDeletedEmailHtml({ name }: { name: string })
     return emailShell(`
       <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 6px;">Hi ${name},</p>
       <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 20px;">
-        Your Steadily account and all associated data have been permanently deleted, as requested.
+        Your Chelone account and all associated data have been permanently deleted, as requested.
       </p>
       <p style="color:#78716c;font-size:13px;margin:0;">
         If you didn't request this, please contact support right away.

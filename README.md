@@ -1,6 +1,6 @@
-# Steadily
+# Chelone
 
-Steadily is a project-management and habit-tracking app built around a simple bet: most planning tools either track *everything* (and become a chore to maintain) or track *nothing real* (habit streaks with no consequence). Steadily sits in between — daily tasks, habits, and multi-person projects, all reasoned about the same way a real team would: who's allowed to change what, what happens when they don't agree, and what the actual trend line looks like once you stop guessing and start measuring.
+Chelone is a project-management and habit-tracking app built around a simple bet: most planning tools either track *everything* (and become a chore to maintain) or track *nothing real* (habit streaks with no consequence). Chelone sits in between — daily tasks, habits, and multi-person projects, all reasoned about the same way a real team would: who's allowed to change what, what happens when they don't agree, and what the actual trend line looks like once you stop guessing and start measuring.
 
 **Live app:** [steadily-mocha.vercel.app](https://steadily-mocha.vercel.app)
 **Backend:** Node.js/Express API on Render, PostgreSQL on Neon

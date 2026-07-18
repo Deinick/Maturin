@@ -29,7 +29,7 @@ export async function sendOverdueTaskReminders(today: string = new Date().toISOS
     {
         await sendEmail('overdue-reminder', {
             to: email,
-            subject: `You have ${tasks.length} unfinished task${tasks.length !== 1 ? 's' : ''} on Steadily`,
+            subject: `You have ${tasks.length} unfinished task${tasks.length !== 1 ? 's' : ''} on Chelone`,
             html: overdueReminderEmailHtml({ name, tasks: tasks.map(t => ({ text: t.text, dateAssigned: t.dateAssigned })) }),
         });
         sent++;

@@ -278,7 +278,7 @@ export async function downloadExport(): Promise<void>
     const url = URL.createObjectURL(new Blob([res.data], { type: 'application/json' }));
     const a   = document.createElement('a');
     a.href     = url;
-    a.download = `steadily-export-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `chelone-export-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
 }

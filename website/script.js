@@ -498,7 +498,7 @@ syncThemeToggleLabel();
 themeToggle.addEventListener('click', () => {
   const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
   document.documentElement.setAttribute('data-theme', next);
-  localStorage.setItem('steadily-theme', next);
+  localStorage.setItem('chelone-theme', next);
   syncThemeToggleLabel();
 });
 
@@ -566,7 +566,7 @@ document.querySelectorAll('.lens').forEach(el => {
   });
 });
 
-/* ---------- scroll color-wash: shifts through Steadily's terracotta/teal palette ---------- */
+/* ---------- scroll color-wash: shifts through Chelone's terracotta/teal palette ---------- */
 const colorLayer = document.getElementById('color-layer');
 function updateColorLayer() {
   const max = document.documentElement.scrollHeight - window.innerHeight;

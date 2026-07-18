@@ -9,7 +9,7 @@ interface Settings {
 }
 
 const DEFAULTS: Settings = { theme: 'system', weekStart: 'monday' };
-const KEY = 'steadily_settings';
+const KEY = 'chelone_settings';
 
 function load(): Settings {
     try {
