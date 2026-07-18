@@ -285,6 +285,8 @@ html.intro-lock #site-footer{visibility:hidden;}
 #features{overflow:hidden;padding-top:1.5rem;}
 #features-turtles{position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.5;}
 #features-turtles canvas{display:block;width:100%;height:100%;}
+#faq-shapes{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+#faq-shapes canvas{display:block;width:100%;height:100%;}
 .section-eyebrow{
   font-size:.75rem;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:.85rem;
 }

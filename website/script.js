@@ -116,6 +116,29 @@ setTimeout(() => {
   animateBlur(heroGlass, 0, 10, 1600);
 }, heroCopyShowAt + 450);
 
+/* ---------- shared shape vocabulary, reused by the FAQ flow and the button/card icons ---------- */
+const SHAPE_GEOMETRY = {
+  cuboid: () => new THREE.BoxGeometry(1.15, 1.3, 1.15),
+  sphere: () => new THREE.SphereGeometry(0.78, 28, 20),
+  cylinder: () => new THREE.CylinderGeometry(0.62, 0.62, 1.3, 28),
+  cone: () => new THREE.ConeGeometry(0.78, 1.35, 28),
+  pyramid: () => new THREE.ConeGeometry(0.85, 1.3, 4),
+  prism: () => new THREE.CylinderGeometry(0.8, 0.8, 1.3, 3),
+  octahedron: () => new THREE.OctahedronGeometry(0.88),
+  torus: () => new THREE.TorusGeometry(0.6, 0.26, 16, 32)
+};
+const SHAPE_COLOR = {
+  cuboid: 0x4C8077,
+  sphere: 0x63BAAB,
+  cylinder: 0x4C8077,
+  cone: 0xC4601A,
+  pyramid: 0xDF974F,
+  prism: 0x63BAAB,
+  octahedron: 0xC4601A,
+  torus: 0x4C8077
+};
+const SHAPE_NAMES = Object.keys(SHAPE_GEOMETRY);
+
 /* ---------- 3D: extrude the same SVG shapes ---------- */
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
@@ -304,6 +327,164 @@ if (featuresTurtlesEl) {
   requestAnimationFrame(animateFeatureTurtles);
 }
 
+/* ---------- FAQ: a stream of small 3D shapes pouring diagonally through the section, like grain
+   from a jar. Uses an orthographic camera mapped 1:1 to CSS pixels so mouse-relative physics need
+   no projection math — a particle's Three.js x/y *is* its on-screen pixel position. Each particle
+   tracks two things: a `flow` position that always advances along its own constant diagonal path
+   (this is the part that guarantees it "keeps going" no matter what), and a decaying `offset` layered
+   on top for the cursor-repulsion/neighbor-jostle effect — once nothing is pushing on it, offset
+   relaxes back to zero and the shape is back on its undisturbed line. ---------- */
+const faqShapesEl = document.getElementById('faq-shapes');
+if (faqShapesEl && window.THREE) {
+  const qScene = new THREE.Scene();
+  const qCamera = new THREE.OrthographicCamera(0, 1, 0, 1, -500, 500);
+  qCamera.position.z = 100;
+
+  const qRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+  qRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  faqShapesEl.appendChild(qRenderer.domElement);
+
+  qScene.add(new THREE.AmbientLight(0xffffff, 0.8));
+  const qKey = new THREE.DirectionalLight(0xffffff, 0.7);
+  qKey.position.set(4, 6, 8);
+  qScene.add(qKey);
+
+  const PARTICLE_COUNT = 55;
+  const FLOW_ANGLE = (48 * Math.PI) / 180; /* down-right heading, degrees from horizontal */
+  const REPEL_RADIUS = 90;
+  const NEIGHBOR_RADIUS = 34;
+
+  let qWidth = 0, qHeight = 0;
+  const particles = [];
+
+  function spawnParticle(p, randomizeAlongPath) {
+    /* seed anywhere along the diagonal for the initial fill, otherwise always re-enter top-left */
+    const along = randomizeAlongPath ? Math.random() : 0;
+    const spread = (Math.random() - 0.5) * 260;
+    p.flowX = -80 + along * (qWidth + 160) + spread * 0.3;
+    p.flowY = -80 + along * (qHeight + 160) * 0.4 + spread;
+    p.offsetX = 0;
+    p.offsetY = 0;
+  }
+
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const shapeName = SHAPE_NAMES[i % SHAPE_NAMES.length];
+    const size = 0.55 + Math.random() * 0.9;
+    const geo = SHAPE_GEOMETRY[shapeName]();
+    /* bias toward the teal tones — they read clearly against the FAQ section's terracotta/brown
+       background, unlike the terracotta shapes which would nearly disappear into it */
+    const useTeal = Math.random() < 0.72;
+    const color = useTeal ? (Math.random() < 0.5 ? 0x4C8077 : 0x63BAAB) : SHAPE_COLOR[shapeName];
+    const mat = new THREE.MeshStandardMaterial({
+      color, transparent: true, opacity: 0.16 + Math.random() * 0.1,
+      roughness: 0.45, metalness: 0.2, depthWrite: false
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.scale.setScalar(size * 13);
+    qScene.add(mesh);
+
+    const speed = 0.35 + Math.random() * 0.35;
+    const angleJitter = (Math.random() - 0.5) * 0.35;
+    const p = {
+      mesh,
+      vx: Math.cos(FLOW_ANGLE + angleJitter) * speed,
+      vy: Math.sin(FLOW_ANGLE + angleJitter) * speed,
+      rotSpeed: (Math.random() - 0.5) * 0.02,
+      rotAxisSeed: Math.random() * 10,
+      flowX: 0, flowY: 0, offsetX: 0, offsetY: 0
+    };
+    spawnParticle(p, true);
+    particles.push(p);
+  }
+
+  let qMouseX = -9999, qMouseY = -9999;
+  let qMouseActive = false;
+  const qFaqSection = document.getElementById('faq');
+  qFaqSection.addEventListener('mousemove', (e) => {
+    const rect = qFaqSection.getBoundingClientRect();
+    qMouseX = e.clientX - rect.left;
+    qMouseY = e.clientY - rect.top;
+    qMouseActive = true;
+  });
+  qFaqSection.addEventListener('mouseleave', () => { qMouseActive = false; });
+
+  function qResize() {
+    qWidth = faqShapesEl.clientWidth;
+    qHeight = faqShapesEl.clientHeight;
+    if (!qWidth || !qHeight) return;
+    qCamera.left = 0; qCamera.right = qWidth;
+    qCamera.top = qHeight; qCamera.bottom = 0;
+    qCamera.updateProjectionMatrix();
+    qRenderer.setSize(qWidth, qHeight);
+  }
+  window.addEventListener('resize', qResize);
+  qResize();
+
+  let qVisible = false;
+  const qObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => { qVisible = entry.isIntersecting; });
+  }, { threshold: 0.05 });
+  qObserver.observe(qFaqSection);
+
+  function animateFaqShapes() {
+    if (qVisible && qWidth && qHeight) {
+      /* neighbor separation: light O(n^2) pass, trivial at this particle count — only nudges
+         shapes that are already close, so it's invisible until the cursor crowds a cluster together */
+      for (let i = 0; i < particles.length; i++) {
+        const a = particles[i];
+        const ax = a.flowX + a.offsetX, ay = a.flowY + a.offsetY;
+        for (let j = i + 1; j < particles.length; j++) {
+          const b = particles[j];
+          const bx = b.flowX + b.offsetX, by = b.flowY + b.offsetY;
+          const dx = ax - bx, dy = ay - by;
+          const dist = Math.hypot(dx, dy) || 0.001;
+          if (dist < NEIGHBOR_RADIUS) {
+            const push = ((NEIGHBOR_RADIUS - dist) / NEIGHBOR_RADIUS) * 0.6;
+            const nx = dx / dist, ny = dy / dist;
+            a.offsetX += nx * push; a.offsetY += ny * push;
+            b.offsetX -= nx * push; b.offsetY -= ny * push;
+          }
+        }
+      }
+
+      particles.forEach(p => {
+        /* the undisturbed path always advances, regardless of any interaction below */
+        p.flowX += p.vx;
+        p.flowY += p.vy;
+
+        if (qMouseActive) {
+          const dx = (p.flowX + p.offsetX) - qMouseX;
+          const dy = (p.flowY + p.offsetY) - qMouseY;
+          const dist = Math.hypot(dx, dy) || 0.001;
+          if (dist < REPEL_RADIUS) {
+            const push = ((REPEL_RADIUS - dist) / REPEL_RADIUS) * 5.5;
+            p.offsetX += (dx / dist) * push;
+            p.offsetY += (dy / dist) * push;
+          }
+        }
+
+        /* relax back toward the undisturbed path once nothing is pushing */
+        p.offsetX *= 0.9;
+        p.offsetY *= 0.9;
+
+        if (p.flowX - p.offsetX > qWidth + 120 || p.flowY - p.offsetY > qHeight + 120) {
+          spawnParticle(p, false);
+        }
+
+        const renderX = p.flowX + p.offsetX;
+        const renderY = p.flowY + p.offsetY;
+        p.mesh.position.set(renderX, qHeight - renderY, 0);
+        p.mesh.rotation.x += p.rotSpeed;
+        p.mesh.rotation.y += p.rotSpeed * 1.3;
+      });
+
+      qRenderer.render(qScene, qCamera);
+    }
+    requestAnimationFrame(animateFaqShapes);
+  }
+  requestAnimationFrame(animateFaqShapes);
+}
+
 /* ---------- theme toggle: sun sets below the button, moon rises on the left (and vice versa) ---------- */
 const themeToggle = document.getElementById('theme-toggle');
 
@@ -404,27 +585,6 @@ updateColorLayer();
    Rendering is paused (not disposed) for icons currently off-screen, via IntersectionObserver. */
 const iconEls = Array.from(document.querySelectorAll('.shape3d[data-shape]'));
 if (iconEls.length && window.THREE) {
-  const SHAPE_GEOMETRY = {
-    cuboid: () => new THREE.BoxGeometry(1.15, 1.3, 1.15),
-    sphere: () => new THREE.SphereGeometry(0.78, 28, 20),
-    cylinder: () => new THREE.CylinderGeometry(0.62, 0.62, 1.3, 28),
-    cone: () => new THREE.ConeGeometry(0.78, 1.35, 28),
-    pyramid: () => new THREE.ConeGeometry(0.85, 1.3, 4),
-    prism: () => new THREE.CylinderGeometry(0.8, 0.8, 1.3, 3),
-    octahedron: () => new THREE.OctahedronGeometry(0.88),
-    torus: () => new THREE.TorusGeometry(0.6, 0.26, 16, 32)
-  };
-  const SHAPE_COLOR = {
-    cuboid: 0x4C8077,
-    sphere: 0x63BAAB,
-    cylinder: 0x4C8077,
-    cone: 0xC4601A,
-    pyramid: 0xDF974F,
-    prism: 0x63BAAB,
-    octahedron: 0xC4601A,
-    torus: 0x4C8077
-  };
-
   const iconObserver = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
       if (entry.target._iconRec) entry.target._iconRec.visible = entry.isIntersecting;
