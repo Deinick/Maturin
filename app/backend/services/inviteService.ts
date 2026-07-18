@@ -55,7 +55,7 @@ export async function createInvite(projectId:string,createdBy:string,invitedEmai
 
     await sendEmail('invite', {
         to: invitedEmail,
-        subject: `${creator.name} invited you to "${project.title}" on Chelone`,
+        subject: `${creator.name} invited you to "${project.title}" on Maturin`,
         html: emailHtml({ inviterName: creator.name, projectTitle: project.title, role, inviteUrl }),
     });
 

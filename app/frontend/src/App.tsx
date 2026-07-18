@@ -117,7 +117,7 @@ function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => 
                             className="text-xl tracking-tight select-none"
                             style={{ color: 'var(--c-sidebar-brand)' }}
                         >
-                            𝘾𝙝𝙚𝙡𝙤𝙣𝙚
+                            𝙈𝙖𝙩𝙪𝙧𝙞𝙣
                         </span>
                     )}
                 </div>

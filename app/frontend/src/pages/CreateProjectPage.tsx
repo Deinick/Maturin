@@ -378,7 +378,7 @@ export default function CreateProjectPage() {
         if (rs && rt) edgeList.push({ source: rs, target: rt });
       }
       if (Object.keys(posMap).length > 0) {
-        localStorage.setItem(`chelone-canvas-${project.id}`, JSON.stringify({ positions: posMap, edges: edgeList }));
+        localStorage.setItem(`maturin-canvas-${project.id}`, JSON.stringify({ positions: posMap, edges: edgeList }));
       }
 
       navigate(`/projects/${project.id}`);
@@ -574,7 +574,7 @@ export default function CreateProjectPage() {
       {/* Top nav */}
       <header className="shrink-0 h-14 bg-white border-b border-[#E0CFC4] flex items-center justify-between px-6 z-10">
         <div className="flex items-center gap-6">
-          <span className="font-bold text-[#2D1E1A] text-sm">Chelone</span>
+          <span className="font-bold text-[#2D1E1A] text-sm">Maturin</span>
           <nav className="flex items-center gap-5 text-sm">
             <button onClick={() => setStep(1)} className="text-[#8A7265] hover:text-[#54433A] transition-colors">
               Project Info

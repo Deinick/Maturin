@@ -223,17 +223,17 @@ export default function AccountPage({ onLogout }: { onLogout: () => void }) {
                     <SupportRow
                         label="Send feedback"
                         icon={Send}
-                        href={`mailto:${user?.email ? 'nikolaydeinego@gmail.com' : 'nikolaydeinego@gmail.com'}?subject=Chelone feedback`}
+                        href={`mailto:${user?.email ? 'nikolaydeinego@gmail.com' : 'nikolaydeinego@gmail.com'}?subject=Maturin feedback`}
                     />
                     <SupportRow
                         label="Report a bug"
                         icon={MessageSquareWarning}
-                        href="mailto:nikolaydeinego@gmail.com?subject=Chelone bug report"
+                        href="mailto:nikolaydeinego@gmail.com?subject=Maturin bug report"
                     />
                     <div className="flex items-center justify-between px-6 py-3.5">
                         <span className="text-sm text-[#54433A] flex items-center gap-3">
                             <RadioTower className="w-4 h-4 shrink-0" animateOnHover="default" />
-                            About 𝘾𝙝𝙚𝙡𝙤𝙣𝙚
+                            About 𝙈𝙖𝙩𝙪𝙧𝙞𝙣
                         </span>
                         <span className="text-xs text-[#8A7265]">v1.0</span>
                     </div>

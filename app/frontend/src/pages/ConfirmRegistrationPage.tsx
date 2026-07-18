@@ -106,7 +106,7 @@ export default function ConfirmRegistrationPage()
             <div className="w-full max-w-sm">
 
                 <div className="text-center mb-8">
-                    <p className="text-3xl font-bold text-[#2D1E1A] tracking-tight">Chelone</p>
+                    <p className="text-3xl font-bold text-[#2D1E1A] tracking-tight">Maturin</p>
                     <p className="text-sm text-[#8A7265] mt-1">Slow &amp; Consistent</p>
                 </div>
 
@@ -174,7 +174,7 @@ export default function ConfirmRegistrationPage()
 
                 <p className="text-center text-sm text-[#8A7265] mt-6">
                     <Link to={token ? next : '/login'} className="text-[#4C8077] hover:text-[#16342d] font-medium transition-colors">
-                        {token ? 'Go to Chelone' : 'Back to sign in'}
+                        {token ? 'Go to Maturin' : 'Back to sign in'}
                     </Link>
                 </p>
             </div>

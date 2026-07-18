@@ -72,7 +72,7 @@ function getBlockingPhaseNames(ph: Phase, phases: Phase[]): string[] {
 
 function getCanvasEdges(projectId: string, phases: Phase[]): { source: string; target: string }[] {
   try {
-    const stored = JSON.parse(localStorage.getItem(`chelone-canvas-${projectId}`) ?? 'null');
+    const stored = JSON.parse(localStorage.getItem(`maturin-canvas-${projectId}`) ?? 'null');
     if (stored?.edges?.length > 0) return stored.edges;
   } catch { /* ignore */ }
   return phases.flatMap(ph => (ph.dependencies ?? []).map(dep => ({ source: dep.dependsOnId, target: ph.id })));
@@ -1590,7 +1590,7 @@ function OverviewPhaseCanvas({ phases, today, preview = false, projectId = '', o
 }) {
   const readStored = useCallback((): { positions?: Record<string, { x: number; y: number }>; edges?: { source: string; target: string }[] } | null => {
     if (!projectId) return null;
-    try { return JSON.parse(localStorage.getItem(`chelone-canvas-${projectId}`) ?? 'null'); } catch { return null; }
+    try { return JSON.parse(localStorage.getItem(`maturin-canvas-${projectId}`) ?? 'null'); } catch { return null; }
   }, [projectId]);
 
   const buildNodes = useCallback((): ONode[] => {

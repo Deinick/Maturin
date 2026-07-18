@@ -374,7 +374,7 @@ export default function EditProjectPage() {
       originalPhasesRef.current = sorted;
 
       // Restore saved canvas layout from localStorage (positions + edges)
-      const storageKey = `chelone-canvas-${id}`;
+      const storageKey = `maturin-canvas-${id}`;
       let stored: { positions?: Record<string, { x: number; y: number }>; edges?: { source: string; target: string }[] } | null = null;
       try { stored = JSON.parse(localStorage.getItem(storageKey) ?? 'null'); } catch { /* ignore */ }
 
@@ -645,7 +645,7 @@ export default function EditProjectPage() {
         source: realIdMap.get(e.source) ?? e.source,
         target: realIdMap.get(e.target) ?? e.target,
       }));
-      localStorage.setItem(`chelone-canvas-${id}`, JSON.stringify({ positions: posMap, edges: edgeList }));
+      localStorage.setItem(`maturin-canvas-${id}`, JSON.stringify({ positions: posMap, edges: edgeList }));
 
       navigate(`/projects/${id}`);
     } catch (err) {
@@ -662,7 +662,7 @@ export default function EditProjectPage() {
     setDeleting(true);
     try {
       await deleteProject(id!);
-      localStorage.removeItem(`chelone-canvas-${id}`);
+      localStorage.removeItem(`maturin-canvas-${id}`);
       navigate('/projects');
     } catch {
       setDeleting(false);
@@ -946,7 +946,7 @@ export default function EditProjectPage() {
       {/* Top nav */}
       <header className="shrink-0 h-14 bg-white border-b border-[#E0CFC4] flex items-center justify-between px-6 z-10">
         <div className="flex items-center gap-6">
-          <span className="font-bold text-[#2D1E1A] text-sm">Chelone</span>
+          <span className="font-bold text-[#2D1E1A] text-sm">Maturin</span>
           <nav className="flex items-center gap-5 text-sm">
             <button onClick={() => setStep(1)} className="text-[#8A7265] hover:text-[#54433A] transition-colors flex items-center gap-1.5">
               Project Info

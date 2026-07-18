@@ -9,7 +9,7 @@ interface Settings {
 }
 
 const DEFAULTS: Settings = { theme: 'system', weekStart: 'monday' };
-const KEY = 'chelone_settings';
+const KEY = 'maturin_settings';
 
 function load(): Settings {
     try {
